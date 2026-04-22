@@ -531,3 +531,97 @@ class TestSchemaResources:
         data = json.loads(text)
         assert data["count"] == 1
         assert "Sensor" in data["types"]
+
+
+# ── v0.2 additions ────────────────────────────────────────────────────────────
+
+class TestV02Features:
+    def test_duration_mo_in_add_node(self):
+        """CalDuration 'mo' works in decay_duration."""
+        result = kndl_add_node("n", "T", decay_rate=0.9, decay_duration="1mo")
+        assert result["status"] == "ok"
+        assert result["node"]["meta"]["decay_duration_seconds"] == pytest.approx(2592000.0)
+
+    def test_duration_y_in_add_node(self):
+        """CalDuration 'y' works in decay_duration."""
+        result = kndl_add_node("n", "T", decay_rate=0.5, decay_duration="1y")
+        assert result["node"]["meta"]["decay_duration_seconds"] == pytest.approx(31536000.0)
+
+    def test_duration_ns_in_add_node(self):
+        """Duration 'ns' works in decay_duration."""
+        result = kndl_add_node("n", "T", decay_rate=0.99, decay_duration="500ns")
+        assert result["node"]["meta"]["decay_duration_seconds"] == pytest.approx(5e-7)
+
+    def test_add_node_v02_meta_recorded(self):
+        """recorded meta field is stored and returned."""
+        result = kndl_add_node("n", "T", recorded="2026-04-23T10:00Z")
+        assert result["status"] == "ok"
+        assert result["node"]["meta"]["recorded"] == "2026-04-23T10:00Z"
+
+    def test_add_node_v02_meta_negated(self):
+        """negated meta field is stored and returned."""
+        result = kndl_add_node("n", "T", negated=True)
+        assert result["node"]["meta"]["negated"] is True
+
+    def test_add_node_v02_meta_classification(self):
+        """classification meta field is stored and returned."""
+        result = kndl_add_node("n", "T", classification="confidential")
+        assert result["node"]["meta"]["classification"] == "confidential"
+
+    def test_add_node_v02_meta_uncertainty(self):
+        """uncertainty meta field is stored and returned."""
+        u = {"_type": "gaussian", "mean": 0.5, "std": 0.1}
+        result = kndl_add_node("n", "T", uncertainty=u)
+        assert result["node"]["meta"]["uncertainty"]["_type"] == "gaussian"
+
+    def test_add_edge_undirected_direction(self):
+        """kndl_add_edge supports direction='undirected'."""
+        kndl_add_node("a", "T")
+        kndl_add_node("b", "T")
+        result = kndl_add_edge("a", "b", edge_type="peer", direction="undirected")
+        assert result["status"] == "ok"
+        assert result["edge"]["direction"] == "undirected"
+
+    def test_add_edge_bidirectional_direction(self):
+        """kndl_add_edge supports direction='bidirectional'."""
+        kndl_add_node("a", "T")
+        kndl_add_node("b", "T")
+        result = kndl_add_edge("a", "b", direction="bidirectional")
+        assert result["edge"]["direction"] == "bidirectional"
+
+    def test_parse_process_propagates_to_graph(self):
+        """kndl_parse imports process declarations into the graph."""
+        result = kndl_parse("""
+process @order :: OrderProcess {
+  state PENDING {}
+  state DONE {}
+  on complete in PENDING -> DONE
+}
+""")
+        assert result["status"] == "ok"
+        from kndl_mcp.server import _get_graph
+        g = _get_graph()
+        assert "order" in g.processes
+
+    def test_merge_process_propagates(self):
+        """kndl_merge_graphs imports process declarations."""
+        result = kndl_merge_graphs("""
+process @flow :: MyFlow {
+  state A {}
+  state B {}
+  on go in A -> B
+}
+""")
+        assert result["status"] == "ok"
+        from kndl_mcp.server import _get_graph
+        assert "flow" in _get_graph().processes
+
+    def test_graph_stats_includes_process_count(self):
+        """kndl_graph_stats reports process_count."""
+        stats = kndl_graph_stats()
+        assert "process_count" in stats["stats"]
+
+    def test_serialize_stats_includes_process_count(self):
+        """kndl_serialize stats include process_count."""
+        result = kndl_serialize()
+        assert "process_count" in result["stats"]

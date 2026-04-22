@@ -87,6 +87,7 @@ def kndl_parse(source: str) -> dict[str, Any]:
         for intent in new_graph.intents.values():
             g.add_intent(intent)
         g.types.update(new_graph.types)
+        g.processes.update(new_graph.processes)
         return {"status": "ok", "graph": g.to_dict()}
     except (kndl.ParseError, kndl.LexerError) as e:
         return {"status": "error", "message": str(e)}
@@ -104,6 +105,14 @@ def kndl_add_node(
     decay_rate: float | None = None,
     decay_duration: str | None = None,
     tags: list[str] | None = None,
+    # v0.2 meta fields
+    recorded: str | None = None,
+    observed: str | None = None,
+    negated: bool = False,
+    deadline: str | None = None,
+    classification: str | None = None,
+    retention: str | None = None,
+    uncertainty: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Add a node to the knowledge graph.
@@ -117,8 +126,15 @@ def kndl_add_node(
         valid_start: Temporal validity start (ISO datetime)
         valid_end: Temporal validity end (ISO datetime or omit for open-ended)
         decay_rate: Confidence decay rate (e.g. 0.95)
-        decay_duration: Duration per decay period (e.g. "1h", "30m")
+        decay_duration: Duration per decay period (e.g. "1h", "30m", "1mo")
         tags: Free-form labels
+        recorded: ISO datetime when fact was recorded (v0.2)
+        observed: ISO datetime when fact was observed (v0.2)
+        negated: Whether this fact is a negation (v0.2)
+        deadline: ISO datetime deadline (v0.2)
+        classification: Security classification label (v0.2)
+        retention: Retention policy string (v0.2)
+        uncertainty: Structured uncertainty model, e.g. {"_type": "gaussian", "mean": 0.5, "std": 0.1} (v0.2 §9)
     """
     meta = KNDLMeta(
         confidence=confidence,
@@ -128,6 +144,13 @@ def kndl_add_node(
         decay_rate=decay_rate,
         decay_duration_seconds=_duration_to_seconds(decay_duration) if decay_duration else None,
         tags=tags or [],
+        recorded=recorded,
+        observed=observed,
+        negated=negated,
+        deadline=deadline,
+        classification=classification,
+        retention=retention,
+        uncertainty=uncertainty,
     )
     node = GraphNode(id=node_id, type_name=type_name, fields=fields or {}, meta=meta)
     _get_graph().add_node(node)
@@ -139,17 +162,20 @@ def kndl_add_edge(
     source_id: str,
     target_id: str,
     edge_type: str = "relates_to",
+    direction: str = "forward",
     confidence: float = 1.0,
     source_uri: str = "",
     fields: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
-    Add a directed edge between two nodes.
+    Add an edge between two nodes.
 
     Args:
         source_id: ID of source node
         target_id: ID of target node
         edge_type: Semantic relationship (e.g. "located_in", "caused_by")
+        direction: Edge direction — "forward" (-[T]->), "bidirectional" (<-[T]->),
+                   "reverse" (<-[T]-), or "undirected" (-[T]-) (v0.2)
         confidence: Certainty 0.0–1.0
         source_uri: URI of asserting entity
         fields: Additional data on the edge
@@ -159,6 +185,7 @@ def kndl_add_edge(
         source_id=source_id,
         target_id=target_id,
         edge_type=edge_type,
+        direction=direction,
         fields=fields or {},
         meta=meta,
     )
@@ -281,6 +308,7 @@ def kndl_serialize() -> dict[str, Any]:
             "edge_count": len(g.edges),
             "intent_count": len(g.intents),
             "type_count": len(g.types),
+            "process_count": len(g.processes),
         },
     }
 
@@ -302,6 +330,7 @@ def kndl_graph_stats() -> dict[str, Any]:
             "edge_count": len(g.edges),
             "intent_count": len(g.intents),
             "type_count": len(g.types),
+            "process_count": len(g.processes),
             "type_distribution": type_counts,
             "average_confidence": round(avg, 4),
         },
@@ -381,6 +410,7 @@ def kndl_merge_graphs(source: str) -> dict[str, Any]:
         for intent in new_graph.intents.values():
             g.add_intent(intent)
         g.types.update(new_graph.types)
+        g.processes.update(new_graph.processes)
 
         return {
             "status": "ok",

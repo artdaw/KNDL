@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import re
 
-_DURATION_RE = re.compile(r"^(\d+(?:\.\d+)?)(ms|s|m|h|d|w)$")
+_DURATION_RE = re.compile(r"^(\d+(?:\.\d+)?)(ns|us|mo|ms|s|m|h|d|w|y)$")
 _DURATION_MULT: dict[str, float] = {
-    "ms": 0.001, "s": 1.0, "m": 60.0, "h": 3600.0, "d": 86400.0, "w": 604800.0,
+    "ns": 1e-9, "us": 1e-6, "ms": 0.001,
+    "s": 1.0, "m": 60.0, "h": 3600.0, "d": 86400.0, "w": 604800.0,
+    "mo": 2592000.0, "y": 31536000.0,
 }
 
 
