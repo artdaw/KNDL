@@ -24,3 +24,18 @@ jobs:
         run: cd packages/python && uv run ruff check src tests && uv run mypy src
       - name: Test
         run: cd packages/python && uv run pytest -v --tb=short
+
+  mcp-server:
+    name: MCP server
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+      - name: Install dependencies
+        run: cd packages/mcp-server && uv sync --all-extras
+      - name: Lint
+        run: cd packages/mcp-server && uv run ruff check src tests && uv run mypy src
+      - name: Test
+        run: cd packages/mcp-server && uv run pytest -v --tb=short
