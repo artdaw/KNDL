@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+.pytest_cache/
+*.pyo
+.mypy_cache/
+.ruff_cache/
+
+# Kotlin / Gradle
+.gradle/
+build/
+*.class
+*.jar
+local.properties
+.kotlin/
+
+# Node / Website
+node_modules/
+.astro/
+dist/
+.env
+.env.local
+*.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Local
+kndl.db
