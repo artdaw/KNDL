@@ -5,9 +5,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from kndl import parse, compile, serialize, tokenize, ParseError
-from kndl.lexer import TokenType
-from kndl.ast_nodes import TypeExpr, EdgePattern
+from kndl import parse, compile, serialize
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -273,7 +271,6 @@ class TestNamedStructLiteral:
 class TestGotoAction:
     def test_goto_parses(self):
         """goto STATE_NAME parses as EmitAction with action_type='goto'."""
-        from kndl.ast_nodes import EmitAction
         src = """process @order :: OrderProcess {
           state PENDING {}
           state APPROVED {}

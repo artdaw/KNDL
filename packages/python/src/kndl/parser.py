@@ -11,6 +11,18 @@ from typing import Optional
 
 from .lexer import Lexer, Token, TokenType
 
+from .ast_nodes import (
+    ASTNode, Program, NodeDecl, EdgeDecl, TypeDecl, ContextDecl,
+    IntentDecl, QueryDecl, ImportDecl, ExportDecl,
+    NodeRef, VarBind, Literal, FieldAssignment, InlineEdge,
+    MetaAnnotation, FieldDecl, TypeExpr, ConstraintExpr,
+    MatchClause, EdgePattern, ReturnClause, AggField,
+    TriggerClause, EmitAction,
+    BinaryOp, UnaryOp, FuncCall, FieldAccess, IndexAccess,
+    ArrayLiteral, MapLiteral, RangeExpr, DecayExpr,
+    StateDecl, TransitionDecl, ProcessDecl,
+)
+
 # Unit atoms from the spec §2.8.9.  Used to recognise quantity literals.
 _UNIT_ATOMS: frozenset[str] = frozenset({
     "°C", "°F", "K",
@@ -24,17 +36,6 @@ _UNIT_ATOMS: frozenset[str] = frozenset({
     "B", "KB", "MB", "GB", "TB",
     "bps", "kbps", "Mbps", "Gbps",
 })
-from .ast_nodes import (
-    ASTNode, Program, NodeDecl, EdgeDecl, TypeDecl, ContextDecl,
-    IntentDecl, QueryDecl, ImportDecl, ExportDecl,
-    NodeRef, VarBind, Literal, FieldAssignment, InlineEdge,
-    MetaAnnotation, FieldDecl, TypeExpr, ConstraintExpr,
-    MatchClause, EdgePattern, ReturnClause, AggField,
-    TriggerClause, EmitAction,
-    BinaryOp, UnaryOp, FuncCall, FieldAccess, IndexAccess,
-    ArrayLiteral, MapLiteral, RangeExpr, DecayExpr,
-    StateDecl, TransitionDecl, ProcessDecl,
-)
 
 
 class ParseError(Exception):
@@ -892,12 +893,12 @@ class Parser:
 
         if tok.type == TokenType.FLOAT:
             self._advance()
-            mag = float(tok.value)
+            fmag = float(tok.value)
             unit = self._try_quantity_unit()
             if unit:
-                return Literal(value={"magnitude": mag, "unit": unit},
+                return Literal(value={"magnitude": fmag, "unit": unit},
                                kind="quantity", line=tok.line, col=tok.col)
-            return Literal(value=mag, kind="float", line=tok.line, col=tok.col)
+            return Literal(value=fmag, kind="float", line=tok.line, col=tok.col)
 
         # v0.2: decimal literal (float with 'd' suffix)
         if tok.type == TokenType.DECIMAL:

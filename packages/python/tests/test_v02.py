@@ -5,9 +5,9 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from kndl import parse, compile, serialize, tokenize, ParseError
+from kndl import parse, compile, serialize, tokenize
 from kndl.lexer import TokenType
-from kndl.graph import KNDLGraph, KNDLMeta
+from kndl.graph import KNDLMeta
 
 
 # ─────────────────────────────────────────────
@@ -384,35 +384,35 @@ class TestSerializerV02:
         meta = KNDLMeta(negated=True)
         from kndl.serializer import _serialize_meta
         lines = _serialize_meta(meta)
-        assert any("~negated" in l and "true" in l for l in lines)
+        assert any("~negated" in ln and "true" in ln for ln in lines)
 
     def test_serialize_recorded_meta(self):
         """Recorded meta serializes to ~recorded."""
         meta = KNDLMeta(recorded="2026-04-22T10:00Z")
         from kndl.serializer import _serialize_meta
         lines = _serialize_meta(meta)
-        assert any("~recorded" in l for l in lines)
+        assert any("~recorded" in ln for ln in lines)
 
     def test_serialize_observed_meta(self):
         """Observed meta serializes to ~observed."""
         meta = KNDLMeta(observed="2026-04-22T09:00Z")
         from kndl.serializer import _serialize_meta
         lines = _serialize_meta(meta)
-        assert any("~observed" in l for l in lines)
+        assert any("~observed" in ln for ln in lines)
 
     def test_serialize_deadline_meta(self):
         """Deadline meta serializes to ~deadline."""
         meta = KNDLMeta(deadline="2026-05-01")
         from kndl.serializer import _serialize_meta
         lines = _serialize_meta(meta)
-        assert any("~deadline" in l for l in lines)
+        assert any("~deadline" in ln for ln in lines)
 
     def test_serialize_classification_meta(self):
         """Classification meta serializes to ~classification."""
         meta = KNDLMeta(classification="confidential")
         from kndl.serializer import _serialize_meta
         lines = _serialize_meta(meta)
-        assert any("~classification" in l for l in lines)
+        assert any("~classification" in ln for ln in lines)
 
     def test_roundtrip_with_v02_meta(self):
         """Node with v0.2 meta survives a parse → compile → serialize roundtrip."""
@@ -438,7 +438,7 @@ node @sensor_a :: Reading {
         meta = KNDLMeta(negated=False)
         from kndl.serializer import _serialize_meta
         lines = _serialize_meta(meta)
-        assert not any("~negated" in l for l in lines)
+        assert not any("~negated" in ln for ln in lines)
 
     def test_serialize_v02_meta_to_dict_roundtrip(self):
         """v0.2 meta fields survive to_dict / from_dict roundtrip."""

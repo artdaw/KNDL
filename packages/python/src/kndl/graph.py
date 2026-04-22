@@ -42,7 +42,7 @@ class KNDLMeta:
     deadline: Optional[str] = None
     classification: Optional[str] = None
     retention: Optional[str] = None
-    uncertainty: Optional[dict] = None  # §9: gaussian/interval/categorical/histogram
+    uncertainty: Optional[dict[str, Any]] = None  # §9: gaussian/interval/categorical/histogram
 
     def effective_confidence(self, at_time: Optional[datetime] = None) -> float:
         """
