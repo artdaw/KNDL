@@ -2,6 +2,9 @@
 
 Give your AI agent a memory it can reason over.
 
+[![CI](https://github.com/artdaw/KNDL/actions/workflows/kndl-workflow.yml/badge.svg)](https://github.com/artdaw/KNDL/actions/workflows/kndl-workflow.yml)
+[![CodeQL](https://github.com/artdaw/KNDL/actions/workflows/codeql.yml/badge.svg)](https://github.com/artdaw/KNDL/actions/workflows/codeql.yml)
+
 KNDL is a small language for describing knowledge as a graph. Each fact is a **node** with typed fields. Relationships between facts are **edges**. Every piece of data carries a **confidence score** and can expire or decay over time — so your agent always knows how much to trust what it knows:
 
 - `~confidence` — every fact carries a 0.0–1.0 certainty score. Agents reason probabilistically instead of treating everything as equally true.

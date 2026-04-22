@@ -23,6 +23,8 @@ Examples:
 - `fix(decay): correct time-based degradation formula`
 - `docs: update KNDL spec with edge weight examples`
 
+NEVER USE Co-Authored-By in the commit messages!
+
 ## Planned Tech Stack
 
 The `.gitignore` indicates three potential implementation targets:
