@@ -1,5 +1,6 @@
 .PHONY: help \
         py-install py-test py-test-cov py-lint py-build \
+		mcp-install mcp-run mcp-run-http mcp-test \
         install build test lint clean
 
 # ── Default: list targets ─────────────────────────────────────────────────────
@@ -23,14 +24,31 @@ py-lint: ## Lint Python (ruff + mypy)
 py-build: ## Build Python wheel
 	cd packages/python && uv build
 
+# ── MCP server ────────────────────────────────────────────────────────────────
+mcp-install: ## Install MCP server deps
+	cd packages/mcp-server && uv sync --all-extras
+
+mcp-run: ## Start MCP server (stdio)
+	cd packages/mcp-server && uv run python -m kndl_mcp
+
+mcp-run-http: ## Start MCP server (HTTP, port 8000)
+	cd packages/mcp-server && uv run python -m kndl_mcp --http
+
+mcp-lint: ## Lint MCP (ruff + mypy)
+	cd packages/mcp-server && uv run ruff check src tests && uv run mypy src
+
+mcp-test: ## Run MCP integration tests
+	cd packages/mcp-server && uv run pytest -v
+
 # ── Aggregates ────────────────────────────────────────────────────────────────
-install: py-install ## Install all packages
+install: py-install mcp-install ## Install all packages
 
 build: py-build ## Build all packages
 
-test: py-test ## Run all test suites
+test: py-test mcp-test ## Run all test suites
 
-lint: py-lint ## Run all linters
+lint: py-lint mcp-lint ## Run all linters
 
 clean: ## Remove build artifacts and venvs
 	cd packages/python     && rm -rf dist .venv
+	cd packages/mcp-server && rm -rf dist .venv
