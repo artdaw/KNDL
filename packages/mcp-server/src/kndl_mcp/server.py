@@ -545,7 +545,10 @@ Provide a structured analysis with recommendations."""
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def main() -> None:
-    transport = "streamable-http" if "--http" in sys.argv else "stdio"
+    from typing import Literal
+    transport: Literal["stdio", "streamable-http"] = (
+        "streamable-http" if "--http" in sys.argv else "stdio"
+    )
     mcp.run(transport=transport)
 
 
