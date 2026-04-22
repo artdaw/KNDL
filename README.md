@@ -9,4 +9,3 @@ KNDL is a small language for describing knowledge as a graph. Each fact is a **n
 - `~source` + `~derived` — provenance is baked in, not bolted on. You can trace any assertion back to its origin and compute trust transitively across the graph.
 - `intent blocks` — no other data format tells agents what to do. KNDL includes trigger-action patterns natively, so knowledge and behavior live together.
 - Graph-native edges — relationships are first-class with types and weights, not nested object references that lose meaning.
-
