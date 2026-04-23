@@ -1,0 +1,39 @@
+{
+  "name": "kndl-website",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui"
+  },
+  "dependencies": {
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
+    "react-router": "7.14.0"
+  },
+  "devDependencies": {
+    "@rolldown/binding-darwin-arm64": "1.0.0-rc.15",
+    "@testing-library/jest-dom": "^6.4.6",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.1",
+    "@vitest/ui": "4.1.4",
+    "jsdom": "^26.1.0",
+    "typescript": "6.0.2",
+    "vite": "8.0.8",
+    "vitest": "4.1.4"
+  },
+  "author": {
+    "name": "Gleb",
+    "email": "me@artdaw.com",
+    "url": "https://artdaw.com/"
+  },
+  "license": "MIT"
+}
