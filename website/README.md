@@ -1,13 +1,13 @@
 # KNDL Website
 
-Vite + React 18 + TypeScript site for the KNDL project.
+Vite + React 19 + TypeScript documentation site for the KNDL project.
 
 ## Routes
 
 | Path | Page | Description |
 |------|------|-------------|
-| `/` | LandingPage | Hero, feature highlights, quick-start snippet |
-| `/spec` | SpecPage | Interactive playground + condensed language reference |
+| `/` | LandingPage | Hero, v0.2 feature highlights, quick-start snippet |
+| `/spec` | SpecPage | Language reference with 8-domain tabbed examples + live playground |
 | `/spec/full` | SpecFullPage | Full rendered SPECIFICATION.md |
 | `/workflow` | WorkflowPage | 6-stage agent pipeline animation |
 | `/explorer` | ExplorerPage | Force-directed graph explorer (pan/zoom/drag, detail panel) |
@@ -17,12 +17,12 @@ Vite + React 18 + TypeScript site for the KNDL project.
 
 | Tool | Version |
 |------|---------|
-| React | 18.3.1 |
-| React Router | 6.24.1 |
-| TypeScript | 5.5.3 |
-| Vite | 5.3.4 |
-| Vitest | 2.0.4 |
-| Testing Library | 16.0.0 |
+| React | 19.2.5 |
+| React Router | 7.14.0 |
+| TypeScript | 6.0.2 |
+| Vite | 8.0.8 |
+| Vitest | 4.1.4 |
+| Testing Library | 16.x |
 
 ## Prerequisites
 
@@ -65,8 +65,8 @@ src/
 ├── hooks/
 │   └── useForceLayout.ts      # RAF-driven spring-force graph layout (stops at 220 frames)
 ├── pages/
-│   ├── LandingPage.tsx
-│   ├── SpecPage.tsx
+│   ├── LandingPage.tsx        # v0.2 spec, feature grid, CTA row
+│   ├── SpecPage.tsx           # 8-domain tabs, v0.2 meta table, parameterised types, playground
 │   ├── SpecFullPage.tsx
 │   ├── WorkflowPage.tsx
 │   ├── ExplorerPage.tsx       # SVG canvas, force layout, detail panel
@@ -83,4 +83,5 @@ src/
 - **`kndlParser.ts`** — lightweight regex parser; not the full Python implementation. Exports `parseKNDL(src)`, `typeColor(typeName)`, `TYPE_COLORS`.
 - **`useForceLayout.ts`** — spring simulation over `requestAnimationFrame`; preserves node positions across re-renders; terminates after `MAX_ITER = 220` frames.
 - **`ExplorerPage.tsx`** — uses `ResizeObserver` to fill available height; SVG viewport supports pan/zoom via pointer events and drag per-node.
+- **`SpecPage.tsx`** — domain profile tabs (IoT, FinTech, eCommerce, Logistics, Medicine, Robotics, Smart Factory, Networking) driven by a `DOMAINS` constant; tab state in local `useState`.
 - **`setupTests.ts`** — stubs `requestAnimationFrame`, `cancelAnimationFrame`, and `ResizeObserver` for jsdom compatibility.
