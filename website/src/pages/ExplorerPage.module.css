@@ -1,0 +1,396 @@
+.page {
+  height: calc(100vh - 56px);
+  display: flex;
+  flex-direction: column;
+  background: #0b0f1a;
+  color: #c9d1e0;
+  font-family: var(--font-mono);
+  overflow: hidden;
+}
+
+/* ── Toolbar ──────────────────────────────────────────────────────────────── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 24px;
+  border-bottom: 1px solid #1e2533;
+  background: #0d1120;
+  flex-shrink: 0;
+  gap: 16px;
+}
+
+.toolbarTitle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.toolbarName {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #5a6275;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.sep {
+  width: 1px;
+  height: 20px;
+  background: #1e2533;
+}
+
+/* ── Stats ────────────────────────────────────────────────────────────────── */
+.stats {
+  display: flex;
+  gap: 20px;
+}
+
+.stat {
+  text-align: center;
+}
+
+.statValue {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.statLabel {
+  font-size: 9px;
+  color: #4a5568;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-top: 2px;
+}
+
+/* ── View toggle ──────────────────────────────────────────────────────────── */
+.viewToggle {
+  display: flex;
+  background: #1a2035;
+  border-radius: 6px;
+  padding: 3px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.viewBtn {
+  background: transparent;
+  color: #5a6275;
+  border: none;
+  border-radius: 4px;
+  padding: 5px 14px;
+  font-size: 11px;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: all 0.15s;
+  font-family: var(--font-mono);
+}
+
+.viewBtnActive {
+  background: #FF6B35;
+  color: #fff;
+}
+
+/* ── Body ─────────────────────────────────────────────────────────────────── */
+.body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── Graph canvas ─────────────────────────────────────────────────────────── */
+.canvas {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Zoom controls ────────────────────────────────────────────────────────── */
+.zoomControls {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.zoomBtn {
+  width: 32px;
+  height: 32px;
+  background: #141b2d;
+  border: 1px solid #1e2533;
+  color: #c9d1e0;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+}
+
+.zoomBtn:hover {
+  background: #1e2533;
+}
+
+/* ── Legend ───────────────────────────────────────────────────────────────── */
+.legend {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 280px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #141b2d;
+  border: 1px solid #1e2533;
+  border-radius: 12px;
+  padding: 3px 8px;
+}
+
+.legendDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legendLabel {
+  font-size: 9px;
+  color: #8899bb;
+  letter-spacing: 0.06em;
+}
+
+/* ── Editor view ──────────────────────────────────────────────────────────── */
+.editor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+}
+
+.editorLabel {
+  font-size: 11px;
+  color: #5a6275;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.textarea {
+  flex: 1;
+  background: #0d1120;
+  color: #c9d1e0;
+  border: 1px solid #1e2533;
+  border-radius: 6px;
+  padding: 16px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.7;
+  resize: none;
+  outline: none;
+}
+
+.textarea:focus {
+  border-color: #2a3a50;
+}
+
+.editorActions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.viewGraphBtn {
+  background: #FF6B35;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 20px;
+  font-size: 12px;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  font-family: var(--font-mono);
+}
+
+.viewGraphBtn:hover {
+  background: #e05a28;
+}
+
+/* ── Detail panel ─────────────────────────────────────────────────────────── */
+.detail {
+  border-left: 1px solid #1e2533;
+  background: #0d1120;
+  overflow: hidden;
+  transition: width 0.25s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.detailContent {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.detailHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.detailTypeBadge {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 3px;
+  margin-bottom: 6px;
+  display: inline-block;
+}
+
+.detailId {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  word-break: break-all;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  color: #5a6275;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.closeBtn:hover {
+  color: #c9d1e0;
+}
+
+.sectionLabel {
+  font-size: 9px;
+  color: #5a6275;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.sectionBlock {
+  margin-bottom: 16px;
+}
+
+.fieldRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 0;
+  border-bottom: 1px solid #1a2035;
+  gap: 8px;
+}
+
+.fieldKey {
+  font-size: 11px;
+  color: #5a6275;
+}
+
+.fieldVal {
+  font-size: 11px;
+  color: #c9d1e0;
+  text-align: right;
+  word-break: break-all;
+}
+
+.edgeRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  cursor: pointer;
+  border-bottom: 1px solid #1a2035;
+}
+
+.edgeRow:hover .edgeTarget {
+  text-decoration: underline;
+}
+
+.edgeLabel {
+  font-size: 10px;
+  color: #FF6B35;
+}
+
+.edgeArrow {
+  font-size: 10px;
+  color: #3a3a4a;
+}
+
+.metaKey {
+  font-size: 9px;
+  color: #3A86FF;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.metaVal {
+  font-size: 10px;
+  color: #8899bb;
+  word-break: break-all;
+  margin-bottom: 8px;
+}
+
+/* ── Confidence bar ───────────────────────────────────────────────────────── */
+.confBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.confTrack {
+  flex: 1;
+  height: 4px;
+  background: #1e2533;
+  border-radius: 2px;
+}
+
+.confFill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s;
+}
+
+.confPct {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  min-width: 32px;
+}
+
+/* ── Footer ───────────────────────────────────────────────────────────────── */
+.footer {
+  padding: 6px 24px;
+  border-top: 1px solid #1e2533;
+  background: #0d1120;
+  display: flex;
+  gap: 24px;
+  font-size: 9px;
+  color: #3a4255;
+  letter-spacing: 0.08em;
+  flex-shrink: 0;
+}

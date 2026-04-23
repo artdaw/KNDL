@@ -2,7 +2,7 @@
 
 Python library for **KNDL** — Knowledge Node Description Language.
 
-Build, query, and persist confidence-aware knowledge graphs in Python. The reference implementation of the KNDL spec.
+Build, query, and persist confidence-aware knowledge graphs in Python. The reference implementation of the KNDL v0.2 spec.
 
 [![PyPI](https://img.shields.io/pypi/v/kndl)](https://pypi.org/project/kndl/)
 [![Python](https://img.shields.io/pypi/pyversions/kndl)](https://pypi.org/project/kndl/)
@@ -32,7 +32,7 @@ node @acme :: Company {
   name = "Acme Corp"
 }
 
-edge @alice -[WorksAt]-> @acme {
+edge @alice -[works_at]-> @acme {
   ~confidence 1.0
 }
 """)
@@ -90,6 +90,66 @@ node = graph.get_node("reading")
 print(node.meta.effective_confidence())   # current confidence after decay
 ```
 
+## v0.2 Features
+
+### Parameterised types
+
+Types accept type parameters, enabling domain-generic schemas that stay strongly typed at instantiation:
+
+```kndl
+type Observation<C> where C <: Code {
+  code    : C
+  value   : Float
+  subject : Patient
+}
+
+node @obs_001 :: Observation<Code<"LOINC">> {
+  code    = "8310-5"
+  value   = 38.2
+  subject -> @patient_p001
+  ~confidence 0.96
+}
+```
+
+### Processes and state machines
+
+```kndl
+process @grasp_sm :: StateMachine {
+  states  = ["idle", "approaching", "grasping", "lifting"]
+  initial = "idle"
+  @idle        -> @approaching { trigger = "pickup_cmd" }
+  @approaching -> @grasping   { trigger = @joint.angle > 30 }
+}
+```
+
+### Uncertainty distributions
+
+```kndl
+node @temp :: Temperature<°C> {
+  value = 22.5
+  ~confidence  0.94
+  ~uncertainty Gaussian { mean = 22.5  stddev = 0.3 }
+}
+```
+
+Supported distributions: `Gaussian`, `Interval`, `Categorical`, `Histogram`.
+
+### Multi-hop query patterns
+
+```kndl
+query supply_chain {
+  match ?supplier -[supplies*2..4]-> ?product
+  where ?supplier.~confidence > 0.8
+  return { supplier: ?supplier, product: ?product }
+}
+```
+
+### Undirected edges
+
+```kndl
+edge @room_204 -[adjacent_to]- @room_205
+```
+
 ## API reference
 
 ### Top-level functions
@@ -133,6 +193,13 @@ print(node.meta.effective_confidence())   # current confidence after decay
 | `priority` | `float` | For intent scheduling (default 0.5) |
 | `cooldown_seconds` | `float \| None` | Minimum time between intent firings |
 | `supersedes` | `str \| None` | ID of fact this replaces |
+| `recorded` | `str \| None` | When this fact was recorded in the system |
+| `observed` | `str \| None` | When the event was actually observed |
+| `negated` | `bool` | Assert that this fact is false |
+| `deadline` | `str \| None` | Time by which action must complete |
+| `classification` | `str \| None` | Security classification label |
+| `retention` | `str \| None` | How long to retain this record |
+| `uncertainty` | `dict \| None` | Full probability distribution |
 
 `meta.effective_confidence(at_time?)` applies decay and returns the current value.
 
@@ -150,7 +217,7 @@ source text
 
 ```bash
 uv sync --all-extras
-uv run pytest -v                                        # 141 tests
+uv run pytest -v                                        # 245 tests
 uv run pytest --cov=src/kndl --cov-report=term-missing
 uv run ruff check src tests
 uv run mypy src
@@ -161,6 +228,8 @@ uv run mypy src
 | `test_kndl.py` | 52 | Lexer, Parser, Compiler, Graph, Serializer |
 | `test_kndl_extended.py` | 65 | Edge cases, integration, roundtrip |
 | `test_storage.py` | 24 | SQLite, PostgreSQL, factory, persistence |
+| `test_v02.py` | 72 | v0.2 syntax: processes, decimal, group-by, reverse edges |
+| `test_v03_features.py` | 32 | Parameterised types, multi-hop, undirected edges, uncertainty, goto |
 
 ## License
 

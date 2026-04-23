@@ -1,7 +1,8 @@
 .PHONY: help \
         py-install py-test py-test-cov py-lint py-build \
 		mcp-install mcp-run mcp-run-http mcp-test \
-        install build test lint clean
+        web-install web-dev web-build web-preview \
+		install build test lint clean
 
 # ── Default: list targets ─────────────────────────────────────────────────────
 help:
@@ -40,6 +41,19 @@ mcp-lint: ## Lint MCP (ruff + mypy)
 mcp-test: ## Run MCP integration tests
 	cd packages/mcp-server && uv run pytest -v
 
+# ── Website ───────────────────────────────────────────────────────────────────
+web-install: ## Install website pnpm deps
+	cd website && pnpm install
+
+web-dev: ## Start Vite dev server
+	cd website && pnpm run dev
+
+web-build: ## Build website for production
+	cd website && pnpm run build
+
+web-preview: ## Preview production build
+	cd website && pnpm run preview
+
 # ── Aggregates ────────────────────────────────────────────────────────────────
 install: py-install mcp-install ## Install all packages
 
@@ -52,3 +66,4 @@ lint: py-lint mcp-lint ## Run all linters
 clean: ## Remove build artifacts and venvs
 	cd packages/python     && rm -rf dist .venv
 	cd packages/mcp-server && rm -rf dist .venv
+	cd website             && rm -rf dist node_modules
