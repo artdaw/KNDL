@@ -6,16 +6,47 @@ Vite + React 19 + TypeScript documentation site for the KNDL project.
 
 ## Routes
 
-Uses `createHashRouter` — all routes are prefixed with `#` (e.g. `/#/spec`) so the site works on static hosting without a server-side fallback.
+Uses `createBrowserRouter` with a GitHub Pages SPA fallback (`public/404.html` stashes the intended pathname in `sessionStorage`; `main.tsx` replays it on boot). Clean URLs (no `#`) are required for real SEO.
 
-| Hash path | Page | Description |
-|-----------|------|-------------|
-| `/#/` | LandingPage | Hero, v0.2 feature highlights, quick-start snippet |
-| `/#/spec` | SpecPage | Language reference with 8-domain tabbed examples + live playground |
-| `/#/spec/full` | SpecFullPage | Full rendered SPECIFICATION.md |
-| `/#/workflow` | WorkflowPage | 6-stage agent pipeline animation |
-| `/#/explorer` | ExplorerPage | Force-directed graph explorer (pan/zoom/drag, detail panel) |
-| `/#/mcp` | McpPage | MCP server docs and tool reference |
+| Path | Page | Description |
+|------|------|-------------|
+| `/` | LandingPage | Hero, v1.0 feature highlights, quick-start snippet |
+| `/spec` | SpecPage | Language reference with 8-domain tabbed examples + live playground |
+| `/spec/full` | SpecFullPage | Full rendered SPECIFICATION.md with sticky TOC |
+| `/workflow` | WorkflowPage | 6-stage agent pipeline animation (per-stage insight + highlighted layer) |
+| `/explorer` | ExplorerPage | Force-directed graph explorer (pan/zoom/drag, detail panel) |
+| `/mcp` | McpPage | MCP server docs and tool reference |
+
+## Machine-readable discovery surfaces
+
+Everything below is served as a static file and is meant to be fetched by AI agents, search engines, and scripts.
+
+| URL | Format | Purpose |
+|-----|--------|---------|
+| `/llms.txt` | markdown | Concise [llmstxt.org](https://llmstxt.org) index of the whole project |
+| `/llms-full.txt` | markdown | Spec + EBNF + example index concatenated — single-fetch bundle for LLMs |
+| `/spec/SPECIFICATION.md` | markdown | Canonical language reference (mirrored from repo `spec/`) |
+| `/spec/kndl.ebnf` | text | Authoritative EBNF grammar (mirrored from repo `spec/grammar/`) |
+| `/examples/index.md` | markdown | Index of curated `.kndl` snippets |
+| `/examples/*.kndl` | text | Runnable examples (basic-building, intent-overheat, process-shipment, query-aggregation, healthcare-observation, fintech-transaction, robotics-pose, logistics-trace) |
+| `/sitemap.xml` | xml | Every indexable URL on the site |
+| `/robots.txt` | text | Explicitly allows major AI crawlers (GPTBot, ClaudeBot, PerplexityBot, Google-Extended, CCBot, …) |
+| `/.well-known/security.txt` | text | Security contact per [securitytxt.org](https://securitytxt.org) |
+
+The Vite plugin `kndlSpecAssets` in `vite.config.ts` mirrors `spec/SPECIFICATION.md` and `spec/grammar/kndl.ebnf` from the repo root into the built output at these URLs and serves them in dev. It also regenerates `llms-full.txt` from source on each build.
+
+## SEO per route
+
+`src/components/SEO.tsx` is a tiny runtime component that each page renders. It updates:
+
+- `<title>` and `<meta name="description">`
+- `<meta name="robots">` with `max-image-preview:large`
+- Open Graph (`og:title`, `og:description`, `og:url`, `og:type`, `og:image`, `og:site_name`)
+- Twitter cards (`twitter:*`)
+- `<link rel="canonical">` and `<link rel="alternate">` (llm index)
+- Per-page JSON-LD (`TechArticle` for docs, `SoftwareSourceCode` for the landing page)
+
+`index.html` also contains a page-level JSON-LD `@graph` covering Organization, WebSite, SoftwareSourceCode, and TechArticle, plus a `<noscript>` pointer to the machine-readable surfaces for crawlers that don't execute JS.
 
 ## Stack
 
