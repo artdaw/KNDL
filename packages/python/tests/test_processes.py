@@ -467,7 +467,7 @@ node @sensor_a :: Reading {
 class TestVersion:
     def test_version_is_v02(self):
         import kndl
-        assert kndl.__version__ == "0.2.0"
+        assert kndl.__version__ == "1.0.0"
 
 
 # ─────────────────────────────────────────────
