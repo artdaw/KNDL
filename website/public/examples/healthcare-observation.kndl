@@ -1,0 +1,55 @@
+// healthcare-observation.kndl — clinical observation with FHIR alignment.
+//
+// Demonstrates: Code<System> for standard terminologies, bitemporal
+// (~valid / ~observed / ~recorded), ~negated (strong negation under
+// open-world assumption), ~classification for PHI, ~consent scoping.
+
+import { Patient, Observation, Condition } from "kndl://std/fhir"
+
+node @pat_001 :: Patient {
+  mrn  = "MRN-42193"
+  ~classification "PHI"
+  ~consent -> @consent_0001
+}
+
+node @consent_0001 :: Consent {
+  scope   = "treatment"
+  granted = 2026-03-12
+}
+
+// Positive observation: SpO2 reading from a calibrated device.
+node @obs_4821 :: Observation {
+  subject -> @pat_001
+  code    = Code<"LOINC">("59408-5")       // SpO2 in arterial blood
+  value   = 96.0
+  unit    = "%"
+  ~source     "fhir://hospital/Observation/4821"
+  ~observed   2026-04-20T09:14Z
+  ~recorded   2026-04-20T09:14:03Z
+  ~valid      2026-04-20T09:14Z .. 2026-04-20T09:14Z
+  ~confidence 0.98
+  ~classification "PHI"
+}
+
+// Strong negation: patient has *no* history of diabetes.
+// Absence of this node would NOT mean the same thing — open-world.
+node @pat_001.hx_diabetes :: Condition {
+  subject -> @pat_001
+  code    = Code<"ICD-10">("E11")
+  ~negated    true
+  ~confidence 0.95
+  ~source     "user://dr-wong"
+  ~recorded   2026-04-20T09:10Z
+  ~classification "PHI"
+}
+
+// Differential diagnosis — categorical uncertainty.
+node @dx_working :: Condition {
+  subject -> @pat_001
+  ~source     "agent://clinical-reasoner"
+  ~uncertainty categorical {
+    "J45.9": 0.60,   // asthma
+    "J44.9": 0.30,   // COPD
+    "R05.9": 0.10    // cough, unspecified
+  }
+}

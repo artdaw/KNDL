@@ -1,0 +1,7 @@
+# Security contact for the KNDL project.
+# See https://securitytxt.org/ for the format.
+
+Contact: mailto:me@artdaw.com
+Expires: 2027-04-24T00:00:00Z
+Preferred-Languages: en
+Canonical: https://kndl.artdaw.com/.well-known/security.txt

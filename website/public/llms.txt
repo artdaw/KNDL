@@ -1,0 +1,66 @@
+# KNDL — Knowledge Node Description Language
+
+> KNDL (pronounced "kindle") is a graph-based knowledge representation language
+> purpose-built for AI agents. Every assertion carries **confidence** (0.0–1.0),
+> **provenance** (source URI or cryptographic signature), **temporal scope**
+> (bitemporal: valid / observed / recorded), and **typed relationships** as
+> first-class constructs. Knowledge + behaviour (intents and processes) live in
+> the same language. Current version: **v1.0** (April 2026).
+
+This file follows the [llmstxt.org](https://llmstxt.org) convention. Everything
+below links to plain-text or markdown resources optimised for machine reading.
+
+## Canonical sources
+
+- [Language specification (markdown)](https://kndl.artdaw.com/spec/SPECIFICATION.md): Complete v1.0 reference — types, meta-annotations, queries, processes, binary format, conformance levels.
+- [EBNF grammar](https://kndl.artdaw.com/spec/kndl.ebnf): Authoritative formal grammar.
+- [Full bundle](https://kndl.artdaw.com/llms-full.txt): Spec + EBNF + example index concatenated for single-fetch LLM consumption.
+
+## Examples
+
+- [Examples index](https://kndl.artdaw.com/examples/index.md): Curated list of runnable .kndl snippets.
+- [Basic IoT / building](https://kndl.artdaw.com/examples/basic-building.kndl): Sensor node with confidence, decay, and typed edges.
+- [Intent (overheat alert)](https://kndl.artdaw.com/examples/intent-overheat.kndl): Reactive trigger-action pattern over a query.
+- [Process (shipment state machine)](https://kndl.artdaw.com/examples/process-shipment.kndl): Stateful workflow with compensation.
+- [Query (aggregation)](https://kndl.artdaw.com/examples/query-aggregation.kndl): Multi-hop path query with group-by.
+- [Healthcare (FHIR observation)](https://kndl.artdaw.com/examples/healthcare-observation.kndl): Coded terminologies and bitemporal annotations.
+- [FinTech (transaction)](https://kndl.artdaw.com/examples/fintech-transaction.kndl): Money type, double-entry constraint, signature.
+- [Robotics (pose with frame)](https://kndl.artdaw.com/examples/robotics-pose.kndl): Coordinate frames and Gaussian uncertainty.
+
+## Key concepts
+
+- **Node**: A typed, identified container for fields and meta-annotations. `node @sensor_01 :: Temperature { value = 22.5 °C; ~confidence 0.94 }`.
+- **Edge**: Typed, directed relationship. `edge @room_204 -[located_in]-> @floor_2`.
+- **Meta-annotations** (`~key value`): `~confidence`, `~valid`, `~recorded`, `~observed`, `~decay`, `~source`, `~negated`, `~uncertainty`, `~signature`, `~access`, ...
+- **Intent**: Reactive trigger-action rule fired when a query matches.
+- **Process**: Stateful workflow with `state`, `on ... in ... -> ...`, `compensate` clauses.
+- **Query**: Declarative match with multi-hop paths, confidence predicates, `group by` aggregation.
+- **Quantity<D>**: Dimensionally safe values — `22.5 °C`, `5 m/s`, `100 kWh`.
+- **Money**: `19.99d USD` with ISO 4217 currency codes.
+
+## Domain profiles
+
+KNDL ships conventional types and source-URI schemes for each major domain:
+IoT/PropTech, FinTech, Healthcare (FHIR), Logistics, Robotics, Smart Factory
+(ISA-95), Networking/Security, eCommerce. See §B of the specification.
+
+## Discovery
+
+- [Sitemap](https://kndl.artdaw.com/sitemap.xml)
+- [Robots](https://kndl.artdaw.com/robots.txt)
+- [Security contact](https://kndl.artdaw.com/.well-known/security.txt)
+- [Source on GitHub](https://github.com/artdaw/KNDL)
+
+## Reference implementations
+
+- **Python library** (`pip install kndl`): parser → AST → compiler → KNDLGraph → serializer, with SQLite/PostgreSQL storage.
+- **MCP server** (`pip install kndl-mcp`): exposes the graph as Model Context Protocol tools for Claude Desktop and other agents.
+
+## Pages (rendered for humans, but safe to fetch)
+
+- [Home](https://kndl.artdaw.com/): Design goals and quick-start.
+- [Spec overview](https://kndl.artdaw.com/spec): Concepts with domain-tabbed examples.
+- [Full spec (rendered)](https://kndl.artdaw.com/spec/full): Same content as SPECIFICATION.md with a sticky TOC.
+- [Agent workflow](https://kndl.artdaw.com/workflow): 6-stage pipeline from ingest to communicate.
+- [MCP server](https://kndl.artdaw.com/mcp): Tool reference and install guide.
+- [Graph explorer](https://kndl.artdaw.com/explorer): Interactive force-directed visualiser with a live editor.

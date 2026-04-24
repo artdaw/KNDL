@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex,follow" />
+    <title>KNDL — redirecting…</title>
+    <script>
+      // GitHub Pages SPA fallback. The direct URL (e.g. /spec/full) served
+      // this 404.html. Stash the intended path so main.tsx can restore it
+      // after the root index.html boots the router.
+      (function () {
+        var path = window.location.pathname + window.location.search + window.location.hash;
+        try {
+          sessionStorage.setItem("kndl:redirect", path);
+        } catch (_) {}
+        window.location.replace("/");
+      })();
+    </script>
+    <link rel="canonical" href="https://kndl.artdaw.com/" />
+  </head>
+  <body>
+    <p>
+      You were headed somewhere specific. If you are not redirected automatically, go to
+      <a href="https://kndl.artdaw.com/">kndl.artdaw.com</a>.
+    </p>
+    <p>
+      Agents looking for machine-readable content:
+      <a href="https://kndl.artdaw.com/llms.txt">/llms.txt</a> ·
+      <a href="https://kndl.artdaw.com/spec/SPECIFICATION.md">/spec/SPECIFICATION.md</a> ·
+      <a href="https://kndl.artdaw.com/spec/kndl.ebnf">/spec/kndl.ebnf</a>.
+    </p>
+  </body>
+</html>

@@ -1,0 +1,63 @@
+# KNDL — Knowledge Node Description Language
+# https://kndl.artdaw.com/
+
+User-agent: *
+Allow: /
+
+# AI crawlers / training bots — explicitly allowed.
+# KNDL is an open specification; we want it to be easy for agents to find.
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: GoogleOther
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: FacebookBot
+Allow: /
+
+User-agent: Meta-ExternalAgent
+Allow: /
+
+# Primary machine-readable entry points:
+#   /llms.txt              — concise index for LLMs (llmstxt.org)
+#   /llms-full.txt         — spec + EBNF + examples bundled
+#   /spec/SPECIFICATION.md — canonical language reference
+#   /spec/kndl.ebnf        — authoritative grammar
+#   /examples/             — curated .kndl examples
+#   /sitemap.xml           — full URL index
+
+Sitemap: https://kndl.artdaw.com/sitemap.xml

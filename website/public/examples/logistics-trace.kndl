@@ -1,0 +1,41 @@
+// logistics-trace.kndl — package trace across multiple hubs.
+//
+// Demonstrates: GTIN source identifiers, multi-hop path queries, per-edge
+// timestamps, chain-of-custody signatures via ~attestation.
+
+node @pkg_4821 :: Package {
+  gtin = "gtin:04012345678901"
+  sku  = "KNDL-BOOK-001"
+  ~source "db://wms/packages/4821"
+}
+
+node @hub_frankfurt :: Hub { code = "FRA" }
+node @hub_singapore :: Hub { code = "SIN" }
+node @hub_tokyo     :: Hub { code = "NRT" }
+
+// Each edge has its own timestamp and signature of the scanning agent.
+edge @pkg_4821 -[ships_to]-> @hub_frankfurt {
+  scanned_at = 2026-04-18T08:14:00Z
+  ~attestation -> @scan_fra_4821
+}
+edge @pkg_4821 -[ships_to]-> @hub_singapore {
+  scanned_at = 2026-04-19T22:07:00Z
+  ~attestation -> @scan_sin_4821
+}
+edge @pkg_4821 -[ships_to]-> @hub_tokyo {
+  scanned_at = 2026-04-20T11:52:00Z
+  ~attestation -> @scan_nrt_4821
+}
+
+node @scan_fra_4821 :: Attestation {
+  issuer   = "did:web:logistics.example#fra-scanner"
+  claim    = "scan:origin"
+  evidence = b"u8f+2lEq…=="
+}
+// (other scan attestations elided for brevity)
+
+// Example query: reconstruct the path for any package.
+query trace {
+  match ?p = @pkg_4821 -[ships_to*]-> ?dest :: Hub
+  return { path: ?p, hops: len(?p), destination: ?dest }
+}

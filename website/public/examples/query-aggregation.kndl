@@ -1,0 +1,31 @@
+// query-aggregation.kndl — multi-hop paths + group by + aggregation.
+//
+// Demonstrates: path patterns with repetition, optional matches, group
+// by clause (distinct from aggregation functions), `with edges N`.
+
+query campus_power_by_site_day {
+  // 1-to-5 `contains` hops from a campus down to any meter.
+  match ?m :: PowerMeasurement
+    <-[contains*1..5]- @campus
+
+  match ?m -[at]-> ?site :: Site
+
+  optional match ?fault :: SystemFault
+    -[affects]-> ?site
+  where ?fault.~valid overlaps now
+
+  where
+    ?m.~confidence > 0.8
+    && ?m.~observed overlaps 2026-Q1
+
+  group by ?site, day(?m.~observed)
+
+  return {
+    site       = ?site,
+    day        = day(?m.~observed),
+    total_kwh  = sum(?m.value),
+    peak_kwh   = max(?m.value),
+    sample_n   = count(?m),
+    has_fault  = ?fault != null
+  }
+}

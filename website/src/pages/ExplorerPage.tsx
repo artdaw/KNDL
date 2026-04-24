@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { parseKNDL, typeColor, GraphData, GraphNodeData } from "../utils/kndlParser";
 import { useForceLayout, Position } from "../hooks/useForceLayout";
+import { SEO, techArticleSchema } from "../components/SEO";
 import styles from "./ExplorerPage.module.css";
 
 // ── Sample KNDL ───────────────────────────────────────────────────────────────
@@ -273,6 +274,19 @@ export default function ExplorerPage() {
 
   return (
     <div className={styles.page}>
+      <SEO
+        title="KNDL Graph Explorer — Interactive Force-Directed Visualization"
+        description="Visualise a KNDL knowledge graph live. Edit KNDL source in the browser and watch nodes, typed edges, and confidence scores render as a force-directed graph. Zoom, pan, drag, and inspect node details."
+        path="/explorer"
+        type="website"
+        keywords="KNDL graph explorer, knowledge graph visualization, force-directed layout, KNDL playground"
+        jsonLd={techArticleSchema({
+          headline: "KNDL Graph Explorer",
+          description:
+            "Interactive force-directed visualization of KNDL knowledge graphs with a live editor.",
+          path: "/explorer",
+        })}
+      />
       {/* Toolbar */}
       <div className={styles.toolbar}>
         <div className={styles.toolbarTitle}>
