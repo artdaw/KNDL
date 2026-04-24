@@ -122,6 +122,35 @@
   border-top-right-radius: 7px;
 }
 
+.copyBtn {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+  line-height: 1.5;
+}
+
+.copyBtn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.copyBtnDone {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .codePre {
   font-family: var(--font-mono);
   font-size: 13.5px;
@@ -130,6 +159,7 @@
   white-space: pre;
   tab-size: 2;
   margin: 0;
+  padding-top: 20px;
 }
 
 /* ── Principles ── */

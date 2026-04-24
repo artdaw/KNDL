@@ -7,6 +7,33 @@ import { useState, useEffect } from "react";
 import styles from "./WorkflowPage.module.css";
 import { highlightKNDL } from "../components/CodeBlock";
 
+// ── Integration architecture layers (rendered per-stage with one highlighted) ─
+
+const LAYERS = [
+  {
+    name: "System Prompt",
+    detail: "KNDL type definitions + context loaded as agent instructions",
+    color: "var(--accent)",
+  },
+  {
+    name: "Tool Interface",
+    detail: "read_kndl / write_kndl / query_kndl as MCP tools",
+    color: "var(--accent2)",
+  },
+  {
+    name: "Memory Layer",
+    detail: "KNDL graph persisted between sessions with ~decay applied",
+    color: "var(--accent4)",
+  },
+  {
+    name: "Multi-Agent",
+    detail: "Agents exchange KNDL subgraphs with provenance chains intact",
+    color: "var(--accent3)",
+  },
+] as const;
+
+type LayerName = (typeof LAYERS)[number]["name"];
+
 // ── Pipeline stages ───────────────────────────────────────────────────────────
 
 const STAGES = [
@@ -16,6 +43,13 @@ const STAGES = [
     title: "Agent Receives Raw Input",
     description:
       "The agent gets unstructured data — a user message, API response, sensor reading, or tool output. This is the messy real world.",
+    insight: {
+      lead: "The first cognitive act is",
+      highlight: "triage",
+      body: "One paragraph of human prose hides three facts at three different confidence levels. Every downstream stage inherits whatever errors get made here — so KNDL forces the agent to separate the signals before committing to anything.",
+    },
+    activeLayer: "System Prompt" as LayerName,
+    layerRole: "Type definitions in the system prompt tell the agent which node shapes to look for in raw input.",
     blocks: [
       {
         label: "raw input",
@@ -45,6 +79,13 @@ Let me produce KNDL nodes...`,
     title: "Agent Emits KNDL Nodes",
     description:
       "The agent transforms unstructured input into typed, confidence-scored, temporally-scoped KNDL nodes. This is the critical step — the agent must assess its own certainty.",
+    insight: {
+      lead: "The format refuses to let a human estimate and a calibrated sensor reading look equally trustworthy.",
+      highlight: "Emitting ~confidence isn't syntax — it's self-assessment.",
+      body: "The agent must answer \"how sure am I?\" for every node it writes. That discipline is what separates KNDL output from prose with opinions.",
+    },
+    activeLayer: "Tool Interface" as LayerName,
+    layerRole: "write_kndl is the tool call that commits a new node to the graph — each invocation is one self-assessed assertion.",
     blocks: [
       {
         label: "kndl output",
@@ -82,6 +123,13 @@ edge @user_temp_report_0410 -[caused_by]-> @hvac_issue_0409 {
     title: "Agent Merges Into Knowledge Graph",
     description:
       "New nodes don't exist in isolation. The agent merges them into its existing knowledge graph, resolving conflicts and updating confidence scores when evidence converges or contradicts.",
+    insight: {
+      lead: "When two sources disagree,",
+      highlight: "conflicts aren't errors — they're data.",
+      body: "KNDL lets the agent compute a principled posterior instead of picking a winner. Both the merged value and its confidence shift, so downstream reasoning inherits a calibrated belief rather than a brittle override.",
+    },
+    activeLayer: "Memory Layer" as LayerName,
+    layerRole: "The persisted graph is where merge happens — ~decay ages competing facts so stale readings don't overwhelm fresh ones.",
     blocks: [
       {
         label: "merge logic",
@@ -117,6 +165,13 @@ merged_value = weighted_avg(
     title: "Agent Queries & Reasons Over KNDL",
     description:
       "Now the agent can reason across its entire knowledge graph. KNDL's confidence-aware queries let it make probabilistic decisions, not binary ones.",
+    insight: {
+      lead: "Queries return gradients, not booleans.",
+      highlight: "Crisp logic over fuzzy evidence.",
+      body: "The same graph state can yield \"act now\" or \"wait\" depending on thresholds — because every match carries its confidence with it. Decisions become tunable, not hardcoded.",
+    },
+    activeLayer: "Memory Layer" as LayerName,
+    layerRole: "Queries run against the persisted graph; confidence and ~valid are first-class match criteria, not afterthoughts.",
     blocks: [
       {
         label: "kndl query",
@@ -160,6 +215,13 @@ query should_alert {
     title: "Agent Takes Action via Intents",
     description:
       "KNDL intents fire automatically when graph state matches their trigger conditions. The agent doesn't need external orchestration — the knowledge graph IS the orchestration layer.",
+    insight: {
+      lead: "The knowledge graph",
+      highlight: "is the orchestration layer.",
+      body: "Intents fire when state matches triggers — no scheduler, no polling loop, no imperative glue. State changes cascade through the graph and the graph decides what happens next.",
+    },
+    activeLayer: "Tool Interface" as LayerName,
+    layerRole: "Intent actions emit Command and Notification nodes; the tool interface turns those emissions into real-world side effects.",
     blocks: [
       {
         label: "intent execution",
@@ -213,6 +275,13 @@ query should_alert {
     title: "Agent Responds to Human",
     description:
       "Finally, the agent converts its KNDL-structured knowledge back into natural language. But now its response is grounded in typed, confidence-scored facts — not vibes.",
+    insight: {
+      lead: "Every hedge in the response (\"high confidence\", \"since yesterday\") traces to a specific node annotation.",
+      highlight: "The reply isn't generated prose — it's a projection of the graph.",
+      body: "Ungrounded claims become impossible to make accidentally. And because provenance survives serialisation, the next agent downstream can re-verify every claim against its source.",
+    },
+    activeLayer: "Multi-Agent" as LayerName,
+    layerRole: "Provenance chains travel with the subgraph, so the next agent (or the same one in a later session) can trust or re-derive every claim.",
     blocks: [
       {
         label: "agent → human",
@@ -389,55 +458,40 @@ export default function WorkflowPage() {
           </div>
         </div>
 
-        {/* Key insight */}
-        <div className={styles.insight}>
-          <div className={styles.insightLabel}>Key Insight</div>
+        {/* Per-stage key insight */}
+        <div key={`insight-${activeId}`} className={styles.insight}>
+          <div className={styles.insightLabel}>Key Insight · {stage.label.split(" — ")[1]}</div>
           <p className={styles.insightText}>
-            The agent doesn't use KNDL as a <em>file format</em> — it uses it as a{" "}
-            <strong className={styles.insightHighlight}>cognitive substrate</strong>.
-            Every perception becomes a confidence-scored node. Every inference creates
-            edges. Every decision is a graph query. The agent's "thinking"{" "}
-            <em>is</em> the graph evolving over time — and KNDL makes that evolution
-            inspectable, auditable, and composable across multiple agents.
+            {stage.insight.lead}{" "}
+            <strong className={styles.insightHighlight}>
+              {stage.insight.highlight}
+            </strong>{" "}
+            {stage.insight.body}
           </p>
         </div>
 
-        {/* Architecture layers */}
-        <div className={styles.layers}>
-          <div className={styles.layersLabel}>Integration Architecture</div>
-          {[
-            {
-              name: "System Prompt",
-              detail: "KNDL type definitions + context loaded as agent instructions",
-              color: "var(--accent)",
-            },
-            {
-              name: "Tool Interface",
-              detail: "read_kndl / write_kndl / query_kndl as MCP tools",
-              color: "var(--accent2)",
-            },
-            {
-              name: "Memory Layer",
-              detail: "KNDL graph persisted between sessions with ~decay applied",
-              color: "var(--accent4)",
-            },
-            {
-              name: "Multi-Agent",
-              detail: "Agents exchange KNDL subgraphs with provenance chains intact",
-              color: "var(--accent3)",
-            },
-          ].map((layer) => (
-            <div
-              key={layer.name}
-              className={styles.layer}
-              style={{ borderLeftColor: layer.color }}
-            >
-              <span className={styles.layerName} style={{ color: layer.color }}>
-                {layer.name}
-              </span>
-              <span className={styles.layerDetail}>{layer.detail}</span>
-            </div>
-          ))}
+        {/* Per-stage integration architecture (one layer highlighted) */}
+        <div key={`layers-${activeId}`} className={styles.layers}>
+          <div className={styles.layersLabel}>
+            Integration Architecture · <span className={styles.layersActiveName}>{stage.activeLayer}</span>
+          </div>
+          <p className={styles.layerRole}>{stage.layerRole}</p>
+          {LAYERS.map((layer) => {
+            const isActive = layer.name === stage.activeLayer;
+            return (
+              <div
+                key={layer.name}
+                className={`${styles.layer} ${isActive ? styles.layerActive : styles.layerInactive}`}
+                style={{ borderLeftColor: layer.color }}
+              >
+                <span className={styles.layerName} style={{ color: layer.color }}>
+                  {layer.name}
+                </span>
+                <span className={styles.layerDetail}>{layer.detail}</span>
+                {isActive && <span className={styles.layerBadge} aria-hidden>◉ active</span>}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
