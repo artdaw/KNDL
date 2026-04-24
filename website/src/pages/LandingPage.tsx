@@ -160,7 +160,7 @@ export default function LandingPage() {
           Designed for the age of agents · v1.0 specification
         </p>
         <p className={styles.footerSmall}>
-          &copy; Gleb Galkin 2026
+          &copy; <a href="https://artdaw.com" target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>Gleb Galkin</a> 2026
         </p>
       </footer>
     </div>

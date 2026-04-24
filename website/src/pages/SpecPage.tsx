@@ -1137,7 +1137,7 @@ a temperature of 18.5°C as of
           </Link>
         </p>
         <p className={styles.footerSmall}>
-          &copy; Gleb Galkin — April 2026
+          &copy; <a href="https://artdaw.com" target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>Gleb Galkin</a> — April 2026
         </p>
       </footer>
     </div>
