@@ -1,44 +1,72 @@
 # KNDL — Knowledge Node Description Language
 
+> **Live site:** https://artdaw.github.io/KNDL/
+> **Spec version:** v0.2
+> **Python library:** `kndl` 0.1.0 · **MCP server:** `kndl-mcp` 0.2.0
+
 ## What it is
 
-A declarative language and runtime for representing structured knowledge as a typed, confidence-annotated graph. Designed for AI agents that need to reason over connected facts with temporal validity, decay, and provenance.
+A declarative language and runtime for representing structured knowledge as a typed, confidence-annotated directed graph. Designed for AI agents that need to reason over connected facts with temporal validity, decay, and provenance.
 
 Core concepts:
 - **Node** — a typed entity with arbitrary fields and meta-annotations
-- **Edge** — a typed, directed relationship between two nodes (first-class, not just a field)
+- **Edge** — a typed, directed (or undirected) relationship between two nodes; first-class, not just a field
 - **Intent** — a reactive trigger-action rule that fires when a condition is met
-- **Meta** — every node and edge carries: confidence (0–1), source URI, validity window, decay rate, tags, priority, cooldown
+- **Process** — a state-machine block with typed transitions and `goto` actions (v0.2)
+- **Meta** — every node and edge carries: confidence (0–1), source URI, validity window, decay rate, tags, priority, cooldown, and v0.2 extensions (recorded, observed, negated, deadline, classification, retention, uncertainty)
 - **Confidence decay** — exponential: `confidence × (decay_rate ^ (elapsed / decay_duration_seconds))`
+- **Parameterised types** — `Type<Param>` generic schemas; e.g. `Observation<Code<"LOINC">>` (v0.2)
+- **Uncertainty distributions** — `~uncertainty Gaussian { mean = X  stddev = Y }` (v0.2)
+- **Multi-hop queries** — `-[T*]->`, `-[T*3]->`, `-[T*2..5]->` path patterns (v0.2)
 
-## Syntax example
+## Syntax example (v0.2)
 
 ```kndl
-node @alice :: Person {
-  name = "Alice"
-  role = "Engineer"
-  team -> @acme           # inline edge to another node
-  ~confidence 0.95
-  ~source     "agent://hr"
-  ~valid      2026-01-01T00:00Z .. *
-  ~decay      0.95 / 1h   # confidence drops 5% per hour
-  ~tags       ["staff", "engineering"]
+// Parameterised type
+type Observation<C> where C <: Code {
+  code    : C
+  value   : Float
+  subject : Patient
 }
 
-edge @alice -[WorksAt]-> @acme {
-  ~confidence 1.0
+// Node with v0.2 meta
+node @obs_4421 :: Observation<Code<"LOINC">> {
+  code    = "8310-5"
+  value   = 38.2
+  unit    = "°C"
+  subject -> @patient_p001
+  ~confidence  0.96
+  ~source      "ehr://encounter-4421"
+  ~recorded    2026-04-10T09:15:00Z
+  ~observed    2026-04-10T09:10:00Z
+  ~uncertainty Gaussian { mean = 38.2  stddev = 0.1 }
 }
 
+// Process / state machine
+process @grasp_sm :: StateMachine {
+  states  = ["idle", "approaching", "grasping", "lifting"]
+  initial = "idle"
+  @idle        -> @approaching { trigger = "pickup_cmd" }
+  @approaching -> @grasping   { trigger = @joint_01.angle > 30 }
+  @grasping    -> @lifting    { trigger = @joint_01.torque > 1.8 }
+}
+
+// Intent (reactive rule)
 intent @alert :: Action {
-  trigger = @alice.confidence < 0.5
-  do { emit :: ReviewNeeded { subject = "alice" } }
-  ~priority    0.8
-  ~cooldown    15m
+  trigger = @obs_4421.value > 39.0
+  do { emit node :: Alert { severity = "critical" } }
+  ~priority 0.9
+  ~cooldown 5m
 }
 
-type Employee = Person & {
-  team: String
-  level: Int where { level >= 1 && level <= 10 }
+// Undirected edge
+edge @room_204 -[adjacent_to]- @room_205
+
+// Multi-hop query
+query supply_chain {
+  match ?supplier -[supplies*2..4]-> ?product
+  where ?supplier.~confidence > 0.8
+  return { supplier: ?supplier, product: ?product }
 }
 ```
 
@@ -47,49 +75,47 @@ type Employee = Person & {
 ```
 kndl/
 ├── spec/
-│   ├── SPECIFICATION.md          authoritative language spec
+│   ├── SPECIFICATION.md          authoritative language spec (v0.2)
 │   └── grammar/kndl.ebnf         full EBNF grammar
 ├── packages/
-│   ├── python/                   Python 3.12+ reference implementation
+│   ├── python/                   Python 3.12+ reference implementation (kndl 0.1.0)
 │   │   ├── src/kndl/
 │   │   │   ├── lexer.py          tokenizer → list[Token]
 │   │   │   ├── parser.py         recursive-descent → Program AST
-│   │   │   ├── ast_nodes.py      all AST dataclasses
+│   │   │   ├── ast_nodes.py      all AST dataclasses (incl. v0.2: TypeExpr params, EdgePattern hops, EmitAction goto)
 │   │   │   ├── compiler.py       AST → KNDLGraph
-│   │   │   ├── graph.py          KNDLGraph, GraphNode, GraphEdge, GraphIntent, KNDLMeta
+│   │   │   ├── graph.py          KNDLGraph, GraphNode, GraphEdge, GraphIntent, KNDLMeta (v0.2 fields)
 │   │   │   ├── serializer.py     KNDLGraph → KNDL text
 │   │   │   ├── storage.py        KNDLStorage Protocol + create_storage() factory
 │   │   │   ├── backends/
 │   │   │   │   ├── sqlite_backend.py   stdlib sqlite3, zero extra deps
 │   │   │   │   └── postgres_backend.py psycopg2, JSONB + GIN indexes
+│   │   │   ├── py.typed          PEP 561 marker
 │   │   │   └── __init__.py       public API: parse(), compile(), serialize(), tokenize()
 │   │   └── tests/
-│   │       ├── test_kndl.py           52 tests  — baseline pipeline
-│   │       ├── test_kndl_extended.py  65 tests  — edge cases, roundtrip
-│   │       └── test_storage.py        24 tests  — backends, factory, persistence
-│   ├── mcp-server/               MCP server wrapping the Python library
-│   │   ├── src/kndl_mcp/
-│   │   │   ├── server.py         FastMCP server, 14 tools, 4 resources, 2 prompts
-│   │   │   ├── _meta.py          _duration_to_seconds() helper
-│   │   │   ├── __main__.py       entry: python -m kndl_mcp [--http]
-│   │   │   └── __init__.py
-│   │   └── tests/test_tools.py   67 integration tests
-│   └── kotlin/                   Kotlin / JVM 22 full reference implementation
-│       └── src/
-│           ├── main/kotlin/dev/kndl/
-│           │   ├── Lexer.kt, Parser.kt, AstNodes.kt, Compiler.kt
-│           │   ├── KNDLGraph.kt, Serializer.kt, Storage.kt
-│           │   ├── SQLiteStorage.kt    SQLite JDBC backend
-│           │   ├── JsonHelper.kt       zero-dependency JSON (stdlib only)
-│           │   └── KNDL.kt             public API
-│           └── test/kotlin/dev/kndl/KNDLTest.kt   68 tests
-└── website/                      Vite + React 18 + TypeScript
+│   │       ├── test_kndl.py           52 tests — baseline pipeline
+│   │       ├── test_kndl_extended.py  65 tests — edge cases, roundtrip
+│   │       ├── test_storage.py        24 tests — backends, factory, persistence
+│   │       ├── test_v02.py            72 tests — processes, decimal, group-by, reverse edges
+│   │       └── test_v03_features.py   32 tests — parameterised types, multi-hop, undirected, uncertainty, goto
+│   └── mcp-server/               MCP server wrapping the Python library (kndl-mcp 0.2.0)
+│       ├── src/kndl_mcp/
+│       │   ├── server.py         FastMCP server, 14 tools, 5 resources
+│       │   ├── _meta.py          _duration_to_seconds() — supports ns/us/ms/s/m/h/d/w/mo/y
+│       │   ├── __main__.py       entry: python -m kndl_mcp [--http]
+│       │   └── __init__.py
+│       └── tests/test_tools.py   80 integration tests
+└── website/                      Vite 8 + React 19 + TypeScript (hash-routed, deployed to GitHub Pages)
     └── src/
-        ├── App.tsx               router: / | /spec | /spec/full | /workflow | /explorer | /mcp
+        ├── main.tsx              createHashRouter — all routes under #/
+        ├── App.tsx               <Outlet /> shell with Nav
         ├── pages/
-        │   ├── ExplorerPage.tsx  force-directed graph explorer (SVG, pan/zoom/drag)
+        │   ├── LandingPage.tsx   hero, feature grid, CTA row
+        │   ├── SpecPage.tsx      8-domain tabbed examples, v0.2 meta table, playground
         │   ├── SpecFullPage.tsx  full spec rendered from SPECIFICATION.md via Vite ?raw
-        │   └── ...
+        │   ├── WorkflowPage.tsx  6-stage agent pipeline animation
+        │   ├── ExplorerPage.tsx  force-directed graph explorer (SVG, pan/zoom/drag)
+        │   └── McpPage.tsx
         ├── utils/kndlParser.ts   browser-side regex KNDL parser
         ├── hooks/useForceLayout.ts spring force simulation, RAF-based
         └── components/CodeBlock.tsx highlightKNDL() syntax highlighter
@@ -139,6 +165,7 @@ graph.from_storage(storage) -> KNDLGraph  # classmethod, bulk-loads then re-atta
 graph.nodes: dict[str, GraphNode]
 graph.edges: dict[str, GraphEdge]
 graph.intents: dict[str, GraphIntent]
+graph.processes: dict[str, Any]   # v0.2
 graph.types: dict[str, dict]
 ```
 
@@ -147,19 +174,29 @@ graph.types: dict[str, dict]
 ```python
 @dataclass
 class KNDLMeta:
+    # Core
     confidence: float = 1.0
     source: str = ""
-    valid_start: str | None = None       # ISO 8601
-    valid_end: str | None = None         # ISO 8601 or "*" for open
-    decay_rate: float | None = None      # e.g. 0.95
+    valid_start: str | None = None          # ISO 8601
+    valid_end: str | None = None            # ISO 8601 or "*" for open-ended
+    decay_rate: float | None = None         # e.g. 0.95
     decay_duration_seconds: float | None = None
-    supersedes: str | None = None        # node/edge ID this replaces
-    derived_from: list[str]              # provenance chain
+    supersedes: str | None = None           # node/edge ID this replaces
+    derived_from: list[str]                 # provenance chain
     access: str = ""
     priority: float = 0.5
     cooldown_seconds: float | None = None
     tags: list[str]
+    weight: float | None = None             # edges
     custom: dict[str, Any]
+    # v0.2
+    recorded: str | None = None             # when fact was recorded in the system
+    observed: str | None = None             # when the event was actually observed
+    negated: bool = False                   # asserts the fact is false
+    deadline: str | None = None             # time by which action must complete
+    classification: str | None = None       # security classification label
+    retention: str | None = None            # retention policy string e.g. "7y"
+    uncertainty: dict[str, Any] | None = None  # §9: gaussian/interval/categorical/histogram
 
     def effective_confidence(at_time: datetime | None = None) -> float
     # formula: confidence × (decay_rate ^ (elapsed / decay_duration_seconds))
@@ -170,6 +207,7 @@ class KNDLMeta:
 - Nodes: `id`, `type` (not `type_name`), `fields`, `meta`
 - Edges: `id`, `source` (not `source_id`), `target` (not `target_id`), `type` (not `edge_type`), `direction`, `fields`, `meta`
 - Intents: `id`, `type`, `trigger` → `{kind, data}`, `actions`, `meta`
+- Stats (kndl_graph_stats): `node_count`, `edge_count`, `intent_count`, `process_count`, `type_distribution`
 
 ## Storage layer
 
@@ -210,24 +248,24 @@ Holds a single global `_graph: KNDLGraph`. Storage initialised once at import vi
 
 | Tool | Key parameters |
 |------|---------------|
-| `kndl_parse` | `source: str` |
-| `kndl_add_node` | `node_id, type_name, fields, confidence, source, valid_start, valid_end, decay, tags` |
+| `kndl_parse` | `source: str` — parses KNDL including `process` blocks |
+| `kndl_add_node` | `node_id, type_name, fields, confidence, source, valid_start, valid_end, decay_rate, decay_duration, tags, recorded, observed, negated, deadline, classification, retention, uncertainty` |
 | `kndl_get_node` | `node_id` |
 | `kndl_update_node` | `node_id, fields, meta_updates` |
 | `kndl_remove_node` | `node_id` |
-| `kndl_add_edge` | `source_id, target_id, edge_type, direction, fields, confidence` |
+| `kndl_add_edge` | `source_id, target_id, edge_type, direction ("forward"/"reverse"/"undirected"), fields, confidence` |
 | `kndl_query_nodes` | `type_name, min_confidence, field_filters, apply_decay` |
 | `kndl_neighborhood` | `node_id, hops (1–5)` |
 | `kndl_add_intent` | `intent_id, type_name, trigger_kind, trigger_data, actions, meta` |
 | `kndl_merge_graphs` | `source: str` |
 | `kndl_serialize` | _(none)_ |
-| `kndl_graph_stats` | _(none)_ |
+| `kndl_graph_stats` | _(none)_ → returns `node_count`, `edge_count`, `intent_count`, `process_count`, `type_distribution` |
 | `kndl_get_types` | `type_name: str \| None` |
 | `kndl_reset` | _(none)_ — clears in-memory graph and persistent store |
 
 All tools return `{"status": "ok", ...}` or `{"status": "error", "message": "..."}`.
 
-### 4 resources
+### 5 resources
 
 | URI | Content |
 |-----|---------|
@@ -235,25 +273,22 @@ All tools return `{"status": "ok", ...}` or `{"status": "error", "message": "...
 | `kndl://spec/grammar` | Full EBNF grammar text |
 | `kndl://spec/language` | Full SPECIFICATION.md text |
 | `kndl://graph/types` | JSON snapshot of type declarations |
-| `kndl://graph/summary` | Plain-text node/edge/intent count summary |
-
-## Kotlin implementation
-
-Package: `packages/kotlin`, Gradle 8.7, JVM 22.
-API mirrors Python exactly: `KNDL.parse()`, `KNDL.compile()`, `KNDL.serialize()`, `KNDL.tokenize()`.
-Storage: `KNDLStorage` interface, `createStorage()` factory, `SQLiteStorage` via `org.xerial:sqlite-jdbc`.
-JSON: zero-dependency `JsonHelper.kt` (stdlib only, no `kotlinx.serialization`).
-68 tests in `KNDLTest.kt`.
+| `kndl://graph/summary` | Plain-text node/edge/intent/process count summary |
 
 ## Parser quirks (do not "fix" without updating compiler + tests)
 
-- **Decay expressions**: `0.95 / 1h` is parsed as `BinaryOp(op="/", left=Literal(0.95), right=Literal("1h"))` not a `DecayExpr`. Compiler `_build_meta` handles both forms.
+- **Decay expressions**: `0.95 / 1h` is parsed as `BinaryOp(op="/", left=Literal(0.95), right=Literal("1h"))`, not a `DecayExpr`. Compiler `_build_meta` handles both forms.
 - **Constrained types**: `where { expr }` braces required — not inline.
 - **Export syntax**: `export type Foo { ... }` — not `export { Foo }`.
 - **Query trigger**: `trigger = query name { match ... return ... }` — inline body, not a reference.
 - **Optional match**: `optional match ?var :: Type` — `match` follows `optional`.
 - **`in` keyword**: reserved as `KW_IN`. Use `located_in`, `contained_in`, etc. for edge types.
-- **Duration units**: `{"ms", "s", "m", "h", "d", "w"}`. Lexer checks up to 2 chars so `ms` matches before `m`.
+- **Duration units** (v0.2): `ns`, `us`, `ms`, `s`, `m`, `h`, `d`, `w`, `mo`, `y`. Lexer matches longest prefix; `ms` beats `m`, `mo` beats `m`.
+- **Parameterised types** (v0.2): `Type<Param>` — `<` after a type name starts a param list, `>` closes it. Nested: `Code<"LOINC">`.
+- **Undirected edges** (v0.2): `-[Type]-` — `TYPED_ARROW_START` + type name + `RBRACKET` + `OP_MINUS` (no `>`).
+- **Multi-hop patterns** (v0.2): `-[Type*]->` unbounded; `-[Type*3]->` exact; `-[Type*2..5]->` range; `-[Type*2..]->` lower-bound only.
+- **Named struct literals** (v0.2): `TypeName { key = value }` — identifier followed by `{` in expression position creates a `MapLiteral` with `_type` key.
+- **`goto` in do-blocks** (v0.2): `goto STATE` creates `EmitAction(action_type="goto", goto_state=STATE)`.
 
 ## Serializer invariant
 
@@ -261,44 +296,57 @@ Nodes with inline edge fields (`->`) are serialized as standalone `edge @a -[typ
 
 ## Meta-annotation keys (compiler `_build_meta`)
 
-`confidence`, `source`, `valid`, `decay`, `supersedes`, `derived`, `priority`, `cooldown`, `tags`, `weight`, `access`
+v0.1: `confidence`, `source`, `valid`, `decay`, `supersedes`, `derived`, `priority`, `cooldown`, `tags`, `weight`, `access`
+v0.2 additions: `recorded`, `observed`, `negated`, `deadline`, `classification`, `retention`, `uncertainty`
 
 ## Website architecture
 
-- React Router v7 data router: `createBrowserRouter` + `RouterProvider` + `<Outlet />`
+- React Router v7: `createHashRouter` + `RouterProvider` + `<Outlet />` — hash routing for GitHub Pages static hosting
+- Routes: `/#/` · `/#/spec` · `/#/spec/full` · `/#/workflow` · `/#/explorer` · `/#/mcp`
+- `SpecPage.tsx`: 8-domain tabbed profiles (IoT, FinTech, eCommerce, Logistics, Medicine, Robotics, Smart Factory, Networking); `activeDomain` state drives `DOMAINS` filter
 - `SpecFullPage.tsx`: imports `SPECIFICATION.md` via Vite `?raw`, custom block tokenizer + `BlockRenderer`
-- `ExplorerPage.tsx`: SVG canvas, always-mounted canvas div (display:none when editor active to preserve ResizeObserver), `nodeKey = ids.sort().join("|")` as effect dep
+- `ExplorerPage.tsx`: SVG canvas, always-mounted canvas div (display:none when editor active to preserve ResizeObserver)
 - `useForceLayout.ts`: RAF simulation, `MAX_ITER=220`, `REPEL=3800`, `ATTRACT=0.018`, guards against `width=0/height=0`
 - `highlightKNDL()` in `CodeBlock.tsx`: regex chain → `dangerouslySetInnerHTML`
+- `vite.config.ts`: `base: process.env.GITHUB_PAGES === "true" ? "/KNDL/" : "/"` — assets load from sub-path on Pages
 
 ## Build and test commands
 
 ```bash
 make py-install      # uv sync --all-extras  (packages/python)
-make py-test         # uv run pytest -v       (141 tests)
+make py-test         # uv run pytest -v       (245 tests across 5 files)
+make py-test-cov     # pytest with coverage report
 make py-lint         # ruff check + mypy
 make py-build        # uv build
 
 make mcp-install     # uv sync --all-extras  (packages/mcp-server)
-make mcp-test        # uv run pytest -v       (67 tests)
+make mcp-test        # uv run pytest -v       (80 tests)
+make mcp-lint        # ruff check + mypy
 make mcp-run         # python -m kndl_mcp    (stdio)
 make mcp-run-http    # python -m kndl_mcp --http
 
-make kt-build        # ./gradlew build
-make kt-test         # ./gradlew test         (68 tests)
-
-make web-install     # npm install
+make web-install     # pnpm install
 make web-dev         # vite dev server
-make web-build       # vite build
+make web-build       # vite build (set GITHUB_PAGES=true for /KNDL/ base)
+make web-preview     # serve production build locally
 
-make install         # all install targets
-make test            # all test suites
+make install         # py-install + mcp-install
+make test            # py-test + mcp-test
+make lint            # py-lint + mcp-lint
+make clean           # remove dist/, .venv/, node_modules/
 ```
 
 ## CI
 
-`.github/workflows/kndl-workflow.yml` — three parallel jobs: python (lint + 141 tests), mcp (67 tests), kotlin (68 tests).
-`.github/workflows/codeql.yml` — three parallel CodeQL jobs: Python (`build-mode: none`), TypeScript (`build-mode: none`, `source-root: website/src`), Kotlin (`build-mode: manual`, `./gradlew classes testClasses`).
+`.github/workflows/kndl-workflow.yml` — two parallel jobs on push/PR to main:
+- `python`: `uv sync` → `ruff + mypy` → `pytest` (245 tests)
+- `mcp-server`: `uv sync` → `ruff + mypy` → `pytest` (80 tests)
+
+`.github/workflows/deploy-website.yml` — triggered on push to main when `website/**` changes (or `workflow_dispatch`):
+- `build`: pnpm install → `pnpm build` (`GITHUB_PAGES=true`) → upload artifact
+- `deploy`: `actions/deploy-pages@v4` → https://artdaw.github.io/KNDL/
+
+`.github/workflows/codeql.yml` — CodeQL analysis: Python (`build-mode: none`), TypeScript (`build-mode: none`, `source-root: website/src`).
 
 ## Optional dependencies
 
@@ -311,11 +359,12 @@ dotenv   = ["python-dotenv>=1.0"]
 # packages/mcp-server
 [project.optional-dependencies]
 postgres = ["psycopg2-binary>=2.9"]
+dev      = ["pytest", "pytest-asyncio", "pytest-cov", "ruff", "mypy", "python-dotenv"]
 ```
 
 `python-dotenv` auto-loads `.env` from CWD if installed. `DATABASE_URL` in environment takes precedence.
 
 ## Specification
 
-Full language reference: [`spec/SPECIFICATION.md`](spec/SPECIFICATION.md)  
+Full language reference: [`spec/SPECIFICATION.md`](spec/SPECIFICATION.md)
 EBNF grammar: [`spec/grammar/kndl.ebnf`](spec/grammar/kndl.ebnf)
