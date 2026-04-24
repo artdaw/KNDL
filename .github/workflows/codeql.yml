@@ -32,3 +32,20 @@ jobs:
         uses: github/codeql-action/analyze@v4
         with:
           category: "/language:python"
+  analyze-typescript:
+    name: Analyze TypeScript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+          build-mode: none   # Vite/TS is statically analysed; no build needed
+          source-root: website/src
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:javascript-typescript"
