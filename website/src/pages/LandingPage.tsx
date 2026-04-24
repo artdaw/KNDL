@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import CodeBlock from "../components/CodeBlock";
+import { SEO, softwareSourceCodeSchema } from "../components/SEO";
 import styles from "./LandingPage.module.css";
 
 const HERO_EXAMPLE = `node @sensor_t001 :: Temperature {
@@ -54,6 +55,14 @@ const FEATURES = [
 export default function LandingPage() {
   return (
     <div className={styles.page}>
+      <SEO
+        title="KNDL — Knowledge Node Description Language"
+        description="Graph-based knowledge representation language for AI agents. Typed nodes, 0.0–1.0 confidence scores, temporal decay, cryptographic provenance, native intent and process blocks. Spec, EBNF, MCP server, and examples."
+        path="/"
+        type="website"
+        keywords="knowledge graph, AI agents, knowledge representation, KNDL, confidence, temporal decay, provenance, MCP, LLM memory, agent memory"
+        jsonLd={softwareSourceCodeSchema()}
+      />
       {/* Hero */}
       <div className={styles.hero}>
         <div className={styles.glowBg} />

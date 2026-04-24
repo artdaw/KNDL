@@ -6,6 +6,7 @@
 import { useState, useEffect } from "react";
 import styles from "./WorkflowPage.module.css";
 import { highlightKNDL } from "../components/CodeBlock";
+import { SEO, techArticleSchema } from "../components/SEO";
 
 // ── Integration architecture layers (rendered per-stage with one highlighted) ─
 
@@ -421,6 +422,19 @@ export default function WorkflowPage() {
 
   return (
     <div className={styles.page}>
+      <SEO
+        title="KNDL Agent Workflow — 6-Stage Pipeline (Ingest → Communicate)"
+        description="Walk through how an AI agent actually uses KNDL: Ingest raw input, Produce confidence-scored nodes, Merge into the knowledge graph, Reason with probabilistic queries, Act via intents, Communicate grounded responses. Per-stage insights and integration architecture."
+        path="/workflow"
+        type="article"
+        keywords="AI agent workflow, KNDL pipeline, knowledge graph reasoning, intent-action pattern, agent memory"
+        jsonLd={techArticleSchema({
+          headline: "KNDL Agent Workflow — 6-Stage Pipeline",
+          description:
+            "How an AI agent uses KNDL as a cognitive substrate across Ingest, Produce, Merge, Reason, Act, and Communicate stages.",
+          path: "/workflow",
+        })}
+      />
       <div className={styles.container}>
         {/* Header */}
         <div className={styles.header}>

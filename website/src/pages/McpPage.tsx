@@ -1,4 +1,5 @@
 import CodeBlock from "../components/CodeBlock";
+import { SEO, techArticleSchema } from "../components/SEO";
 import styles from "./McpPage.module.css";
 
 const TOOLS = [
@@ -67,6 +68,19 @@ confidence to 0.6 due to sensor uncertainty"`;
 export default function McpPage() {
   return (
     <div className={styles.page}>
+      <SEO
+        title="KNDL MCP Server — Use KNDL from Claude & AI Agents"
+        description="KNDL MCP server docs: 13 Model Context Protocol tools (kndl_parse, kndl_add_node, kndl_query_nodes, kndl_neighborhood, kndl_add_intent, and more). Install with pip, connect to Claude Desktop or any MCP-compatible agent."
+        path="/mcp"
+        type="article"
+        keywords="KNDL MCP, Model Context Protocol, Claude Desktop, AI agent tools, knowledge graph tools, MCP server"
+        jsonLd={techArticleSchema({
+          headline: "KNDL MCP Server",
+          description:
+            "Expose the KNDL knowledge graph as Model Context Protocol tools for Claude and other AI agents.",
+          path: "/mcp",
+        })}
+      />
       <div className={styles.container}>
 
         {/* Header */}

@@ -6,6 +6,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { highlightKNDL } from "../components/CodeBlock";
+import { SEO, techArticleSchema } from "../components/SEO";
 import styles from "./SpecPage.module.css";
 
 // ── Inline code block ─────────────────────────────────────────────────────────
@@ -730,6 +731,19 @@ export default function SpecPage() {
   const [activeDomain, setActiveDomain] = useState("iot");
   return (
     <div className={styles.page}>
+      <SEO
+        title="KNDL Language Specification — types, meta-annotations, domain profiles"
+        description="KNDL language reference: primitive types (Quantity, Money, Vector), meta-annotations (~confidence, ~valid, ~recorded, ~negated, ~uncertainty), query language with multi-hop paths, processes, and eight domain profiles (IoT, FinTech, Healthcare, Logistics, Robotics, Smart Factory, Networking, eCommerce)."
+        path="/spec"
+        type="article"
+        keywords="KNDL specification, knowledge graph language, AI agent memory, confidence score, temporal decay, provenance, EBNF grammar"
+        jsonLd={techArticleSchema({
+          headline: "KNDL Language Specification",
+          description:
+            "Reference for the Knowledge Node Description Language — types, meta-annotations, queries, processes, and domain profiles.",
+          path: "/spec",
+        })}
+      />
       {/* Hero */}
       <div className={styles.hero}>
         <div className={styles.glowBg} />

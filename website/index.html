@@ -3,14 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b0f14" />
+
+    <!-- Default SEO — per-route pages override these via <SEO> at runtime. -->
     <title>KNDL — Knowledge Node Description Language</title>
-    <meta name="description" content="KNDL is a graph-based knowledge representation language for AI agents — typed nodes, confidence scores, temporal decay, and native intent blocks." />
+    <meta name="description" content="KNDL is a graph-based knowledge representation language for AI agents — typed nodes, 0.0–1.0 confidence scores, temporal decay, cryptographic provenance, and native intent/process blocks." />
+    <meta name="keywords" content="knowledge graph, AI agent memory, KNDL, confidence score, temporal decay, provenance, MCP, LLM memory, semantic data, knowledge representation" />
+    <meta name="author" content="Gleb Galkin" />
+    <meta name="robots" content="index,follow,max-image-preview:large" />
+
+    <link rel="canonical" href="https://kndl.artdaw.com/" />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="KNDL" />
     <meta property="og:url" content="https://kndl.artdaw.com/" />
     <meta property="og:title" content="KNDL — Knowledge Node Description Language" />
-    <meta property="og:description" content="A graph-based knowledge representation language for AI agents — typed nodes, confidence scores, temporal decay, and native intent blocks." />
+    <meta property="og:description" content="A graph-based knowledge representation language for AI agents — typed nodes, confidence scores, temporal decay, and native intent/process blocks." />
     <meta property="og:image" content="https://kndl.artdaw.com/kndl.png" />
     <meta property="og:image:width" content="1860" />
     <meta property="og:image:height" content="864" />
@@ -19,16 +28,102 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:url" content="https://kndl.artdaw.com/" />
     <meta name="twitter:title" content="KNDL — Knowledge Node Description Language" />
-    <meta name="twitter:description" content="A graph-based knowledge representation language for AI agents — typed nodes, confidence scores, temporal decay, and native intent blocks." />
+    <meta name="twitter:description" content="A graph-based knowledge representation language for AI agents — typed nodes, confidence scores, temporal decay, and native intent/process blocks." />
     <meta name="twitter:image" content="https://kndl.artdaw.com/kndl.png" />
 
+    <!-- Machine-readable discovery -->
+    <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+    <link rel="alternate" type="text/markdown" href="/spec/SPECIFICATION.md" title="KNDL Specification (markdown)" />
+    <link rel="alternate" type="text/plain" href="/spec/kndl.ebnf" title="KNDL EBNF Grammar" />
+    <link rel="alternate" type="text/plain" href="/llms.txt" title="LLM index (llmstxt.org)" />
+    <link rel="alternate" type="text/plain" href="/llms-full.txt" title="LLM full bundle" />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Newsreader:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap"
       rel="stylesheet"
     />
+
+    <!-- JSON-LD: the language itself, as a SoftwareSourceCode / CreativeWork. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://kndl.artdaw.com/#org",
+          "name": "KNDL",
+          "url": "https://kndl.artdaw.com/",
+          "logo": "https://kndl.artdaw.com/kndl.png",
+          "sameAs": ["https://github.com/artdaw/KNDL"]
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://kndl.artdaw.com/#site",
+          "url": "https://kndl.artdaw.com/",
+          "name": "KNDL",
+          "description": "Graph-based knowledge representation language for AI agents.",
+          "inLanguage": "en",
+          "publisher": { "@id": "https://kndl.artdaw.com/#org" }
+        },
+        {
+          "@type": "SoftwareSourceCode",
+          "@id": "https://kndl.artdaw.com/#software",
+          "name": "KNDL — Knowledge Node Description Language",
+          "codeRepository": "https://github.com/artdaw/KNDL",
+          "programmingLanguage": "KNDL",
+          "url": "https://kndl.artdaw.com/",
+          "description": "A graph-based knowledge representation language for AI agents — typed nodes, confidence scores, temporal decay, cryptographic provenance, and native intent/process blocks.",
+          "license": "https://opensource.org/licenses/MIT",
+          "author": { "@id": "https://kndl.artdaw.com/#org" }
+        },
+        {
+          "@type": "TechArticle",
+          "@id": "https://kndl.artdaw.com/spec/full#article",
+          "headline": "KNDL Language Specification v1.0",
+          "description": "Complete reference for the Knowledge Node Description Language version 1.0.",
+          "url": "https://kndl.artdaw.com/spec/full",
+          "dateModified": "2026-04-23",
+          "inLanguage": "en",
+          "mainEntityOfPage": "https://kndl.artdaw.com/spec/full",
+          "publisher": { "@id": "https://kndl.artdaw.com/#org" }
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>
+
+    <!-- No-script discovery fallback for crawlers that don't run JS. -->
+    <noscript>
+      <h1>KNDL — Knowledge Node Description Language</h1>
+      <p>
+        KNDL is a graph-based knowledge representation language for AI agents.
+        Every assertion carries a 0.0–1.0 confidence score, bitemporal
+        validity, provenance (URI or cryptographic signature), and typed
+        relationships. Intents and processes live alongside knowledge.
+      </p>
+      <p>Machine-readable resources:</p>
+      <ul>
+        <li><a href="/llms.txt">/llms.txt</a> — concise index for LLMs (<a href="https://llmstxt.org">llmstxt.org</a> format)</li>
+        <li><a href="/llms-full.txt">/llms-full.txt</a> — spec + EBNF + examples concatenated</li>
+        <li><a href="/spec/SPECIFICATION.md">/spec/SPECIFICATION.md</a> — canonical language reference</li>
+        <li><a href="/spec/kndl.ebnf">/spec/kndl.ebnf</a> — authoritative grammar</li>
+        <li><a href="/examples/index.md">/examples/</a> — curated .kndl snippets</li>
+        <li><a href="/sitemap.xml">/sitemap.xml</a> — full URL index</li>
+      </ul>
+      <p>Human-facing pages:
+        <a href="/spec">Spec overview</a> ·
+        <a href="/spec/full">Full spec</a> ·
+        <a href="/workflow">Agent workflow</a> ·
+        <a href="/mcp">MCP server</a> ·
+        <a href="/explorer">Graph explorer</a>.
+      </p>
+    </noscript>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

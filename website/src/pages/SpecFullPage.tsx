@@ -11,6 +11,7 @@ import {
   BlockRenderer,
 } from "../utils/mdRenderer";
 import type { TocEntry } from "../utils/mdRenderer";
+import { SEO, techArticleSchema } from "../components/SEO";
 import styles from "./SpecFullPage.module.css";
 
 // ── Parse once at module level ────────────────────────────────────────────────
@@ -90,6 +91,21 @@ export default function SpecFullPage() {
 
   return (
     <div className={styles.page}>
+      <SEO
+        title="KNDL Specification v1.0 — Full Reference"
+        description="Full KNDL v1.0 specification: lexical structure, type system (Quantity, Money, Vector, Frame, Code, Localized), core constructs, query language with multi-hop paths, processes, uncertainty model, serialization (text + binary), and conformance levels. Raw markdown available at /spec/SPECIFICATION.md."
+        path="/spec/full"
+        type="article"
+        dateModified="2026-04-23"
+        keywords="KNDL spec v1.0, EBNF grammar, knowledge graph, agent memory, semantic data, confidence, provenance"
+        jsonLd={techArticleSchema({
+          headline: "KNDL Language Specification v1.0",
+          description:
+            "Complete reference for the Knowledge Node Description Language version 1.0.",
+          path: "/spec/full",
+          dateModified: "2026-04-23",
+        })}
+      />
       {/* Page header */}
       <header className={styles.header}>
         <div className={styles.headerInner}>
@@ -98,14 +114,20 @@ export default function SpecFullPage() {
             <h1 className={styles.title}>Language Specification</h1>
             <span className={styles.version}>v1.0.0 · April 2026</span>
           </div>
-          <a
-            className={styles.rawLink}
-            href="https://github.com/artdaw/kndl/blob/main/spec/SPECIFICATION.md"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            View raw ↗
-          </a>
+          <div className={styles.headerActions}>
+            <a
+              className={styles.rawLink}
+              href="/spec/SPECIFICATION.md"
+            >
+              Raw Markdown ↗
+            </a>
+            <a
+              className={styles.rawLink}
+              href="/spec/kndl.ebnf"
+            >
+              EBNF Grammar ↗
+            </a>
+          </div>
         </div>
       </header>
 
