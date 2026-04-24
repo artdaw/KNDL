@@ -1,8 +1,8 @@
 # KNDL — Knowledge Node Description Language
 
 > **Live site:** https://artdaw.github.io/KNDL/
-> **Spec version:** v0.2
-> **Python library:** `kndl` 0.1.0 · **MCP server:** `kndl-mcp` 0.2.0
+> **Spec version:** v1.0.0
+> **Python library:** `kndl` 1.0.0 · **MCP server:** `kndl-mcp` 1.0.0
 
 ## What it is
 
@@ -12,14 +12,14 @@ Core concepts:
 - **Node** — a typed entity with arbitrary fields and meta-annotations
 - **Edge** — a typed, directed (or undirected) relationship between two nodes; first-class, not just a field
 - **Intent** — a reactive trigger-action rule that fires when a condition is met
-- **Process** — a state-machine block with typed transitions and `goto` actions (v0.2)
-- **Meta** — every node and edge carries: confidence (0–1), source URI, validity window, decay rate, tags, priority, cooldown, and v0.2 extensions (recorded, observed, negated, deadline, classification, retention, uncertainty)
+- **Process** — a state-machine block with typed transitions and `goto` actions
+- **Meta** — every node and edge carries: confidence (0–1), source URI, validity window, decay rate, tags, priority, cooldown, recorded, observed, negated, deadline, classification, retention, uncertainty
 - **Confidence decay** — exponential: `confidence × (decay_rate ^ (elapsed / decay_duration_seconds))`
-- **Parameterised types** — `Type<Param>` generic schemas; e.g. `Observation<Code<"LOINC">>` (v0.2)
-- **Uncertainty distributions** — `~uncertainty Gaussian { mean = X  stddev = Y }` (v0.2)
-- **Multi-hop queries** — `-[T*]->`, `-[T*3]->`, `-[T*2..5]->` path patterns (v0.2)
+- **Parameterised types** — `Type<Param>` generic schemas; e.g. `Observation<Code<"LOINC">>`
+- **Uncertainty distributions** — `~uncertainty Gaussian { mean = X  stddev = Y }`
+- **Multi-hop queries** — `-[T*]->`, `-[T*3]->`, `-[T*2..5]->` path patterns
 
-## Syntax example (v0.2)
+## Syntax example
 
 ```kndl
 // Parameterised type
@@ -29,7 +29,6 @@ type Observation<C> where C <: Code {
   subject : Patient
 }
 
-// Node with v0.2 meta
 node @obs_4421 :: Observation<Code<"LOINC">> {
   code    = "8310-5"
   value   = 38.2
@@ -75,16 +74,16 @@ query supply_chain {
 ```
 kndl/
 ├── spec/
-│   ├── SPECIFICATION.md          authoritative language spec (v0.2)
+│   ├── SPECIFICATION.md          authoritative language spec
 │   └── grammar/kndl.ebnf         full EBNF grammar
 ├── packages/
-│   ├── python/                   Python 3.12+ reference implementation (kndl 0.1.0)
+│   ├── python/                   Python 3.12+ reference implementation (kndl 1.0.0)
 │   │   ├── src/kndl/
 │   │   │   ├── lexer.py          tokenizer → list[Token]
 │   │   │   ├── parser.py         recursive-descent → Program AST
-│   │   │   ├── ast_nodes.py      all AST dataclasses (incl. v0.2: TypeExpr params, EdgePattern hops, EmitAction goto)
+│   │   │   ├── ast_nodes.py      all AST dataclasses (TypeExpr params, EdgePattern hops, EmitAction goto, ProcessDecl)
 │   │   │   ├── compiler.py       AST → KNDLGraph
-│   │   │   ├── graph.py          KNDLGraph, GraphNode, GraphEdge, GraphIntent, KNDLMeta (v0.2 fields)
+│   │   │   ├── graph.py          KNDLGraph, GraphNode, GraphEdge, GraphIntent, KNDLMeta
 │   │   │   ├── serializer.py     KNDLGraph → KNDL text
 │   │   │   ├── storage.py        KNDLStorage Protocol + create_storage() factory
 │   │   │   ├── backends/
@@ -96,9 +95,9 @@ kndl/
 │   │       ├── test_kndl.py           52 tests — baseline pipeline
 │   │       ├── test_kndl_extended.py  65 tests — edge cases, roundtrip
 │   │       ├── test_storage.py        24 tests — backends, factory, persistence
-│   │       ├── test_v02.py            72 tests — processes, decimal, group-by, reverse edges
-│   │       └── test_v03_features.py   32 tests — parameterised types, multi-hop, undirected, uncertainty, goto
-│   └── mcp-server/               MCP server wrapping the Python library (kndl-mcp 0.2.0)
+│   │       ├── test_processes.py      72 tests — processes, decimal, group-by, reverse edges
+│   │       └── test_advanced_types.py 32 tests — parameterised types, multi-hop, undirected, uncertainty, goto
+│   └── mcp-server/               MCP server wrapping the Python library (kndl-mcp 1.0.0)
 │       ├── src/kndl_mcp/
 │       │   ├── server.py         FastMCP server, 14 tools, 5 resources
 │       │   ├── _meta.py          _duration_to_seconds() — supports ns/us/ms/s/m/h/d/w/mo/y
@@ -111,7 +110,7 @@ kndl/
         ├── App.tsx               <Outlet /> shell with Nav
         ├── pages/
         │   ├── LandingPage.tsx   hero, feature grid, CTA row
-        │   ├── SpecPage.tsx      8-domain tabbed examples, v0.2 meta table, playground
+        │   ├── SpecPage.tsx      8-domain tabbed examples, meta table, playground
         │   ├── SpecFullPage.tsx  full spec rendered from SPECIFICATION.md via Vite ?raw
         │   ├── WorkflowPage.tsx  6-stage agent pipeline animation
         │   ├── ExplorerPage.tsx  force-directed graph explorer (SVG, pan/zoom/drag)
@@ -165,7 +164,7 @@ graph.from_storage(storage) -> KNDLGraph  # classmethod, bulk-loads then re-atta
 graph.nodes: dict[str, GraphNode]
 graph.edges: dict[str, GraphEdge]
 graph.intents: dict[str, GraphIntent]
-graph.processes: dict[str, Any]   # v0.2
+graph.processes: dict[str, Any]
 graph.types: dict[str, dict]
 ```
 
@@ -189,7 +188,6 @@ class KNDLMeta:
     tags: list[str]
     weight: float | None = None             # edges
     custom: dict[str, Any]
-    # v0.2
     recorded: str | None = None             # when fact was recorded in the system
     observed: str | None = None             # when the event was actually observed
     negated: bool = False                   # asserts the fact is false
@@ -283,12 +281,12 @@ All tools return `{"status": "ok", ...}` or `{"status": "error", "message": "...
 - **Query trigger**: `trigger = query name { match ... return ... }` — inline body, not a reference.
 - **Optional match**: `optional match ?var :: Type` — `match` follows `optional`.
 - **`in` keyword**: reserved as `KW_IN`. Use `located_in`, `contained_in`, etc. for edge types.
-- **Duration units** (v0.2): `ns`, `us`, `ms`, `s`, `m`, `h`, `d`, `w`, `mo`, `y`. Lexer matches longest prefix; `ms` beats `m`, `mo` beats `m`.
-- **Parameterised types** (v0.2): `Type<Param>` — `<` after a type name starts a param list, `>` closes it. Nested: `Code<"LOINC">`.
-- **Undirected edges** (v0.2): `-[Type]-` — `TYPED_ARROW_START` + type name + `RBRACKET` + `OP_MINUS` (no `>`).
-- **Multi-hop patterns** (v0.2): `-[Type*]->` unbounded; `-[Type*3]->` exact; `-[Type*2..5]->` range; `-[Type*2..]->` lower-bound only.
-- **Named struct literals** (v0.2): `TypeName { key = value }` — identifier followed by `{` in expression position creates a `MapLiteral` with `_type` key.
-- **`goto` in do-blocks** (v0.2): `goto STATE` creates `EmitAction(action_type="goto", goto_state=STATE)`.
+- **Duration units**: `ns`, `us`, `ms`, `s`, `m`, `h`, `d`, `w`, `mo`, `y`. Lexer matches longest prefix; `ms` beats `m`, `mo` beats `m`.
+- **Parameterised types**: `Type<Param>` — `<` after a type name starts a param list, `>` closes it. Nested: `Code<"LOINC">`.
+- **Undirected edges**: `-[Type]-` — `TYPED_ARROW_START` + type name + `RBRACKET` + `OP_MINUS` (no `>`).
+- **Multi-hop patterns**: `-[Type*]->` unbounded; `-[Type*3]->` exact; `-[Type*2..5]->` range; `-[Type*2..]->` lower-bound only.
+- **Named struct literals**: `TypeName { key = value }` — identifier followed by `{` in expression position creates a `MapLiteral` with `_type` key.
+- **`goto` in do-blocks**: `goto STATE` creates `EmitAction(action_type="goto", goto_state=STATE)`.
 
 ## Serializer invariant
 
@@ -296,8 +294,7 @@ Nodes with inline edge fields (`->`) are serialized as standalone `edge @a -[typ
 
 ## Meta-annotation keys (compiler `_build_meta`)
 
-v0.1: `confidence`, `source`, `valid`, `decay`, `supersedes`, `derived`, `priority`, `cooldown`, `tags`, `weight`, `access`
-v0.2 additions: `recorded`, `observed`, `negated`, `deadline`, `classification`, `retention`, `uncertainty`
+`confidence`, `source`, `valid`, `decay`, `supersedes`, `derived`, `priority`, `cooldown`, `tags`, `weight`, `access`, `recorded`, `observed`, `negated`, `deadline`, `classification`, `retention`, `uncertainty`
 
 ## Website architecture
 

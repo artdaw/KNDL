@@ -1,9 +1,7 @@
 # KNDL Language Specification
 
 **Knowledge Node Description Language**
-Version 0.2.0 — Draft, April 2026
-
-Changes since 0.1.0 are summarised in **Appendix E**.
+Version 1.0.0 — April 2026
 
 ---
 
@@ -410,8 +408,7 @@ FIELD_DECL    = IDENTIFIER ':' TYPE_EXPR
 CONSTRAINT    = EXPRESSION
 ```
 
-Intersection, union, optional, and constrained types behave as in v0.1
-(examples retained below).
+Intersection, union, optional, and constrained types (examples below):
 
 ```kndl
 type SmartSensor = Device & Measurement & { firmware : SemVer }
@@ -436,9 +433,8 @@ FIELD_ASSIGN  = IDENTIFIER '=' EXPRESSION
 INLINE_EDGE   = IDENTIFIER '->' NODE_REF
 ```
 
-Semantics are unchanged from v0.1 except that map literals in expression
-position now use `#{ ... }` (§7.1) to avoid parsing ambiguity with node
-bodies and blocks.
+Map literals in expression position use `#{ ... }` (§7.1) to avoid parsing
+ambiguity with node bodies and blocks.
 
 ```kndl
 node @sensor_t001 :: Temperature {
@@ -590,9 +586,9 @@ node @pat_001.hx_diabetes :: MedicalHistoryItem {
 
 ### 4.4 Context Declaration
 
-Unchanged from v0.1 (meta-annotation inheritance). A new meta-annotation
-`~tenant` is reserved for multi-tenant isolation — a query engine MUST
-refuse to return nodes across tenants without explicit `~access` override.
+Meta-annotations are inherited from parent contexts. A `~tenant` meta-annotation
+is reserved for multi-tenant isolation — a query engine MUST refuse to return
+nodes across tenants without explicit `~access` override.
 
 ### 4.5 Intent Declaration
 
@@ -674,7 +670,7 @@ query shipment_route {
 
 ### 5.3 Variables and Optional Matches
 
-Unchanged from v0.1.
+Variable binding and optional match patterns are supported.
 
 ### 5.4 Return, Group, Aggregate
 
@@ -842,7 +838,7 @@ blocks, and `do { }` sections.
 
 ## 8. Module System
 
-Unchanged from v0.1. Imports are URI-based (`kndl://std/...`).
+Imports are URI-based (`kndl://std/...`).
 
 ```kndl
 import { Temperature, Quantity } from "kndl://std/units"
@@ -932,9 +928,9 @@ channels (LoRaWAN, BLE mesh) where 16 bytes per id is prohibitive.
 
 #### 10.2.3 String Pool, Node Block, Edge Block
 
-Mostly as v0.1. Node/edge blocks gain a `uncertainty_type` byte after
-`confidence` to encode structured uncertainty. Quantity values are
-encoded as `(magnitude: float64, unit_ref: uint32)` pairs.
+Node/edge blocks include an `uncertainty_type` byte after `confidence` to
+encode structured uncertainty. Quantity values are encoded as
+`(magnitude: float64, unit_ref: uint32)` pairs.
 
 #### 10.2.4 Signature Block
 
@@ -954,7 +950,7 @@ The signature covers the payload hash in the header.
 
 ## 11. Source URIs
 
-v0.1 schemes remain. v0.2 adds:
+Supported URI schemes:
 
 | Scheme            | Description                  | Example                              |
 |-------------------|------------------------------|--------------------------------------|
@@ -1170,56 +1166,3 @@ application/kndl+b  — KNDL binary format
 ```
 
 File extensions: `.kndl` (text), `.kndlb` (binary).
-
----
-
-## Appendix E: Changes since v0.1.0
-
-**Breaking changes**
-
-- Map literals in expression position now use `#{ ... }` (was `{ ... }`).
-- Query aggregation: `group` is a top-level `group by` clause, not an
-  aggregation function; `aggregate` block syntax removed.
-- Edge operator `<-[T]->` renamed to `-[T]-` (undirected) and `<-[T]-`
-  (reverse-directed) for clarity.
-- Binary format: CRC32 replaced by BLAKE3-256 payload hash; header
-  reshaped (see §10.2.1).
-- `binary_op` EBNF no longer includes `.` and `[]`; these are access
-  operators handled by `ACCESS_EXPR`.
-
-**Additions**
-
-- Primitives: `Decimal`, `Quantity<D>`, `Money`, `Vector<N>`, `UUID`,
-  `CalDuration`.
-- Parameterised: `Code<System>`, `Localized<T>`, `Frame`, `Pose<Frame>`,
-  `Distribution<T>`.
-- Literals: quantity (`22 °C`, `5 m/s`), money (`19.99d USD`),
-  decimal (`19.99d`), vector (`v[...]`).
-- Duration units: `mo`, `y`, `ns`, `us`.
-- Meta-annotations: `~uncertainty`, `~recorded`, `~observed`,
-  `~inference`, `~negated`, `~deadline`, `~frame`, `~sample_rate`,
-  `~last_seen`, `~signature`, `~attestation`, `~classification`,
-  `~retention`, `~consent`, `~tenant`.
-- Structured `~access` policy replaces string form.
-- **Processes** (§6): stateful workflows with states, transitions,
-  compensation.
-- Query language: multi-hop path patterns with repetition, named path
-  variables, explicit `group by`.
-- Uncertainty model (§9): `gaussian`, `interval`, `categorical`,
-  `histogram`.
-- Compact id profile for constrained IoT channels.
-- Signature block in binary format.
-- Explicit open-world assumption with `~negated true` for strong negation.
-- Bitemporal separation of `~valid`, `~observed`, `~recorded`.
-- Domain profiles (Appendix B) for IoT, FinTech, Healthcare, Logistics,
-  Robotics, Smart Factory, Networking, eCommerce.
-- Reification pattern (Appendix C) for n-ary relations.
-
-**Clarifications**
-
-- Reserved keyword list deduplicated (`where` appeared twice in v0.1).
-- `<-[T]->` semantics explicitly defined as "undirected"; operator
-  renamed to `-[T]-`.
-- Operator precedence table lists access operators separately from
-  binary operators.
-- Quantity literals specify whitespace tolerance.

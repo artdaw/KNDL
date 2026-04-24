@@ -1,7 +1,7 @@
 """
 KNDL Compiler — Transforms a parsed AST into a runtime KNDLGraph.
 
-Implements KNDL Specification v0.2.0, Section 4 (Core Constructs).
+Implements KNDL Specification v1.0.0, Section 4 (Core Constructs).
 Walks the Program AST produced by the Parser and populates a KNDLGraph
 with GraphNode, GraphEdge, and GraphIntent objects.
 """
@@ -208,7 +208,6 @@ def _build_meta(annotations: list[MetaAnnotation], ctx: _MetaContext) -> KNDLMet
                 raw = _eval_value(val_node)
                 meta.custom["weight"] = float(raw) if raw is not None else None
 
-            # v0.2 meta fields
             case "recorded":
                 raw = _eval_value(val_node)
                 meta.recorded = str(raw) if raw is not None else None
@@ -426,7 +425,7 @@ class Compiler:
         graph.add_intent(intent)
         return intent
 
-    # ── Processes (v0.2) ──
+    # ── Processes ──
 
     def _compile_process_decl(
         self, decl: ProcessDecl, graph: KNDLGraph, ctx: _MetaContext

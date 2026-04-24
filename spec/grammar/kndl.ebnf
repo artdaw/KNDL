@@ -1,6 +1,6 @@
 (* ================================================================ *)
 (* KNDL — Knowledge Node Description Language                      *)
-(* EBNF Grammar v0.2.0 — derived from SPECIFICATION.md §2, §11, §13 *)
+(* EBNF Grammar v1.0.0 — derived from SPECIFICATION.md §2, §11, §13 *)
 (* Notation: UPPERCASE = lexical non-terminal, 'x' = literal token  *)
 (* ================================================================ *)
 
@@ -96,7 +96,7 @@ action         = 'emit' node_decl
                | 'goto' IDENTIFIER ;
 
 
-(* ── Processes (new in v0.2) ─────────────────────────────────── *)
+(* ── Processes ───────────────────────────────────────────────── *)
 
 process_decl   = 'process' node_ref '::' type_expr '{'
                  { process_member }

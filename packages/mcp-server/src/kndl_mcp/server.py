@@ -105,7 +105,6 @@ def kndl_add_node(
     decay_rate: float | None = None,
     decay_duration: str | None = None,
     tags: list[str] | None = None,
-    # v0.2 meta fields
     recorded: str | None = None,
     observed: str | None = None,
     negated: bool = False,
@@ -128,13 +127,13 @@ def kndl_add_node(
         decay_rate: Confidence decay rate (e.g. 0.95)
         decay_duration: Duration per decay period (e.g. "1h", "30m", "1mo")
         tags: Free-form labels
-        recorded: ISO datetime when fact was recorded (v0.2)
-        observed: ISO datetime when fact was observed (v0.2)
-        negated: Whether this fact is a negation (v0.2)
-        deadline: ISO datetime deadline (v0.2)
-        classification: Security classification label (v0.2)
-        retention: Retention policy string (v0.2)
-        uncertainty: Structured uncertainty model, e.g. {"_type": "gaussian", "mean": 0.5, "std": 0.1} (v0.2 §9)
+        recorded: ISO datetime when fact was recorded
+        observed: ISO datetime when fact was observed
+        negated: Whether this fact is a negation
+        deadline: ISO datetime deadline
+        classification: Security classification label
+        retention: Retention policy string
+        uncertainty: Structured uncertainty model, e.g. {"_type": "gaussian", "mean": 0.5, "std": 0.1} (§9)
     """
     meta = KNDLMeta(
         confidence=confidence,
@@ -175,7 +174,7 @@ def kndl_add_edge(
         target_id: ID of target node
         edge_type: Semantic relationship (e.g. "located_in", "caused_by")
         direction: Edge direction — "forward" (-[T]->), "bidirectional" (<-[T]->),
-                   "reverse" (<-[T]-), or "undirected" (-[T]-) (v0.2)
+                   "reverse" (<-[T]-), or "undirected" (-[T]-)
         confidence: Certainty 0.0–1.0
         source_uri: URI of asserting entity
         fields: Additional data on the edge

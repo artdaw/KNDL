@@ -2,7 +2,7 @@
 KNDL Lexer — Tokenizer for the Knowledge Node Description Language.
 
 Converts raw KNDL source text into a stream of typed tokens.
-Implements KNDL Specification v0.2.0, Section 2 (Lexical Structure).
+Implements KNDL Specification v1.0.0, Section 2 (Lexical Structure).
 """
 
 from __future__ import annotations
@@ -79,7 +79,6 @@ class TokenType(Enum):
     KW_UPDATE = auto()
     KW_DELETE = auto()
     KW_MATCHES = auto()
-    # v0.2 keywords
     KW_PROCESS = auto()
     KW_STATE = auto()
     KW_ON = auto()
@@ -194,7 +193,6 @@ KEYWORDS: dict[str, TokenType] = {
     "update": TokenType.KW_UPDATE,
     "delete": TokenType.KW_DELETE,
     "matches": TokenType.KW_MATCHES,
-    # v0.2 keywords
     "process": TokenType.KW_PROCESS,
     "state": TokenType.KW_STATE,
     "on": TokenType.KW_ON,
@@ -204,7 +202,6 @@ KEYWORDS: dict[str, TokenType] = {
     "of": TokenType.KW_OF,
 }
 
-# Duration units (v0.2 adds ns, us, mo, y)
 DURATION_UNITS = {"ms", "ns", "us", "mo", "s", "m", "h", "d", "w", "y"}
 
 # Datetime regex

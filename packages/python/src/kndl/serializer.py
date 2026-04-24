@@ -86,7 +86,6 @@ def _serialize_meta(meta: KNDLMeta, indent: str = "  ") -> list[str]:
     if meta.tags:
         tags = ", ".join(f'"{t}"' for t in meta.tags)
         lines.append(f"{indent}~tags       [ {tags} ]")
-    # v0.2 meta fields
     if meta.recorded:
         lines.append(f'{indent}~recorded   "{meta.recorded}"')
     if meta.observed:

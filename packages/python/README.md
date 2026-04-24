@@ -2,7 +2,7 @@
 
 Python library for **KNDL** — Knowledge Node Description Language.
 
-Build, query, and persist confidence-aware knowledge graphs in Python. The reference implementation of the KNDL v0.2 spec.
+Build, query, and persist confidence-aware knowledge graphs in Python. The reference implementation of the KNDL specification.
 
 [![PyPI](https://img.shields.io/pypi/v/kndl)](https://pypi.org/project/kndl/)
 [![Python](https://img.shields.io/pypi/pyversions/kndl)](https://pypi.org/project/kndl/)
@@ -90,7 +90,7 @@ node = graph.get_node("reading")
 print(node.meta.effective_confidence())   # current confidence after decay
 ```
 
-## v0.2 Features
+## Features
 
 ### Parameterised types
 
@@ -228,8 +228,8 @@ uv run mypy src
 | `test_kndl.py` | 52 | Lexer, Parser, Compiler, Graph, Serializer |
 | `test_kndl_extended.py` | 65 | Edge cases, integration, roundtrip |
 | `test_storage.py` | 24 | SQLite, PostgreSQL, factory, persistence |
-| `test_v02.py` | 72 | v0.2 syntax: processes, decimal, group-by, reverse edges |
-| `test_v03_features.py` | 32 | Parameterised types, multi-hop, undirected edges, uncertainty, goto |
+| `test_processes.py` | 72 | Processes, decimal, group-by, reverse edges |
+| `test_advanced_types.py` | 32 | Parameterised types, multi-hop, undirected edges, uncertainty, goto |
 
 ## License
 
