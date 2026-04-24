@@ -1,3 +1,5 @@
+[![KNDL — Knowledge Node Description Language](./kndl.png)](./kndl.png)
+
 # KNDL — Knowledge Node Description Language
 
 Give your AI agent a memory it can reason over.
@@ -45,8 +47,8 @@ Existing formats were designed for humans (Markdown), machines (JSON), or docume
 
 | Package | Version | Description |
 |---------|---------|-------------|
-| [`packages/python`](packages/python) | 0.1.0 | Reference implementation — parser, compiler, graph API, storage |
-| [`packages/mcp-server`](packages/mcp-server) | 0.2.0 | MCP server — use KNDL from Claude Desktop and any MCP client |
+| [`packages/python`](packages/python) | 1.0.0 | Reference implementation — parser, compiler, graph API, storage |
+| [`packages/mcp-server`](packages/mcp-server) | 1.0.0 | MCP server — use KNDL from Claude Desktop and any MCP client |
 | [`website`](website) | — | Documentation site (React + Vite) |
 
 ## Quickstart
@@ -92,7 +94,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 Restart Claude Desktop, then ask: *"Remember that Alice is a senior engineer with confidence 0.95."*
 
-## v0.2 Features
+## Features
 
 - **Parameterised types** — `Observation<Code<"LOINC">>`, `Quantity<°C>`
 - **Processes & state machines** — `process @sm :: StateMachine { ... }`

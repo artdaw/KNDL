@@ -2,7 +2,7 @@
 KNDL Parser — Recursive descent parser for KNDL.
 
 Consumes a token stream from the Lexer and produces an AST (Program).
-Implements KNDL Specification v0.2.0, Sections 3–6.
+Implements KNDL Specification v1.0.0, Sections 3–6.
 """
 
 from __future__ import annotations
@@ -499,7 +499,6 @@ class Parser:
             elif cur.type == TokenType.KW_RETURN:
                 query.return_clause = self._parse_return_clause()
             elif cur.type == TokenType.KW_GROUP:
-                # group by clause (v0.2)
                 self._advance()  # consume 'group'
                 self._expect(TokenType.KW_BY, "Expected 'by' after 'group'")
                 # parse comma-separated expressions
@@ -607,7 +606,7 @@ class Parser:
 
         return rc
 
-    # ── Process declaration (v0.2) ──
+    # ── Process declaration ──
 
     def _parse_process_decl(self) -> ProcessDecl:
         """Parse: process @ref :: TypeName { states... transitions... meta... }"""
@@ -900,7 +899,6 @@ class Parser:
                                kind="quantity", line=tok.line, col=tok.col)
             return Literal(value=fmag, kind="float", line=tok.line, col=tok.col)
 
-        # v0.2: decimal literal (float with 'd' suffix)
         if tok.type == TokenType.DECIMAL:
             self._advance()
             raw = tok.value.rstrip("d")
@@ -971,7 +969,6 @@ class Parser:
         if tok.type == TokenType.LBRACKET:
             return self._parse_array_literal()
 
-        # v0.2: Map literal with #{ ... } syntax
         if tok.type == TokenType.MAP_OPEN:
             return self._parse_hash_map_literal()
 
@@ -1036,7 +1033,7 @@ class Parser:
         return ArrayLiteral(elements=elements, line=tok.line, col=tok.col)
 
     def _parse_hash_map_literal(self) -> MapLiteral:
-        """Parse a v0.2 map literal: #{ key: value, ... }"""
+        """Parse a map literal: #{ key: value, ... }"""
         tok = self._expect(TokenType.MAP_OPEN)
         pairs = []
         while not self._at(TokenType.RBRACE, TokenType.EOF):

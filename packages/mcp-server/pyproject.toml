@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "kndl-mcp"
-version = "0.2.0"
+version = "1.0.0"
 description = "KNDL MCP Server — Model Context Protocol server for KNDL knowledge graphs"
 readme = "README.md"
 requires-python = ">=3.12"

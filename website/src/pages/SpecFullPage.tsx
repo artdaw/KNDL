@@ -96,7 +96,7 @@ export default function SpecFullPage() {
           <div className={styles.headerLeft}>
             <span className={styles.badge}>KNDL</span>
             <h1 className={styles.title}>Language Specification</h1>
-            <span className={styles.version}>v0.1.0 · Draft · April 2026</span>
+            <span className={styles.version}>v1.0.0 · April 2026</span>
           </div>
           <a
             className={styles.rawLink}

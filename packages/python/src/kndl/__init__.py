@@ -23,7 +23,7 @@ Usage:
     data = graph.to_dict()
 """
 
-__version__ = "0.2.0"
+__version__ = "1.0.0"
 
 from .lexer import Lexer, Token, LexerError
 from .parser import Parser, ParseError

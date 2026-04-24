@@ -533,7 +533,7 @@ class TestSchemaResources:
         assert "Sensor" in data["types"]
 
 
-# ── v0.2 additions ────────────────────────────────────────────────────────────
+# ── Extended meta and uncertainty ─────────────────────────────────────────────
 
 class TestV02Features:
     def test_duration_mo_in_add_node(self):

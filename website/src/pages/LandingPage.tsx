@@ -157,7 +157,7 @@ export default function LandingPage() {
       <footer className={styles.footer}>
         <p>KNDL — Knowledge Node Description Language</p>
         <p className={styles.footerMono}>
-          Designed for the age of agents · v0.2 specification
+          Designed for the age of agents · v1.0 specification
         </p>
         <p className={styles.footerSmall}>
           &copy; Gleb Galkin 2026

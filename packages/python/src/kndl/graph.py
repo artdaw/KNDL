@@ -35,7 +35,6 @@ class KNDLMeta:
     cooldown_seconds: Optional[float] = None
     tags: list[str] = field(default_factory=list)
     custom: dict[str, Any] = field(default_factory=dict)
-    # v0.2 fields
     recorded: Optional[str] = None
     observed: Optional[str] = None
     negated: bool = False
@@ -99,7 +98,6 @@ class KNDLMeta:
             d["tags"] = self.tags
         if self.custom:
             d["custom"] = self.custom
-        # v0.2 fields
         if self.recorded:
             d["recorded"] = self.recorded
         if self.observed:
@@ -132,7 +130,6 @@ class KNDLMeta:
             cooldown_seconds=d.get("cooldown_seconds"),
             tags=d.get("tags", []),
             custom=d.get("custom", {}),
-            # v0.2 fields
             recorded=d.get("recorded"),
             observed=d.get("observed"),
             negated=d.get("negated", False),
@@ -236,7 +233,7 @@ class KNDLGraph:
         self.edges: dict[str, GraphEdge] = {}
         self.intents: dict[str, GraphIntent] = {}
         self.types: dict[str, dict[str, Any]] = {}
-        self.processes: dict[str, Any] = {}  # v0.2
+        self.processes: dict[str, Any] = {}
         self._edge_index_out: dict[str, list[str]] = {}  # node_id -> [edge_ids]
         self._edge_index_in: dict[str, list[str]] = {}
         self._storage: KNDLStorage | None = storage

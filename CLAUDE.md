@@ -11,9 +11,9 @@ KNDL (Knowledge Node Description Language) is a graph-based knowledge representa
 - **Provenance** (`~source`, `~derived`) — trust can be traced and computed transitively across the graph
 - **Intent blocks** — trigger-action patterns native to the format; knowledge and behavior co-located
 - **Typed edges** — relationships are first-class with types, direction, and weights
-- **Parameterised types** (`Type<Param>`) — generic schemas with type parameters (v0.2)
-- **Processes** — state-machine blocks with typed transitions and goto actions (v0.2)
-- **Uncertainty distributions** (`~uncertainty Gaussian { ... }`) — full probability distributions (v0.2)
+- **Parameterised types** (`Type<Param>`) — generic schemas with type parameters
+- **Processes** — state-machine blocks with typed transitions and goto actions
+- **Uncertainty distributions** (`~uncertainty Gaussian { ... }`) — full probability distributions
 
 ## Repository Structure
 
@@ -59,7 +59,7 @@ Key modules:
 - `serializer.py` — graph → KNDL text round-trip
 - `storage.py` — SQLite / PostgreSQL backends
 
-Tests: 245 across 5 files (`test_kndl.py`, `test_kndl_extended.py`, `test_storage.py`, `test_v02.py`, `test_v03_features.py`)
+Tests: 245 across 5 files (`test_kndl.py`, `test_kndl_extended.py`, `test_storage.py`, `test_processes.py`, `test_advanced_types.py`)
 
 ## MCP Server (`packages/mcp-server`)
 
@@ -70,6 +70,6 @@ Tests: 80 integration tests in `tests/test_tools.py`. Each class uses `autouse` 
 
 ## Website (`website`)
 
-Six routes: `/` LandingPage · `/spec` SpecPage (v0.2 domain profiles, playground) · `/spec/full` SpecFullPage · `/workflow` WorkflowPage · `/explorer` ExplorerPage · `/mcp` McpPage
+Six routes: `/` LandingPage · `/spec` SpecPage (domain profiles, playground) · `/spec/full` SpecFullPage · `/workflow` WorkflowPage · `/explorer` ExplorerPage · `/mcp` McpPage
 
 The SpecPage playground is a browser-side mini-parser — not the full Python implementation.

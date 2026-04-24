@@ -209,7 +209,7 @@ function Playground() {
         <div className={styles.dot} />
         <div className={styles.dot} />
         <div className={styles.dot} />
-        <span className={styles.pgTitle}>kndl-playground v0.2</span>
+        <span className={styles.pgTitle}>kndl-playground v1.0</span>
       </div>
       <div className={styles.pgBody}>
         <div className={styles.pgLeft}>
@@ -840,7 +840,7 @@ a temperature of 18.5°C as of
       <footer className={styles.footer}>
         <p>KNDL — Knowledge Node Description Language</p>
         <p className={styles.footerMono}>
-          Designed for the age of agents · v0.2 specification
+          Designed for the age of agents · v1.0 specification
         </p>
         <p className={styles.footerSmall}>
           <Link to="/spec/full" className={styles.footerLink}>

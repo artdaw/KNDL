@@ -4,7 +4,7 @@ MCP server that gives AI agents a persistent, confidence-aware knowledge graph.
 
 Connect it to Claude Desktop and your agent can remember facts, build relationship graphs, and reason over structured knowledge — all through natural conversation.
 
-**Version:** 0.2.0 — implements KNDL v0.2 (parameterised types, processes, uncertainty distributions, extended meta-annotations)
+**Version:** 1.0.0
 
 ## Quickstart with Claude Desktop
 
@@ -75,7 +75,7 @@ python -m kndl_mcp --http
 
 | Tool | Description |
 |------|-------------|
-| `kndl_add_node` | Add a typed node with fields, confidence, source, validity, decay, and v0.2 meta (`recorded`, `observed`, `negated`, `deadline`, `classification`, `retention`, `uncertainty`) |
+| `kndl_add_node` | Add a typed node with fields, confidence, source, validity, decay, and extended meta (`recorded`, `observed`, `negated`, `deadline`, `classification`, `retention`, `uncertainty`) |
 | `kndl_get_node` | Fetch a node with all its edges |
 | `kndl_update_node` | Update fields or meta on an existing node |
 | `kndl_remove_node` | Delete a node and all connected edges |

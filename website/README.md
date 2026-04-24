@@ -2,16 +2,20 @@
 
 Vite + React 19 + TypeScript documentation site for the KNDL project.
 
+**Live:** https://artdaw.github.io/KNDL/
+
 ## Routes
 
-| Path | Page | Description |
-|------|------|-------------|
-| `/` | LandingPage | Hero, v0.2 feature highlights, quick-start snippet |
-| `/spec` | SpecPage | Language reference with 8-domain tabbed examples + live playground |
-| `/spec/full` | SpecFullPage | Full rendered SPECIFICATION.md |
-| `/workflow` | WorkflowPage | 6-stage agent pipeline animation |
-| `/explorer` | ExplorerPage | Force-directed graph explorer (pan/zoom/drag, detail panel) |
-| `/mcp` | McpPage | MCP server docs and tool reference |
+Uses `createHashRouter` — all routes are prefixed with `#` (e.g. `/#/spec`) so the site works on static hosting without a server-side fallback.
+
+| Hash path | Page | Description |
+|-----------|------|-------------|
+| `/#/` | LandingPage | Hero, v0.2 feature highlights, quick-start snippet |
+| `/#/spec` | SpecPage | Language reference with 8-domain tabbed examples + live playground |
+| `/#/spec/full` | SpecFullPage | Full rendered SPECIFICATION.md |
+| `/#/workflow` | WorkflowPage | 6-stage agent pipeline animation |
+| `/#/explorer` | ExplorerPage | Force-directed graph explorer (pan/zoom/drag, detail panel) |
+| `/#/mcp` | McpPage | MCP server docs and tool reference |
 
 ## Stack
 

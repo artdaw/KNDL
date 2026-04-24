@@ -93,7 +93,7 @@ class ArrayLiteral(ASTNode):
 
 @dataclass
 class MapLiteral(ASTNode):
-    """Map literal: #{ k: v, ... } (v0.2) or { k: v, ... } (v0.1 compat)"""
+    """Map literal: #{ k: v, ... } or { k: v, ... }"""
     pairs: list[tuple[ASTNode, ASTNode]] = field(default_factory=list)
 
 
@@ -247,7 +247,7 @@ class QueryDecl(ASTNode):
     matches: list[MatchClause] = field(default_factory=list)
     where_expr: Optional[ASTNode] = None
     return_clause: Optional[ReturnClause] = None
-    group_by: list[ASTNode] = field(default_factory=list)  # v0.2
+    group_by: list[ASTNode] = field(default_factory=list)
 
 
 # ── Intents ──
@@ -280,7 +280,7 @@ class IntentDecl(ASTNode):
     meta: list[MetaAnnotation] = field(default_factory=list)
 
 
-# ── Process declarations (v0.2) ──
+# ── Process declarations ──
 
 @dataclass
 class StateDecl(ASTNode):
@@ -302,7 +302,7 @@ class TransitionDecl(ASTNode):
 
 @dataclass
 class ProcessDecl(ASTNode):
-    """Process declaration (v0.2)."""
+    """Process declaration."""
     ref: Optional[NodeRef] = None
     type_name: str = ""
     states: list[StateDecl] = field(default_factory=list)
@@ -338,4 +338,4 @@ class Program(ASTNode):
     contexts: list[ContextDecl] = field(default_factory=list)
     intents: list[IntentDecl] = field(default_factory=list)
     queries: list[QueryDecl] = field(default_factory=list)
-    processes: list[ProcessDecl] = field(default_factory=list)  # v0.2
+    processes: list[ProcessDecl] = field(default_factory=list)

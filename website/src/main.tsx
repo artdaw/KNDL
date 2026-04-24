@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { createBrowserRouter, RouterProvider } from "react-router";
+import { createHashRouter, RouterProvider } from "react-router";
 import App from "./App";
 import LandingPage from "./pages/LandingPage";
 import SpecPage from "./pages/SpecPage";
@@ -10,7 +10,7 @@ import McpPage from "./pages/McpPage";
 import ExplorerPage from "./pages/ExplorerPage";
 import "./styles/tokens.css";
 
-const router = createBrowserRouter([
+const router = createHashRouter([
   {
     path: "/",
     element: <App />,
