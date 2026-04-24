@@ -11,9 +11,21 @@ import styles from "./SpecPage.module.css";
 // ── Inline code block ─────────────────────────────────────────────────────────
 
 function Code({ code, label }: { code: string; label?: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = () => {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
   return (
     <div className={styles.code}>
       {label && <span className={styles.codeLabel}>{label}</span>}
+      <button className={`${styles.copyBtn}${copied ? ` ${styles.copyBtnDone}` : ''}`} onClick={copy} aria-label="Copy code">
+        {copied ? "✓ Copied" : "Copy"}
+      </button>
       <pre
         className={styles.codePre}
         dangerouslySetInnerHTML={{ __html: highlightKNDL(code) }}
@@ -246,15 +258,36 @@ const DOMAINS = [
     label: "IoT / Building",
     desc: "Smart building sensors with temporal decay and Gaussian uncertainty.",
     filename: "smart-building.kndl",
-    code: `node @temp_01 :: Temperature<°C> {
+    code: `node @room_204 :: Room {
+  name  = "Conference Room 204"
+  floor = 2
+  area  = 45
+  ~confidence 1.0
+  ~source     "bms://floor-plan"
+}
+
+node @hvac_unit_2 :: HVACUnit {
+  model    = "Daikin-VRV-4"
+  capacity = 12
+  unit     = "kW"
+  ~confidence 1.0
+  ~source     "bms://equipment-registry"
+}
+
+node @temp_01 :: Temperature {
   value    = 22.5
   unit     = "°C"
   location -> @room_204
+  hvac     -> @hvac_unit_2
   ~confidence  0.94
   ~source      "sensor://bldg-7/t-001"
   ~valid       2026-04-10T14:00Z .. *
   ~decay       0.95 / 1h
   ~uncertainty Gaussian { mean = 22.5  stddev = 0.3 }
+}
+
+edge @room_204 -[monitored_by]-> @temp_01 {
+  ~weight 1.0
 }
 
 intent @overheat :: Action {
@@ -274,17 +307,44 @@ intent @overheat :: Action {
     label: "FinTech",
     desc: "Trade records with classification, retention policies, and FIX protocol provenance.",
     filename: "trade-ledger.kndl",
-    code: `node @trade_8821 :: Trade {
+    code: `node @nasdaq :: Exchange {
+  name    = "NASDAQ"
+  mic     = "XNAS"
+  country = "US"
+  ~confidence 1.0
+  ~source     "fix://exchange-registry"
+}
+
+node @clearing_house_01 :: ClearingHouse {
+  name = "DTCC"
+  lei  = "549300HNBDIYP2DGPX92"
+  ~confidence 1.0
+  ~source     "fix://ccp-registry"
+}
+
+node @trader_001 :: Trader {
+  name = "Jane Smith"
+  desk = "Equity"
+  ~confidence 1.0
+  ~source     "oms://users"
+}
+
+node @trade_8821 :: Trade {
   symbol = "AAPL"
   qty    = 100
   price  = 184.32
   side   = "buy"
-  venue -> @nasdaq
+  venue  -> @nasdaq
+  trader -> @trader_001
   ~confidence      0.99
   ~source          "fix://prime-broker"
   ~recorded        2026-04-10T09:31:00Z
   ~classification  "confidential"
   ~retention       "7y"
+}
+
+edge @trade_8821 -[executed_at]-> @nasdaq {
+  ~weight 1.0
 }
 
 edge @trade_8821 -[clears_through]-> @clearing_house_01 {
@@ -296,7 +356,22 @@ edge @trade_8821 -[clears_through]-> @clearing_house_01 {
     label: "eCommerce",
     desc: "Product catalog with parameterised types, inventory counts, and warehouse edges.",
     filename: "catalog.kndl",
-    code: `type Product<SKU> {
+    code: `node @furniture :: Category {
+  name = "Furniture"
+  slug = "furniture"
+  ~confidence 1.0
+  ~source     "erp://categories"
+}
+
+node @wh_berlin :: Warehouse {
+  name     = "Berlin Central"
+  location = "Berlin, Germany"
+  capacity = 50000
+  ~confidence 1.0
+  ~source     "wms://warehouses"
+}
+
+type Product<SKU> {
   name  : String
   sku   : SKU
   price : Float
@@ -304,14 +379,21 @@ edge @trade_8821 -[clears_through]-> @clearing_house_01 {
 }
 
 node @product_ch2048 :: Product<String> {
-  name  = "Ergonomic Chair"
-  sku   = "CH-2048-BLK"
-  price = 349.99
-  stock = 12
+  name      = "Ergonomic Chair"
+  sku       = "CH-2048-BLK"
+  price     = 349.99
+  stock     = 12
   category  -> @furniture
   warehouse -> @wh_berlin
   ~confidence 0.99
   ~source     "erp://catalog"
+}
+
+intent @low_stock :: Action {
+  trigger = @product_ch2048.stock < 5
+  do { emit node :: Reorder { product -> @product_ch2048 } }
+  ~priority 0.7
+  ~cooldown 24h
 }`,
   },
   {
@@ -319,9 +401,29 @@ node @product_ch2048 :: Product<String> {
     label: "Logistics",
     desc: "Shipment tracking with decaying GPS confidence and arrival interval uncertainty.",
     filename: "shipment.kndl",
-    code: `node @shipment_789 :: Shipment {
+    code: `node @hub_frankfurt :: LogisticsHub {
+  name    = "Frankfurt Hub"
+  country = "DE"
+  lat     = 50.0379
+  lon     = 8.5622
+  ~confidence 1.0
+  ~source     "tms://hubs"
+}
+
+node @warehouse_berlin :: Warehouse {
+  name    = "Berlin Distribution Centre"
+  country = "DE"
+  lat     = 52.5200
+  lon     = 13.4050
+  ~confidence 1.0
+  ~source     "wms://depots"
+}
+
+node @shipment_789 :: Shipment {
   status      = "in_transit"
-  location -> @hub_frankfurt
+  weight      = 240
+  unit        = "kg"
+  location    -> @hub_frankfurt
   destination -> @warehouse_berlin
   eta         = "2026-04-11T08:00Z"
   ~confidence 0.87
@@ -329,6 +431,10 @@ node @product_ch2048 :: Product<String> {
   ~valid      2026-04-10T12:00Z .. 2026-04-11T08:00Z
   ~decay      0.85 / 2h
   ~uncertainty Interval { lo = "2026-04-11T06:00Z"  hi = "2026-04-11T10:00Z" }
+}
+
+edge @hub_frankfurt -[dispatched]-> @warehouse_berlin {
+  ~weight 1.0
 }
 
 intent @delay_alert :: Action {
@@ -342,23 +448,58 @@ intent @delay_alert :: Action {
     label: "Medicine",
     desc: "FHIR-compatible observations with LOINC parameterised codes and separate recorded/observed timestamps.",
     filename: "observation.kndl",
-    code: `type Observation<C> where C <: Code {
-  code    : C
-  value   : Float
-  unit    : String
-  subject : Patient
+    code: `node @patient_p001 :: Patient {
+  mrn    = "P-00142"
+  age    = 34
+  gender = "female"
+  ward   = "Internal Medicine"
+  ~confidence 1.0
+  ~source     "ehr://patients"
+  ~access     "role:clinical-staff"
+}
+
+node @encounter_4421 :: Encounter {
+  type    = "outpatient"
+  date    = "2026-04-10"
+  patient -> @patient_p001
+  ~confidence 1.0
+  ~source     "ehr://encounters"
+}
+
+type Observation<C> where C <: Code {
+  code  : C
+  value : Float
+  unit  : String
 }
 
 node @obs_4421 :: Observation<Code<"LOINC">> {
-  code    = "8310-5"
-  display = "Body temperature"
-  value   = 38.2
-  unit    = "°C"
-  subject -> @patient_p001
+  code      = "8310-5"
+  display   = "Body temperature"
+  value     = 38.2
+  unit      = "°C"
+  subject   -> @patient_p001
+  encounter -> @encounter_4421
   ~confidence  0.96
   ~source      "ehr://encounter-4421"
   ~recorded    2026-04-10T09:15:00Z
   ~observed    2026-04-10T09:10:00Z
+}
+
+edge @obs_4421 -[part_of]-> @encounter_4421 {
+  ~weight 1.0
+}
+
+intent @fever_alert :: Action {
+  trigger = @obs_4421.value > 38.5
+  do {
+    emit node :: ClinicalAlert {
+      severity = "moderate"
+      patient  -> @patient_p001
+      ~source  "agent://clinical-monitor"
+    }
+  }
+  ~priority 0.9
+  ~cooldown 30m
 }`,
   },
   {
@@ -366,23 +507,45 @@ node @obs_4421 :: Observation<Code<"LOINC">> {
     label: "Robotics",
     desc: "Robot joint state with sub-second decay and a state-machine process block.",
     filename: "arm-control.kndl",
-    code: `node @joint_01 :: JointState {
+    code: `node @arm_unit_3 :: RobotArm {
+  model   = "UR10e"
+  reach   = 1300
+  payload = 10
+  unit    = "kg"
+  station = "assembly-7"
+  ~confidence 1.0
+  ~source     "ros2://robot_description"
+}
+
+node @joint_01 :: JointState {
   angle  = 34.7
   unit   = "deg"
   torque = 2.1
-  robot -> @arm_unit_3
+  robot  -> @arm_unit_3
   ~confidence 0.99
   ~source     "ros2://joint_states"
   ~valid      2026-04-10T14:00:01.000Z .. *
   ~decay      0.5 / 100ms
 }
 
-process @grasp_sm :: StateMachine {
-  states  = ["idle", "approaching", "grasping", "lifting"]
-  initial = "idle"
-  @idle        -> @approaching { trigger = "pickup_cmd" }
-  @approaching -> @grasping   { trigger = @joint_01.angle > 30 }
-  @grasping    -> @lifting    { trigger = @joint_01.torque > 1.8 }
+node @joint_02 :: JointState {
+  angle  = 12.3
+  unit   = "deg"
+  torque = 1.4
+  robot  -> @arm_unit_3
+  ~confidence 0.99
+  ~source     "ros2://joint_states"
+  ~decay      0.5 / 100ms
+}
+
+edge @arm_unit_3 -[has_joint]-> @joint_01
+edge @arm_unit_3 -[has_joint]-> @joint_02
+
+intent @overload :: Action {
+  trigger = @joint_01.torque > 4.0
+  do { emit node :: SafetyStop { robot -> @arm_unit_3 } }
+  ~priority 1.0
+  ~cooldown 1s
 }`,
   },
   {
@@ -390,48 +553,173 @@ process @grasp_sm :: StateMachine {
     label: "Smart Factory",
     desc: "ISA-95 work orders with deadlines, retention policies, and MES provenance.",
     filename: "work-order.kndl",
-    code: `type WorkOrder = ISA95Entity & {
-  product  : NodeRef
+    code: `node @product_ch2048 :: Product {
+  name = "Ergonomic Chair"
+  sku  = "CH-2048-BLK"
+  ~confidence 1.0
+  ~source     "erp://catalog"
+}
+
+node @production_line_3 :: ProductionLine {
+  name       = "Assembly Line 3"
+  plant      = "Berlin"
+  throughput = 120
+  unit       = "units/h"
+  ~confidence 1.0
+  ~source     "mes://lines"
+}
+
+type WorkOrder = {
   qty      : Int
-  status   : "queued" | "in_progress" | "done"
+  status   : String
   batch_id : String
 }
 
 node @wo_4421 :: WorkOrder {
-  product  -> @product_ch2048
   qty      = 500
   status   = "in_progress"
   batch_id = "B-2026-04-10-001"
-  line  -> @production_line_3
+  product  -> @product_ch2048
+  line     -> @production_line_3
   ~confidence      0.98
   ~source          "mes://sap-pp"
   ~deadline        2026-04-11T06:00Z
   ~retention       "2y"
   ~classification  "internal"
+}
+
+edge @production_line_3 -[executes]-> @wo_4421 {
+  ~weight 1.0
+}
+
+intent @deadline_risk :: Action {
+  trigger = @wo_4421.status == "in_progress"
+  do { emit node :: ProductionAlert { work_order -> @wo_4421 } }
+  ~priority 0.8
+  ~cooldown 1h
 }`,
   },
   {
     id: "networking",
     label: "Networking",
-    desc: "Network topology with link-state confidence that decays as SNMP poll intervals age.",
-    filename: "topology.kndl",
-    code: `node @link_core_01 :: NetworkLink {
-  bandwidth = 10000
-  unit      = "Mbps"
-  latency   = 0.4
-  src -> @switch_core_A
-  dst -> @switch_core_B
+    desc: "UniFi network topology — fiber uplink through UDM Pro, core switch, access points, and IoT sensors. Link confidence decays between SNMP polls.",
+    filename: "unifi-topology.kndl",
+    code: `// ── Layer 0: ISP fiber uplink ────────────────────────────────
+node @fiber_ont :: FiberUplink {
+  isp         = "Deutsche Telekom"
+  bandwidth   = 1000
+  unit        = "Mbps"
+  ~confidence 0.99
+  ~source     "snmp://unifi-controller"
+  ~decay      0.80 / 5m
+}
+
+// ── Layer 1: Router / firewall ───────────────────────────────
+node @udm_pro :: UniFiRouter {
+  model    = "UDM-Pro"
+  firmware = "4.0.21"
+  ip       = "192.168.1.1"
+  uplink   -> @fiber_ont
+  ~confidence 0.98
+  ~source     "snmp://unifi-controller"
+  ~decay      0.85 / 5m
+}
+
+// ── Layer 2: Core switch ─────────────────────────────────────
+node @usw_pro_48 :: UniFiSwitch {
+  model    = "USW-Pro-48"
+  ports    = 48
+  poe      = true
+  ip       = "192.168.1.2"
+  uplink   -> @udm_pro
+  ~confidence 0.97
+  ~source     "snmp://unifi-controller"
+  ~decay      0.85 / 5m
+}
+
+// ── Layer 3: Access switches ─────────────────────────────────
+node @usw_flex_floor2 :: UniFiSwitch {
+  model  = "USW-Flex-Mini"
+  ports  = 5
+  poe    = true
+  ip     = "192.168.1.10"
+  uplink -> @usw_pro_48
+  ~confidence 0.96
+  ~source     "snmp://unifi-controller"
+  ~decay      0.85 / 5m
+}
+
+// ── Layer 3: WiFi access points ──────────────────────────────
+node @ap_lobby :: UniFiAP {
+  model    = "U6-Pro"
+  band     = "WiFi 6"
+  location = "Lobby"
+  ip       = "192.168.1.20"
+  uplink   -> @usw_pro_48
   ~confidence 0.95
-  ~source     "snmp://nms"
+  ~source     "snmp://unifi-controller"
   ~valid      2026-04-10T14:00Z .. *
   ~decay      0.90 / 5m
 }
 
-intent @link_down :: Action {
-  trigger = @link_core_01.~confidence < 0.3
-  do { emit node :: Incident { severity = "p1" } }
+node @ap_floor2 :: UniFiAP {
+  model    = "U6-LR"
+  band     = "WiFi 6"
+  location = "Floor 2 Open Space"
+  ip       = "192.168.1.21"
+  uplink   -> @usw_flex_floor2
+  ~confidence 0.95
+  ~source     "snmp://unifi-controller"
+  ~valid      2026-04-10T14:00Z .. *
+  ~decay      0.90 / 5m
+}
+
+// ── Layer 4: IoT sensors via WiFi ────────────────────────────
+node @sensor_motion_lobby :: MotionSensor {
+  vendor   = "Aqara"
+  model    = "FP2"
+  location = "Lobby"
+  occupied = true
+  ap       -> @ap_lobby
+  ~confidence 0.91
+  ~source     "zigbee://coordinator/lobby"
+  ~decay      0.70 / 10m
+}
+
+node @sensor_temp_floor2 :: TempSensor {
+  vendor = "Aqara"
+  model  = "WSDCGQ12LM"
+  value  = 21.8
+  unit   = "°C"
+  ap     -> @ap_floor2
+  ~confidence 0.93
+  ~source     "zigbee://coordinator/floor2"
+  ~decay      0.85 / 15m
+}
+
+// ── Edges: physical topology ─────────────────────────────────
+edge @fiber_ont     -[feeds]->       @udm_pro          { ~weight 1.0 }
+edge @udm_pro       -[trunk]->       @usw_pro_48       { ~weight 1.0 }
+edge @usw_pro_48    -[poe_trunk]->   @usw_flex_floor2  { ~weight 0.9 }
+edge @usw_pro_48    -[poe_uplink]->  @ap_lobby         { ~weight 0.9 }
+edge @usw_flex_floor2 -[poe_uplink]-> @ap_floor2       { ~weight 0.9 }
+edge @ap_lobby      -[wifi]->        @sensor_motion_lobby { ~weight 0.8 }
+edge @ap_floor2     -[wifi]->        @sensor_temp_floor2  { ~weight 0.8 }
+
+// ── Intent: uplink degradation ───────────────────────────────
+intent @uplink_alert :: Action {
+  trigger = @udm_pro.~confidence < 0.5
+  do { emit node :: Incident { severity = "p1"  component = "fiber-uplink" } }
   ~priority 0.95
   ~cooldown 2m
+}
+
+// ── Intent: AP offline ───────────────────────────────────────
+intent @ap_offline :: Action {
+  trigger = @ap_lobby.~confidence < 0.4
+  do { emit node :: Incident { severity = "p2"  component = "ap-lobby" } }
+  ~priority 0.8
+  ~cooldown 5m
 }`,
   },
 ];
@@ -480,9 +768,39 @@ export default function SpecPage() {
             desc="Every assertion traces back to its source. Trust is computed, not assumed." />
         </section>
 
-        {/* 02 — Core Syntax */}
+        {/* 02 — Domain Profiles */}
         <section className={styles.section}>
-          <h2 className={styles.h2}>02 — Core Syntax</h2>
+          <h2 className={styles.h2}>02 — Domain Profiles</h2>
+          <p className={styles.p}>
+            KNDL is domain-agnostic. The same core primitives — nodes, typed edges,
+            meta-annotations, intents, processes — serve radically different verticals.
+            Each example below is self-contained and can be pasted directly into the{" "}
+            <Link to="/explorer" className={styles.footerLink}>Explorer</Link> to visualise the graph.
+          </p>
+
+          <div className={styles.domainTabs}>
+            {DOMAINS.map((d) => (
+              <button
+                key={d.id}
+                className={`${styles.domainTab} ${activeDomain === d.id ? styles.domainTabActive : ""}`}
+                onClick={() => setActiveDomain(d.id)}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+
+          {DOMAINS.filter((d) => d.id === activeDomain).map((d) => (
+            <div key={d.id}>
+              <p className={styles.p} style={{ marginTop: 20 }}>{d.desc}</p>
+              <Code label={d.filename} code={d.code} />
+            </div>
+          ))}
+        </section>
+
+        {/* 03 — Core Syntax */}
+        <section className={styles.section}>
+          <h2 className={styles.h2}>03 — Core Syntax</h2>
           <h3 className={styles.h3}>Nodes — the atomic unit</h3>
           <p className={styles.p}>
             A node is a typed, identified container for structured data and meta-annotations.
@@ -547,9 +865,9 @@ edge @room_204 <-[adjacent_to]-> @room_205`} />
           </div>
         </section>
 
-        {/* 03 — Type System */}
+        {/* 04 — Type System */}
         <section className={styles.section}>
-          <h2 className={styles.h2}>03 — Type System</h2>
+          <h2 className={styles.h2}>04 — Type System</h2>
           <p className={styles.p}>
             KNDL has a rich structural type system with intersection, union, optional,
             and constrained types.
@@ -618,9 +936,9 @@ node @obs_001 :: Observation<Code<"LOINC">> {
 }`} />
         </section>
 
-        {/* 04 — Contexts & Intents */}
+        {/* 05 — Contexts & Intents */}
         <section className={styles.section}>
-          <h2 className={styles.h2}>04 — Contexts & Intents</h2>
+          <h2 className={styles.h2}>05 — Contexts & Intents</h2>
 
           <h3 className={styles.h3}>Contexts — scoped namespaces</h3>
           <p className={styles.p}>
@@ -672,9 +990,9 @@ intent @daily_report :: ScheduledAction {
 }`} />
         </section>
 
-        {/* 05 — Query Language */}
+        {/* 06 — Query Language */}
         <section className={styles.section}>
-          <h2 className={styles.h2}>05 — Query Language</h2>
+          <h2 className={styles.h2}>06 — Query Language</h2>
           <Code label="query example" code={`query hot_rooms {
   match ?sensor :: Temperature
     -[located_in]-> ?room :: Room
@@ -702,35 +1020,6 @@ query energy_summary {
     by_source = group(.source_type)
   }
 }`} />
-        </section>
-
-        {/* 06 — Domain Profiles */}
-        <section className={styles.section}>
-          <h2 className={styles.h2}>06 — Domain Profiles</h2>
-          <p className={styles.p}>
-            KNDL is domain-agnostic. The same core primitives — nodes, typed edges,
-            meta-annotations, intents, processes — serve radically different verticals.
-            Select a domain to see how the language reads in practice.
-          </p>
-
-          <div className={styles.domainTabs}>
-            {DOMAINS.map((d) => (
-              <button
-                key={d.id}
-                className={`${styles.domainTab} ${activeDomain === d.id ? styles.domainTabActive : ""}`}
-                onClick={() => setActiveDomain(d.id)}
-              >
-                {d.label}
-              </button>
-            ))}
-          </div>
-
-          {DOMAINS.filter((d) => d.id === activeDomain).map((d) => (
-            <div key={d.id}>
-              <p className={styles.p} style={{ marginTop: 20 }}>{d.desc}</p>
-              <Code label={d.filename} code={d.code} />
-            </div>
-          ))}
         </section>
 
         {/* 07 — JSON/Markdown comparison */}
