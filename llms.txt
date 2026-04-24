@@ -1,0 +1,321 @@
+# KNDL — Knowledge Node Description Language
+
+## What it is
+
+A declarative language and runtime for representing structured knowledge as a typed, confidence-annotated graph. Designed for AI agents that need to reason over connected facts with temporal validity, decay, and provenance.
+
+Core concepts:
+- **Node** — a typed entity with arbitrary fields and meta-annotations
+- **Edge** — a typed, directed relationship between two nodes (first-class, not just a field)
+- **Intent** — a reactive trigger-action rule that fires when a condition is met
+- **Meta** — every node and edge carries: confidence (0–1), source URI, validity window, decay rate, tags, priority, cooldown
+- **Confidence decay** — exponential: `confidence × (decay_rate ^ (elapsed / decay_duration_seconds))`
+
+## Syntax example
+
+```kndl
+node @alice :: Person {
+  name = "Alice"
+  role = "Engineer"
+  team -> @acme           # inline edge to another node
+  ~confidence 0.95
+  ~source     "agent://hr"
+  ~valid      2026-01-01T00:00Z .. *
+  ~decay      0.95 / 1h   # confidence drops 5% per hour
+  ~tags       ["staff", "engineering"]
+}
+
+edge @alice -[WorksAt]-> @acme {
+  ~confidence 1.0
+}
+
+intent @alert :: Action {
+  trigger = @alice.confidence < 0.5
+  do { emit :: ReviewNeeded { subject = "alice" } }
+  ~priority    0.8
+  ~cooldown    15m
+}
+
+type Employee = Person & {
+  team: String
+  level: Int where { level >= 1 && level <= 10 }
+}
+```
+
+## Repository layout
+
+```
+kndl/
+├── spec/
+│   ├── SPECIFICATION.md          authoritative language spec
+│   └── grammar/kndl.ebnf         full EBNF grammar
+├── packages/
+│   ├── python/                   Python 3.12+ reference implementation
+│   │   ├── src/kndl/
+│   │   │   ├── lexer.py          tokenizer → list[Token]
+│   │   │   ├── parser.py         recursive-descent → Program AST
+│   │   │   ├── ast_nodes.py      all AST dataclasses
+│   │   │   ├── compiler.py       AST → KNDLGraph
+│   │   │   ├── graph.py          KNDLGraph, GraphNode, GraphEdge, GraphIntent, KNDLMeta
+│   │   │   ├── serializer.py     KNDLGraph → KNDL text
+│   │   │   ├── storage.py        KNDLStorage Protocol + create_storage() factory
+│   │   │   ├── backends/
+│   │   │   │   ├── sqlite_backend.py   stdlib sqlite3, zero extra deps
+│   │   │   │   └── postgres_backend.py psycopg2, JSONB + GIN indexes
+│   │   │   └── __init__.py       public API: parse(), compile(), serialize(), tokenize()
+│   │   └── tests/
+│   │       ├── test_kndl.py           52 tests  — baseline pipeline
+│   │       ├── test_kndl_extended.py  65 tests  — edge cases, roundtrip
+│   │       └── test_storage.py        24 tests  — backends, factory, persistence
+│   ├── mcp-server/               MCP server wrapping the Python library
+│   │   ├── src/kndl_mcp/
+│   │   │   ├── server.py         FastMCP server, 14 tools, 4 resources, 2 prompts
+│   │   │   ├── _meta.py          _duration_to_seconds() helper
+│   │   │   ├── __main__.py       entry: python -m kndl_mcp [--http]
+│   │   │   └── __init__.py
+│   │   └── tests/test_tools.py   67 integration tests
+│   └── kotlin/                   Kotlin / JVM 22 full reference implementation
+│       └── src/
+│           ├── main/kotlin/dev/kndl/
+│           │   ├── Lexer.kt, Parser.kt, AstNodes.kt, Compiler.kt
+│           │   ├── KNDLGraph.kt, Serializer.kt, Storage.kt
+│           │   ├── SQLiteStorage.kt    SQLite JDBC backend
+│           │   ├── JsonHelper.kt       zero-dependency JSON (stdlib only)
+│           │   └── KNDL.kt             public API
+│           └── test/kotlin/dev/kndl/KNDLTest.kt   68 tests
+└── website/                      Vite + React 18 + TypeScript
+    └── src/
+        ├── App.tsx               router: / | /spec | /spec/full | /workflow | /explorer | /mcp
+        ├── pages/
+        │   ├── ExplorerPage.tsx  force-directed graph explorer (SVG, pan/zoom/drag)
+        │   ├── SpecFullPage.tsx  full spec rendered from SPECIFICATION.md via Vite ?raw
+        │   └── ...
+        ├── utils/kndlParser.ts   browser-side regex KNDL parser
+        ├── hooks/useForceLayout.ts spring force simulation, RAF-based
+        └── components/CodeBlock.tsx highlightKNDL() syntax highlighter
+```
+
+## Python public API
+
+```python
+import kndl
+
+kndl.compile(source: str) -> KNDLGraph    # parse + compile
+kndl.parse(source: str) -> Program         # AST only
+kndl.serialize(graph: KNDLGraph) -> str    # graph → KNDL text
+kndl.tokenize(source: str) -> list[Token]  # lex only
+```
+
+## KNDLGraph methods
+
+```python
+# Nodes
+graph.add_node(node: GraphNode) -> GraphNode
+graph.get_node(node_id: str) -> GraphNode | None
+graph.update_node(node_id, fields=None, meta_updates=None) -> GraphNode | None
+graph.remove_node(node_id: str) -> bool          # also removes connected edges
+
+# Edges
+graph.add_edge(edge: GraphEdge) -> GraphEdge
+graph.get_edge(edge_id: str) -> GraphEdge | None
+graph.remove_edge(edge_id: str) -> bool
+graph.get_outgoing_edges(node_id, edge_type=None) -> list[GraphEdge]
+graph.get_incoming_edges(node_id, edge_type=None) -> list[GraphEdge]
+
+# Intents
+graph.add_intent(intent: GraphIntent) -> GraphIntent
+graph.remove_intent(intent_id: str) -> bool
+
+# Query
+graph.query_nodes(type_name=None, min_confidence=0.0, field_filters=None, apply_decay=True) -> list[GraphNode]
+graph.query_neighborhood(node_id: str, hops: int = 1) -> dict  # {nodes: [...], edges: [...]}
+
+# Serialization
+graph.to_dict() -> dict          # JSON-compatible snapshot
+graph.from_dict(d) -> KNDLGraph  # classmethod
+graph.from_storage(storage) -> KNDLGraph  # classmethod, bulk-loads then re-attaches
+
+# State
+graph.nodes: dict[str, GraphNode]
+graph.edges: dict[str, GraphEdge]
+graph.intents: dict[str, GraphIntent]
+graph.types: dict[str, dict]
+```
+
+## KNDLMeta dataclass
+
+```python
+@dataclass
+class KNDLMeta:
+    confidence: float = 1.0
+    source: str = ""
+    valid_start: str | None = None       # ISO 8601
+    valid_end: str | None = None         # ISO 8601 or "*" for open
+    decay_rate: float | None = None      # e.g. 0.95
+    decay_duration_seconds: float | None = None
+    supersedes: str | None = None        # node/edge ID this replaces
+    derived_from: list[str]              # provenance chain
+    access: str = ""
+    priority: float = 0.5
+    cooldown_seconds: float | None = None
+    tags: list[str]
+    custom: dict[str, Any]
+
+    def effective_confidence(at_time: datetime | None = None) -> float
+    # formula: confidence × (decay_rate ^ (elapsed / decay_duration_seconds))
+```
+
+## to_dict() key names (important for tests and MCP responses)
+
+- Nodes: `id`, `type` (not `type_name`), `fields`, `meta`
+- Edges: `id`, `source` (not `source_id`), `target` (not `target_id`), `type` (not `edge_type`), `direction`, `fields`, `meta`
+- Intents: `id`, `type`, `trigger` → `{kind, data}`, `actions`, `meta`
+
+## Storage layer
+
+Protocol: `packages/python/src/kndl/storage.py`
+
+```python
+class KNDLStorage(Protocol):
+    def load(self) -> tuple[list[dict], list[dict], list[dict]]  # nodes, edges, intents
+    def upsert_node(node: GraphNode) -> None
+    def delete_node(node_id: str) -> None
+    def upsert_edge(edge: GraphEdge) -> None
+    def delete_edge(edge_id: str) -> None
+    def upsert_intent(intent: GraphIntent) -> None
+    def delete_intent(intent_id: str) -> None
+    def clear() -> None
+    def close() -> None
+
+def create_storage(database_url: str | None = None) -> KNDLStorage | None
+```
+
+DATABASE_URL values:
+- unset / `"memory"` → returns None (in-memory only)
+- `sqlite:///./kndl.db` → SQLiteStorage (stdlib sqlite3)
+- `sqlite:///:memory:` → SQLite in-memory (tests)
+- `postgresql://user:pw@host/db` → PostgresStorage (psycopg2-binary)
+
+SQLite backend: `INSERT OR REPLACE`, immediate `commit()`, indexes on `type_name`, `source_id`, `target_id`, `edge_type`.
+PostgreSQL backend: JSONB columns, GIN indexes, `ON CONFLICT DO UPDATE`, auto-reconnect via `_ensure_connection()`.
+
+## MCP server
+
+Package: `packages/mcp-server`
+Entry point: `python -m kndl_mcp` (stdio) or `python -m kndl_mcp --http` (port 8000)
+
+Holds a single global `_graph: KNDLGraph`. Storage initialised once at import via `create_storage()`.
+
+### 14 tools
+
+| Tool | Key parameters |
+|------|---------------|
+| `kndl_parse` | `source: str` |
+| `kndl_add_node` | `node_id, type_name, fields, confidence, source, valid_start, valid_end, decay, tags` |
+| `kndl_get_node` | `node_id` |
+| `kndl_update_node` | `node_id, fields, meta_updates` |
+| `kndl_remove_node` | `node_id` |
+| `kndl_add_edge` | `source_id, target_id, edge_type, direction, fields, confidence` |
+| `kndl_query_nodes` | `type_name, min_confidence, field_filters, apply_decay` |
+| `kndl_neighborhood` | `node_id, hops (1–5)` |
+| `kndl_add_intent` | `intent_id, type_name, trigger_kind, trigger_data, actions, meta` |
+| `kndl_merge_graphs` | `source: str` |
+| `kndl_serialize` | _(none)_ |
+| `kndl_graph_stats` | _(none)_ |
+| `kndl_get_types` | `type_name: str \| None` |
+| `kndl_reset` | _(none)_ — clears in-memory graph and persistent store |
+
+All tools return `{"status": "ok", ...}` or `{"status": "error", "message": "..."}`.
+
+### 4 resources
+
+| URI | Content |
+|-----|---------|
+| `kndl://spec/version` | `"KNDL Specification vX.Y.Z"` |
+| `kndl://spec/grammar` | Full EBNF grammar text |
+| `kndl://spec/language` | Full SPECIFICATION.md text |
+| `kndl://graph/types` | JSON snapshot of type declarations |
+| `kndl://graph/summary` | Plain-text node/edge/intent count summary |
+
+## Kotlin implementation
+
+Package: `packages/kotlin`, Gradle 8.7, JVM 22.
+API mirrors Python exactly: `KNDL.parse()`, `KNDL.compile()`, `KNDL.serialize()`, `KNDL.tokenize()`.
+Storage: `KNDLStorage` interface, `createStorage()` factory, `SQLiteStorage` via `org.xerial:sqlite-jdbc`.
+JSON: zero-dependency `JsonHelper.kt` (stdlib only, no `kotlinx.serialization`).
+68 tests in `KNDLTest.kt`.
+
+## Parser quirks (do not "fix" without updating compiler + tests)
+
+- **Decay expressions**: `0.95 / 1h` is parsed as `BinaryOp(op="/", left=Literal(0.95), right=Literal("1h"))` not a `DecayExpr`. Compiler `_build_meta` handles both forms.
+- **Constrained types**: `where { expr }` braces required — not inline.
+- **Export syntax**: `export type Foo { ... }` — not `export { Foo }`.
+- **Query trigger**: `trigger = query name { match ... return ... }` — inline body, not a reference.
+- **Optional match**: `optional match ?var :: Type` — `match` follows `optional`.
+- **`in` keyword**: reserved as `KW_IN`. Use `located_in`, `contained_in`, etc. for edge types.
+- **Duration units**: `{"ms", "s", "m", "h", "d", "w"}`. Lexer checks up to 2 chars so `ms` matches before `m`.
+
+## Serializer invariant
+
+Nodes with inline edge fields (`->`) are serialized as standalone `edge @a -[type]-> @b` declarations only. Prevents 2× edge duplication on roundtrip.
+
+## Meta-annotation keys (compiler `_build_meta`)
+
+`confidence`, `source`, `valid`, `decay`, `supersedes`, `derived`, `priority`, `cooldown`, `tags`, `weight`, `access`
+
+## Website architecture
+
+- React Router v7 data router: `createBrowserRouter` + `RouterProvider` + `<Outlet />`
+- `SpecFullPage.tsx`: imports `SPECIFICATION.md` via Vite `?raw`, custom block tokenizer + `BlockRenderer`
+- `ExplorerPage.tsx`: SVG canvas, always-mounted canvas div (display:none when editor active to preserve ResizeObserver), `nodeKey = ids.sort().join("|")` as effect dep
+- `useForceLayout.ts`: RAF simulation, `MAX_ITER=220`, `REPEL=3800`, `ATTRACT=0.018`, guards against `width=0/height=0`
+- `highlightKNDL()` in `CodeBlock.tsx`: regex chain → `dangerouslySetInnerHTML`
+
+## Build and test commands
+
+```bash
+make py-install      # uv sync --all-extras  (packages/python)
+make py-test         # uv run pytest -v       (141 tests)
+make py-lint         # ruff check + mypy
+make py-build        # uv build
+
+make mcp-install     # uv sync --all-extras  (packages/mcp-server)
+make mcp-test        # uv run pytest -v       (67 tests)
+make mcp-run         # python -m kndl_mcp    (stdio)
+make mcp-run-http    # python -m kndl_mcp --http
+
+make kt-build        # ./gradlew build
+make kt-test         # ./gradlew test         (68 tests)
+
+make web-install     # npm install
+make web-dev         # vite dev server
+make web-build       # vite build
+
+make install         # all install targets
+make test            # all test suites
+```
+
+## CI
+
+`.github/workflows/kndl-workflow.yml` — three parallel jobs: python (lint + 141 tests), mcp (67 tests), kotlin (68 tests).
+`.github/workflows/codeql.yml` — three parallel CodeQL jobs: Python (`build-mode: none`), TypeScript (`build-mode: none`, `source-root: website/src`), Kotlin (`build-mode: manual`, `./gradlew classes testClasses`).
+
+## Optional dependencies
+
+```toml
+# packages/python
+[project.optional-dependencies]
+postgres = ["psycopg2-binary>=2.9"]
+dotenv   = ["python-dotenv>=1.0"]
+
+# packages/mcp-server
+[project.optional-dependencies]
+postgres = ["psycopg2-binary>=2.9"]
+```
+
+`python-dotenv` auto-loads `.env` from CWD if installed. `DATABASE_URL` in environment takes precedence.
+
+## Specification
+
+Full language reference: [`spec/SPECIFICATION.md`](spec/SPECIFICATION.md)  
+EBNF grammar: [`spec/grammar/kndl.ebnf`](spec/grammar/kndl.ebnf)

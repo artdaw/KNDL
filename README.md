@@ -1,3 +1,5 @@
+[![KNDL — Knowledge Node Description Language](./kndl.png)](./kndl.png)
+
 # KNDL — Knowledge Node Description Language
 
 Give your AI agent a memory it can reason over.
