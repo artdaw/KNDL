@@ -1,0 +1,41 @@
+// fintech-transaction.kndl — double-entry transaction with a signed source.
+//
+// Demonstrates: Money literals (Decimal + ISO 4217), balanced debits/credits
+// as edges, ~signature for cryptographic provenance, ~tenant isolation.
+
+import { Account, Transaction } from "kndl://std/fin"
+
+context @tenant_acme {
+  ~tenant  "acme"
+  ~access  { read: ["role:acme-ops"], write: ["role:acme-admins"] }
+
+  node @acct_cash :: Account {
+    name     = "Operating Cash"
+    currency = "USD"
+  }
+
+  node @acct_revenue :: Account {
+    name     = "SaaS Revenue"
+    currency = "USD"
+  }
+
+  // Transaction itself is a node; the two `posting` edges are the legs.
+  node @txn_0001 :: Transaction {
+    memo      = "Invoice #A-1984 paid"
+    posted_at = 2026-04-22T14:05:00Z
+    ~source   "db://erp/journal/0001"
+    ~signature {
+      alg = "ed25519"
+      key = "did:web:acme.example#sign-1"
+      sig = b"u8f+2lEq…=="
+    }
+  }
+
+  // Debit 1200.00 USD to cash, credit 1200.00 USD to revenue.
+  edge @txn_0001 -[debits]-> @acct_cash {
+    amount = 1200.00d USD
+  }
+  edge @txn_0001 -[credits]-> @acct_revenue {
+    amount = 1200.00d USD
+  }
+}

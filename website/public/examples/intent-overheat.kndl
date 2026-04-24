@@ -1,0 +1,44 @@
+// intent-overheat.kndl — reactive rule that emits an alert and work order
+//                        when a high-confidence temperature exceeds a threshold.
+//
+// Demonstrates: intent declaration, query trigger, multiple emits,
+// ~priority, ~cooldown.
+
+import { Temperature, Alert, WorkOrder, Notification } from "kndl://std/iot"
+
+intent @overheat_response :: AutoAction {
+  trigger = query {
+    match ?t :: Temperature
+      -[located_in]-> ?zone :: Zone
+    where
+      ?t.value > 30 °C
+      && ?t.~confidence > 0.8
+      && ?t.~valid overlaps now
+      && ?zone.occupied == true
+  }
+
+  do {
+    emit node :: Alert {
+      severity = "critical"
+      message  = "Overheat detected"
+      related -> ?t
+      ~source  "agent://claude-sonnet-4.6"
+    }
+
+    emit node :: WorkOrder {
+      title    = "HVAC review"
+      assignee -> @facilities_team
+      related  -> ?zone
+      ~source  "agent://claude-sonnet-4.6"
+    }
+
+    emit node :: Notification {
+      channel = "slack://facilities"
+      message = "Auto-adjusted HVAC, see WO-{uuid()}"
+      ~priority 0.7
+    }
+  }
+
+  ~priority 0.9
+  ~cooldown 15m
+}

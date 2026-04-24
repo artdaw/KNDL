@@ -1,0 +1,48 @@
+// robotics-pose.kndl — end-effector pose with coordinate frames and Gaussian uncertainty.
+//
+// Demonstrates: Frame as a first-class node, Pose<Frame> parameterised type,
+// ~uncertainty gaussian { mean, stddev } for aleatoric variability separate
+// from the scalar ~confidence (epistemic).
+
+import { Frame, Pose } from "kndl://std/frames"
+
+node @world :: Frame {
+  id = "world"
+}
+
+node @base :: Frame {
+  id     = "base_link"
+  parent -> @world
+}
+
+node @tool :: Frame {
+  id     = "tool0"
+  parent -> @base
+}
+
+// End-effector pose in the base frame. Scalar confidence = 0.99
+// (calibrated camera, bright scene). Aleatoric stddev of 3 cm on each axis.
+node @grasp_target_0421 :: Pose<@base> {
+  x  = 0.320
+  y  = 0.015
+  z  = 0.505
+  qx = 0.0
+  qy = 0.0
+  qz = 0.0
+  qw = 1.0
+
+  ~source      "agent://perception/estimator-v3"
+  ~observed    2026-04-23T10:02:17.512Z
+  ~confidence  0.99
+  ~uncertainty gaussian { mean: 0.0, stddev: 0.03 }
+}
+
+// An uncertain candidate grasp — bounded by an interval instead.
+node @grasp_candidate_a :: Pose<@base> {
+  x = 0.28
+  y = 0.11
+  z = 0.49
+  qx = 0.0; qy = 0.0; qz = 0.0; qw = 1.0
+  ~uncertainty interval { min: -0.05, max: 0.05 }
+  ~confidence  0.72
+}

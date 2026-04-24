@@ -1,0 +1,43 @@
+// process-shipment.kndl — stateful workflow for a shipment lifecycle.
+//
+// Demonstrates: process declaration, states, transitions with guard
+// (`where`), `do` side effects, and `compensate` rollback on reversal.
+
+import { Alert, Workflow } from "kndl://std/agents"
+
+process @shipment_sm :: Workflow {
+  state picked
+  state packed
+  state shipped
+  state delivered
+  state lost { ~priority 1.0 }
+
+  on pack_complete in picked -> packed
+    do {
+      emit update @shipment { packed_at = now() }
+    }
+
+  on scan_at_dock in packed -> shipped
+    where ?event.location == "dock"
+    do {
+      emit update @shipment { shipped_at = now() }
+    }
+
+  on delivery_scan in shipped -> delivered
+    compensate {
+      // Runs if a later event reverses delivery (e.g. recall).
+      emit node :: Alert {
+        severity = "warn"
+        message  = "delivery rollback — shipment returned"
+      }
+    }
+
+  on no_contact_48h in shipped -> lost
+    where elapsed(?shipment.shipped_at) > 48h
+    do {
+      emit node :: Alert {
+        severity = "critical"
+        message  = "shipment missing for 48h"
+      }
+    }
+}

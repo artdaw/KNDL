@@ -1,0 +1,26 @@
+// basic-building.kndl — sensor reading in a building, with decay.
+//
+// Demonstrates: node declaration, inline edge, ~confidence, ~source,
+// ~valid (temporal range), ~decay (confidence degradation over time).
+
+node @building_7 :: Building {
+  name = "Klingelhöferstraße 7"
+  city = "Berlin"
+}
+
+node @floor_3 :: Floor {
+  number = 3
+  ~source "system://digital-twin"
+}
+
+edge @floor_3 -[located_in]-> @building_7
+
+node @sensor_t001 :: Temperature {
+  value     = 22.5 °C
+  location -> @floor_3
+  ~confidence 0.94
+  ~source     "sensor://bldg-7/floor-3/t-001"
+  ~valid      2026-04-10T14:00Z .. 2026-04-10T14:05Z
+  ~recorded   2026-04-10T14:05:03Z
+  ~decay      0.95 / 1h
+}
