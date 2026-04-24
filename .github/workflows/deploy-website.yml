@@ -39,8 +39,6 @@ jobs:
 
       - name: Build
         run: cd website && pnpm build
-        env:
-          GITHUB_PAGES: "true"
 
       - uses: actions/configure-pages@v4
 
