@@ -124,6 +124,7 @@ Commands:
   provenance       Walk derivedFrom + supersedes backward
   list             List fact IDs
   show             Print a fact by ID
+  migrate          Migrate v1 SQLite database → v2 JSON-LD facts
   remote           Manage and sync Anthropic Memory Store remotes
   help             Show this message
 
@@ -191,6 +192,127 @@ async function main(argv: string[]): Promise<number> {
         out(f);
         return 0;
       }
+      case "migrate": {
+        // kndl migrate --from sqlite:./kndl-v1.db --to ./memory
+        // Reads a v1 KNDL SQLite database (Python schema) and writes JSON-LD
+        // facts for each Node, Edge, and Intent into the target memory directory.
+        const from  = requireFlag(s(flags.from), "from");
+        const to    = s(flags.to) ?? "./memory";
+        const dryRun = b(flags["dry-run"]);
+        const { createRequire } = await import("node:module");
+        const req = createRequire(import.meta.url);
+        const Database = req("better-sqlite3") as typeof import("better-sqlite3");
+        const { mkdirSync } = await import("node:fs");
+        const { join: pathJoin } = await import("node:path");
+        const { writeFileSync, existsSync } = await import("node:fs");
+        const { nowIso: _nowIso } = await import("./core.js");
+
+        const dbPath = from.replace(/^sqlite:\/\/\//, "").replace(/^sqlite:\/\//, "");
+        const db = new Database(dbPath, { readonly: true });
+
+        let nodes: unknown[], edges: unknown[], intents: unknown[];
+        try {
+          nodes   = db.prepare("SELECT id, type_name, fields_json, meta_json FROM kndl_nodes").all() as unknown[];
+          edges   = db.prepare("SELECT id, source_id, target_id, edge_type, direction, fields_json, meta_json FROM kndl_edges").all() as unknown[];
+          intents = db.prepare("SELECT id, type_name, trigger_kind, trigger_data, actions_json, meta_json FROM kndl_intents").all() as unknown[];
+        } catch {
+          fail(`Could not read v1 schema from ${dbPath}. Is this a KNDL v1 database?`);
+        } finally {
+          db.close();
+        }
+
+        const factsDir = pathJoin(to, "facts");
+        if (!dryRun) mkdirSync(factsDir, { recursive: true });
+
+        let written = 0;
+        const now = _nowIso();
+
+        function writeFact(fact: Record<string, unknown>): void {
+          const id = fact["@id"] as string;
+          const fname = id.replace(/[^a-z0-9]+/gi, "-").toLowerCase().slice(0, 100) + ".fact.json";
+          const path = pathJoin(factsDir, fname);
+          if (!dryRun) {
+            if (existsSync(path)) return; // idempotent
+            writeFileSync(path, JSON.stringify(fact, null, 2));
+          }
+          written++;
+        }
+
+        for (const row of nodes!) {
+          const r = row as { id: string; type_name: string; fields_json: string; meta_json: string };
+          const meta = JSON.parse(r.meta_json || "{}");
+          const fields = JSON.parse(r.fields_json || "{}");
+          const fieldStr = Object.entries(fields).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(", ");
+          writeFact({
+            "@context": "https://kndl.artdaw.com/context/v1.jsonld",
+            "@id":      `fact:v1-node-${r.id}`,
+            "@type":    "Fact",
+            "statement": `${r.id} (${r.type_name})${fieldStr ? ": " + fieldStr : ""}`,
+            "subject":   `node:${r.id}`,
+            "predicate": "isa",
+            "object":    r.type_name,
+            "confidence": meta.confidence ?? 1.0,
+            "source":    meta.source || "kndl://v1-migration",
+            "validFrom":  meta.valid_start ?? meta.recorded ?? now,
+            "recordedAt": meta.recorded ?? now,
+            "tags":       ["v1-migration", "node", ...(meta.tags ?? [])],
+            ...(meta.decay_rate && meta.decay_duration_seconds
+              ? { "decay": `${meta.decay_rate}/${meta.decay_duration_seconds}s` }
+              : {}),
+          });
+        }
+
+        for (const row of edges!) {
+          const r = row as { id: string; source_id: string; target_id: string; edge_type: string; direction: string; fields_json: string; meta_json: string };
+          const meta = JSON.parse(r.meta_json || "{}");
+          writeFact({
+            "@context": "https://kndl.artdaw.com/context/v1.jsonld",
+            "@id":      `fact:v1-edge-${r.id}`,
+            "@type":    "Fact",
+            "statement": `${r.source_id} ${r.edge_type} ${r.target_id}`,
+            "subject":   `node:${r.source_id}`,
+            "predicate": r.edge_type,
+            "object":    `node:${r.target_id}`,
+            "confidence": meta.confidence ?? 1.0,
+            "source":    meta.source || "kndl://v1-migration",
+            "validFrom":  now,
+            "recordedAt": now,
+            "tags":       ["v1-migration", "edge"],
+          });
+        }
+
+        for (const row of intents!) {
+          const r = row as { id: string; type_name: string; trigger_kind: string; trigger_data: string; actions_json: string; meta_json: string };
+          const meta = JSON.parse(r.meta_json || "{}");
+          writeFact({
+            "@context": "https://kndl.artdaw.com/context/v1.jsonld",
+            "@id":      `fact:v1-intent-${r.id}`,
+            "@type":    "Action",
+            "statement": `Intent ${r.id}: when ${r.trigger_data}`,
+            "subject":   `intent:${r.id}`,
+            "predicate": "trigger",
+            "object":    r.trigger_data,
+            "confidence": meta.priority ?? 0.5,
+            "source":    "kndl://v1-migration",
+            "validFrom":  now,
+            "recordedAt": now,
+            "tags":       ["v1-migration", "intent", r.trigger_kind],
+          });
+        }
+
+        const summary = {
+          from: dbPath, to,
+          dry_run: dryRun,
+          nodes: (nodes!).length,
+          edges: (edges!).length,
+          intents: (intents!).length,
+          facts_written: written,
+        };
+        out(summary);
+        if (dryRun) process.stderr.write("(dry-run — no files written)\n");
+        return 0;
+      }
+
       case "remote": {
         const sub = argv.slice(1);
         const subCmd = sub[0];

@@ -1,6 +1,6 @@
 {
   "name": "@kndl/memory",
-  "version": "2.0.0-alpha.1",
+  "version": "2.0.0",
   "description": "Confidence-, time-, and provenance-aware memory for AI agents. JSON-LD fact store with decay, supersession, and bitemporal queries. Ships an MCP server (kndl-memory-mcp) and a CLI (kndl) for use from Claude Skills.",
   "type": "module",
   "bin": {

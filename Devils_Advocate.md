@@ -254,3 +254,46 @@ For the record, the v2 pivot resolved the following items from the analysis:
 | No domain examples beyond IoT | **Done** — seven worked examples shipped (IoT, personal, threat-intel, clinical, legal, scientific, AI evals) |
 
 The contract — confidence + provenance + bitemporal + decay + supersedes + uncertainty — is the part that survives every alternative pivot in the analysis above. v2 doubles down on it.
+
+---
+
+## v2 retro — what actually shipped
+
+> **Added:** 2026-04-26, after v2.0.0 tagged.
+
+### What the plan said vs. what shipped
+
+| Phase | Planned | Shipped |
+|---|---|---|
+| 1. Promote | Move kndl-memory-pack → mainline, delete Python | ✓ Done |
+| 2. Storage layer | FactStore interface + fs/sqlite/duckdb/supabase | ✓ Done |
+| 3. Subscriptions + HTTP | chokidar, SQLite polling, StreamableHTTP transport | ✓ Done |
+| 4. Domain examples | 5–10 facts per domain × 7 domains | ✓ 42 facts across 8 domains |
+| 5. Memory Store sync | Pull-only, fake client for CI | ✓ Done (push deferred to v2.1 per plan) |
+| 6. Eval scoreboard | 33 questions, Claude-as-judge runner | ✓ Done (runner not yet executed — eval/results.json is NOT_RUN) |
+| 7. Website rewrite | 7 new pages, 3 deleted | ✓ Done |
+| 8. Migration + release | kndl migrate, schema files, README | ✓ Done |
+
+### What actually got resolved from the v1 weak points
+
+**Fully resolved:**
+- DSL/parser/compiler/lexer → deleted. Wire format is JSON-LD.
+- 1,168-line spec → JSON Schema (60 lines) + JSON-LD context (48 lines).
+- Storage is a thin demo → four backends (fs/sqlite/duckdb/supabase), WAL mode, indexed columns.
+- No domain examples → 42 facts across 8 domains, each bundle exercising all 7 archetypes.
+- Concurrency story → SQLite cross-process polling (kndl_changes table), HTTP transport for shared server.
+- The 406/400 HTTP issue → StreamableHTTPServerTransport (TypeScript SDK) fixes it correctly.
+
+**Partially resolved:**
+- Calibration → the `confidence` field is right, tooling for calibration is a v2.1 item.
+- `watch_memory_store` → stubbed pending watermark API verification (plan Q7).
+- Push to Anthropic Memory → explicitly deferred to v2.1 (plan Q8).
+
+**Still open:**
+- Decay formula is assumed, not calibrated to domain data.
+- Brand collision with Kindle — acronym unchanged.
+- Eval scoreboard not yet run — the runner exists but needs API credits + human review.
+
+### The one-line verdict
+
+The contract (confidence + provenance + bitemporal + decay + supersession) survives intact. The implementation went from 10,892 lines of Python DSL machinery to 684 lines of TypeScript core logic that does more. That's the right trade.

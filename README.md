@@ -1,140 +1,156 @@
-[![KNDL — Knowledge Node Description Language](./kndl.png)](./kndl.png)
+# KNDL — Knowledge Node Data Link
 
-# KNDL — Knowledge Node Description Language
-
-Give your AI agent a memory it can reason over.
+**The format Anthropic Memory was waiting for.**
 
 [![CI](https://github.com/artdaw/KNDL/actions/workflows/kndl-workflow.yml/badge.svg)](https://github.com/artdaw/KNDL/actions/workflows/kndl-workflow.yml)
-[![CodeQL](https://github.com/artdaw/KNDL/actions/workflows/codeql.yml/badge.svg)](https://github.com/artdaw/KNDL/actions/workflows/codeql.yml)
 
-KNDL is a language for describing knowledge as a directed graph. Every fact is a **node** with typed fields. Relationships are **edges** with types and weights. Every assertion carries a **confidence score**, optional provenance, and a temporal validity window — so agents always know how much to trust what they know.
+> Anthropic just shipped Memory for agents — a filesystem. But filesystems are dumb about confidence, time, and source. Agents fill them with markdown that can't be queried, won't decay, and loses provenance the moment it's written.
+>
+> KNDL is the format that makes Memory actually smart.
 
-```kndl
-node @sensor_t001 :: Temperature<°C> {
-  value    = 22.5
-  unit     = "°C"
-  location -> @building_7
-  ~confidence  0.94
-  ~source      "sensor://bldg-7/t-001"
-  ~valid       2026-04-10T14:00Z .. *
-  ~decay       0.95 / 1h
-  ~uncertainty Gaussian { mean = 22.5  stddev = 0.3 }
-}
-
-intent @overheat :: Action {
-  trigger = @sensor_t001.value > 28.0
-  do { emit node :: Alert { severity = "critical" } }
-  ~priority 0.9
-  ~cooldown 5m
-}
+```
+Anthropic Memory  =  WHERE   (filesystem, persistence, permissions)
+KNDL              =  WHAT    (the format of files Claude writes)
+kndl-mcp / CLI    =  HOW     (query, decay, contradiction detection, provenance)
 ```
 
-## Why KNDL
+## The fact shape
 
-Existing formats were designed for humans (Markdown), machines (JSON), or documents (XML). None were designed for **agents** — entities that need to reason about knowledge, track certainty, attribute provenance, and traverse relationships.
-
-| Feature | JSON / YAML | KNDL |
-|---------|-------------|------|
-| Confidence scores | ✗ | ✓ native |
-| Temporal decay | ✗ | ✓ native |
-| Provenance tracking | ✗ | ✓ native |
-| Typed graph edges | ✗ | ✓ native |
-| Trigger-action intents | ✗ | ✓ native |
-| Uncertainty distributions | ✗ | ✓ native |
-| Parameterised types | ✗ | ✓ native |
-
-## Packages
-
-| Package | Version | Description |
-|---------|---------|-------------|
-| [`packages/python`](packages/python) | 1.0.0 | Reference implementation — parser, compiler, graph API, storage |
-| [`packages/mcp-server`](packages/mcp-server) | 1.0.0 | MCP server — use KNDL from Claude Desktop and any MCP client |
-| [`website`](website) | — | Documentation site (React + Vite) |
-
-## Quickstart
-
-**Python library**
-
-```bash
-pip install kndl
-```
-
-```python
-import kndl
-
-graph = kndl.compile("""
-node @alice :: Person {
-  name = "Alice"
-  role = "Engineer"
-  ~confidence 0.95
-  ~source "agent://hr"
-}
-edge @alice -[works_at]-> @acme { ~weight 1.0 }
-""")
-
-engineers = graph.query_nodes(type_name="Person", min_confidence=0.9)
-print(kndl.serialize(graph))
-```
-
-**MCP server (Claude Desktop)**
-
-```bash
-pip install kndl-mcp
-```
-
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+One immutable JSON-LD file per assertion. Every fact carries:
 
 ```json
 {
+  "@context": "https://kndl.artdaw.com/context/v1.jsonld",
+  "@id":      "fact:customer-9281-creditscore-20260426t100000z-ab12cd34",
+  "@type":    "Fact",
+  "statement": "Customer 9281 has a credit score of 720",
+  "subject":   "customer:9281",
+  "predicate": "creditScore",
+  "object":    720,
+  "confidence": 0.95,
+  "decay":      "0.5/30d",
+  "source":     "https://api.experian.com/v1/scores/9281",
+  "validFrom":  "2026-04-26T10:00:00Z",
+  "recordedAt": "2026-04-26T10:00:00Z"
+}
+```
+
+`decay: "0.5/30d"` → confidence halves every 30 days. Effective confidence at query time:
+`confidence × rate ^ (elapsed / window)`
+
+**Facts are immutable.** To update a fact, write a new one with `supersedes` pointing at the old one. The old fact stays on disk — visible for `as_of` time-travel, hidden from active queries.
+
+## What KNDL adds over plain markdown
+
+| | Markdown | KNDL |
+|---|---|---|
+| Know when a fact went stale | ✗ | ✓ decay + effective_confidence |
+| Surface contradictions | ✗ | ✓ contradictions() ranked by recency + confidence |
+| Trace claims to sources | ✗ | ✓ source URI + derivedFrom chain |
+| Time-travel ("what did we believe on date X") | ✗ | ✓ as_of bitemporal query |
+| Open-world negation ("no known allergy") | ✗ | ✓ negated: true |
+| Sensitivity gating | ✗ | ✓ classification: PHI filtered by default |
+
+## Install (MCP server + CLI)
+
+```bash
+git clone https://github.com/artdaw/kndl
+cd kndl/packages/kndl-memory
+pnpm install
+pnpm build
+
+# Two binaries:
+node dist/server.js          # kndl-memory-mcp — MCP server (stdio)
+node dist/server.js --http   # kndl-memory-mcp — MCP server (HTTP, port 8000)
+node dist/cli.js             # kndl — CLI
+```
+
+## Claude Desktop
+
+`~/Library/Application Support/Claude/claude_desktop_config.json`:
+```json
+{
   "mcpServers": {
-    "kndl": { "command": "uvx", "args": ["kndl-mcp"] }
+    "kndl": {
+      "command": "node",
+      "args": ["/path/to/kndl/packages/kndl-memory/dist/server.js"],
+      "env": { "KNDL_STORAGE": "sqlite:///Users/you/.kndl/memory.db" }
+    }
   }
 }
 ```
 
-Restart Claude Desktop, then ask: *"Remember that Alice is a senior engineer with confidence 0.95."*
+Fully quit Claude Desktop (Cmd-Q) and reopen. Ask: *"Remember that Alice is a staff engineer with confidence 0.95."*
 
-## Features
+## Anthropic Memory (Skill)
 
-- **Parameterised types** — `Observation<Code<"LOINC">>`, `Quantity<°C>`
-- **Processes & state machines** — `process @sm :: StateMachine { ... }`
-- **Uncertainty distributions** — `~uncertainty Gaussian { mean = X  stddev = Y }`
-- **Multi-hop query patterns** — `-[T*]->`, `-[T*3]->`, `-[T*2..5]->`
-- **Undirected typed edges** — `-[T]-` in addition to `->` and `<-`
-- **Expanded meta-annotations** — `~recorded`, `~observed`, `~negated`, `~deadline`, `~classification`, `~retention`
-- **Extended duration units** — `ns`, `us`, `mo`, `y`
+Copy `skills/kndl-memory/SKILL.md` into your `/memory/skills/` directory. Claude follows the conventions automatically — writes `.fact.json` files, queries with `kndl query`, applies trust thresholds.
+
+```
+KNDL_STORAGE=fs:/memory  # use the Anthropic Memory filesystem directly
+```
+
+## MCP tools (9)
+
+| Tool | What it does |
+|------|--------------|
+| `assert_fact` | Write a new immutable fact |
+| `query_facts` | Read active facts with effective confidence at as_of |
+| `contradictions` | Find disagreeing facts, ranked by recency + confidence |
+| `supersede_fact` | Replace a fact (preserves history for time-travel) |
+| `as_of` | Bitemporal: what did memory believe at timestamp X |
+| `provenance_chain` | Walk derivedFrom + supersedes backward |
+| `sync_memory_store` | Pull from an Anthropic Memory Store (ANTHROPIC_API_KEY required) |
+| `list_memory_stores` | List configured remote stores |
+| `subscribe` | Get notified when a fact changes |
+
+## Storage backends
+
+| `KNDL_STORAGE` | Backend | When to use |
+|---|---|---|
+| `fs:./memory` | Filesystem (one file/fact) | **Anthropic Memory mount** |
+| `sqlite:./kndl.db` | SQLite | **Default for standalone** — WAL, indexed |
+| `duckdb:./kndl.duckdb` | DuckDB | Analytical workloads |
+| `supabase:<url>?key=<anon>` | Supabase | Multi-tenant cloud |
+
+## Migrating from KNDL v1
+
+```bash
+kndl migrate --from sqlite:///path/to/kndl-v1.db --to ./memory
+```
+
+Maps v1 Nodes, Edges, and Intents to KNDL v2 Facts. All facts tagged `v1-migration`.
 
 ## Repository layout
 
 ```
-packages/
-  python/        Python reference implementation (kndl)
-  mcp-server/    MCP server (kndl-mcp)
-website/         Documentation site
-spec/            KNDL language specification (Markdown)
-.github/         CI workflows
+packages/kndl-memory/   @kndl/memory npm package
+  src/
+    core.ts             decay math, fact construction, query algorithms
+    types.ts            Fact, FactInput, FactStore interface
+    stores/             fs, sqlite, duckdb, supabase backends + factory
+    remote/             Anthropic Memory Store sync (pull)
+    notify.ts           change detection + MCP notification broadcast
+    server.ts           kndl-memory-mcp MCP server
+    cli.ts              kndl CLI
+  eval/
+    runner.ts           eval runner (Claude-as-judge, 33 questions)
+  tests/                vitest + node:test, 36 passing
+
+skills/kndl-memory/     Claude Skill bundle
+  SKILL.md              drop into /memory/skills/
+  context/v1.jsonld     vendored JSON-LD context
+  examples/             8 domain fact bundles (42 facts total)
+  eval/questions.json   33-question eval suite
+
+website/                docs site (React + Vite)
 ```
 
-## Development
+## Eval quality bar
 
-```bash
-# Python library
-cd packages/python
-uv sync --all-extras
-uv run pytest -v                    # 245 tests
-uv run ruff check src tests
-uv run mypy src
-
-# MCP server
-cd packages/mcp-server
-uv sync --all-extras
-uv run pytest tests/ -v             # 80 tests
-
-# Website
-cd website
-pnpm install
-pnpm dev
-```
+Run `tsx packages/kndl-memory/eval/runner.ts` with `ANTHROPIC_API_KEY`.
+KNDL must beat vanilla (facts pasted in system prompt) on ≥70% of 33 questions to ship.
+If it doesn't, fix the protocol first.
 
 ## License
 

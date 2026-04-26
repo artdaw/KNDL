@@ -1,0 +1,48 @@
+{
+  "@context": {
+    "@version": 1.1,
+    "@vocab": "https://kndl.artdaw.com/vocab/",
+    "kndl": "https://kndl.artdaw.com/vocab/",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+    "prov": "http://www.w3.org/ns/prov#",
+    "schema": "https://schema.org/",
+
+    "Fact": "kndl:Fact",
+    "Source": "kndl:Source",
+    "InferenceRule": "kndl:InferenceRule",
+
+    "statement":      { "@id": "kndl:statement",      "@type": "xsd:string" },
+    "subject":        { "@id": "kndl:subject",        "@type": "@id" },
+    "predicate":      { "@id": "kndl:predicate",      "@type": "xsd:string" },
+    "object":         { "@id": "kndl:object" },
+
+    "confidence":     { "@id": "kndl:confidence",     "@type": "xsd:double" },
+    "uncertainty":    { "@id": "kndl:uncertainty",    "@type": "@json" },
+
+    "validFrom":      { "@id": "kndl:validFrom",      "@type": "xsd:dateTime" },
+    "validUntil":     { "@id": "kndl:validUntil",     "@type": "xsd:dateTime" },
+    "observedAt":     { "@id": "kndl:observedAt",     "@type": "xsd:dateTime" },
+    "recordedAt":     { "@id": "kndl:recordedAt",     "@type": "xsd:dateTime" },
+    "lastSeen":       { "@id": "kndl:lastSeen",       "@type": "xsd:dateTime" },
+
+    "decay":          { "@id": "kndl:decay",          "@type": "xsd:string" },
+
+    "source":         { "@id": "kndl:source",         "@type": "xsd:anyURI" },
+    "supersedes":     { "@id": "kndl:supersedes",     "@type": "@id" },
+    "derivedFrom":    { "@id": "kndl:derivedFrom",    "@type": "@id", "@container": "@set" },
+    "inference":      { "@id": "kndl:inference",      "@type": "@id" },
+
+    "negated":        { "@id": "kndl:negated",        "@type": "xsd:boolean" },
+
+    "signature":      { "@id": "kndl:signature",      "@type": "@json" },
+    "attestation":    { "@id": "kndl:attestation",    "@type": "@id" },
+
+    "classification": { "@id": "kndl:classification", "@type": "xsd:string" },
+    "consent":        { "@id": "kndl:consent",        "@type": "@id" },
+    "retention":      { "@id": "kndl:retention",      "@type": "xsd:string" },
+    "tenant":         { "@id": "kndl:tenant",         "@type": "xsd:string" },
+
+    "weight":         { "@id": "kndl:weight",         "@type": "xsd:double" },
+    "tags":           { "@id": "kndl:tags",           "@container": "@set" }
+  }
+}
