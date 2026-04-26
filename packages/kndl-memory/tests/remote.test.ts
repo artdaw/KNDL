@@ -83,12 +83,64 @@ describe("remote sync — FsFactStore backend", async () => {
     assert.ok(aliceFact, "superseded fact should appear in active results");
   });
 
-  test("push: throws not-implemented error in v2.0", async () => {
+  test("push: throws when config.push is false", async () => {
     const { push } = await import("../src/remote/sync.js");
+    // push:false is the default — should throw a clear error
     await assert.rejects(
       () => push(client, store, makeConfig()),
-      /not implemented in v2\.0/,
+      /Push is disabled/,
     );
+  });
+
+  test("push: skips facts without the push_tag", async () => {
+    const { push } = await import("../src/remote/sync.js");
+    const config = { ...makeConfig(), push: true };
+    const result = await push(client, store, config);
+    // None of the pulled facts have "push-to-anthropic" tag
+    assert.equal(result.pushed, 0);
+    assert.equal(result.errors, 0);
+  });
+
+  test("push: pushes facts tagged with push_tag", async () => {
+    const { push } = await import("../src/remote/sync.js");
+    // Assert a fact with the push tag
+    await store.assertFact({
+      statement: "Test push fact",
+      confidence: 0.9,
+      source: "test://push",
+      tags: ["push-to-anthropic"],
+    });
+    const config = { ...makeConfig(), push: true };
+    const result = await push(client, store, config);
+    assert.equal(result.pushed, 1, "expected 1 fact pushed");
+    assert.equal(result.errors, 0);
+  });
+
+  test("push: idempotent — second push skips already-pushed facts", async () => {
+    const { push } = await import("../src/remote/sync.js");
+    const config = { ...makeConfig(), push: true };
+    const r1 = await push(client, store, config);
+    const r2 = await push(client, store, config);
+    // Second push should skip what first push created
+    assert.ok(r2.pushed === 0, "second push should push nothing new");
+    assert.ok(r2.skipped >= r1.pushed, "second push should skip what first pushed");
+  });
+
+  test("push: skips classified facts by default", async () => {
+    const { push } = await import("../src/remote/sync.js");
+    await store.assertFact({
+      statement: "Sensitive fact",
+      confidence: 0.9,
+      source: "test://phi",
+      classification: "PHI",
+      tags: ["push-to-anthropic"],
+    });
+    const config = { ...makeConfig(), push: true };
+    const result = await push(client, store, config);
+    // PHI fact must NOT be pushed
+    const pushed = result.pushed;
+    // The only newly tagged fact is PHI — it should be skipped
+    assert.equal(pushed, 0, "PHI fact should not be pushed");
   });
 
   // Cleanup after all tests in this suite

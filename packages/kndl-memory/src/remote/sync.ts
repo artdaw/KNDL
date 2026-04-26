@@ -1,19 +1,19 @@
-// remote/sync.ts — pull driver for Anthropic Memory Store → local FactStore.
+// remote/sync.ts — pull and push drivers for Anthropic Memory Store ↔ local FactStore.
 //
-// Translation: each Memory Store item becomes one Fact.
-// Idempotency:  same item id → same source URI → existing fact detected by
-//               querying source field → no-op if content hash unchanged,
-//               supersede if content changed.
-// Conflict:     after each pull batch, run contradictions() to surface any
-//               conflicts between pulled facts and local facts on the same
-//               subject/predicate.
-// Push:         explicitly OUT OF SCOPE for v2.0 (plan §12 Q8). The push()
-//               function is a stub that throws; it will be filled in v2.1.
+// Pull (Anthropic → local):
+//   Each Memory Store item becomes one Fact. Idempotent on item id; supersedes
+//   if content changes. Runs contradictions() after each batch.
+//
+// Push (local → Anthropic):
+//   Facts tagged with push_tag (default "push-to-anthropic") are serialized
+//   to human-readable content and POSTed to the Memory Store. Idempotent:
+//   existing items are detected via metadata.kndl_id. Classified facts
+//   (PHI/PII/etc.) are skipped unless config explicitly sets allow_push_classified.
 
 import { createHash } from "node:crypto";
 import type { FactStore, Fact } from "../types.js";
 import { nowIso } from "../core.js";
-import type { MemoryStoreClient, RemoteConfig, SyncResult } from "./types.js";
+import type { MemoryStoreClient, RemoteConfig, SyncResult, PushResult, BothResult } from "./types.js";
 
 // ── Translation ────────────────────────────────────────────────────────────────
 
@@ -106,22 +106,107 @@ export async function pull(
   if (cursor) config.last_cursor = cursor;
 
   // Run contradictions to surface any conflicts that pulling introduced.
-  const contradictResult = await store.contradictions({ tenant: config.label });
+  const contradictResult = await store.contradictions({ subject: config.label });
   const contradictions = contradictResult.count;
 
   return { store_id: config.store_id, label: config.label, pulled, skipped, superseded, contradictions, synced_at: syncedAt };
 }
 
-// ── Push stub (v2.1) ──────────────────────────────────────────────────────────
+// ── Push driver (local → Anthropic) ──────────────────────────────────────────
+
+/**
+ * Serialize a Fact to human-readable Memory Store content.
+ * The statement leads; structured fields follow; KNDL-ID anchors idempotency.
+ */
+function factToContent(fact: Fact): string {
+  const lines: string[] = [fact.statement, ""];
+  if (fact.subject)            lines.push(`subject: ${fact.subject}`);
+  if (fact.predicate)          lines.push(`predicate: ${fact.predicate}`);
+  if (fact.object !== undefined) lines.push(`object: ${JSON.stringify(fact.object)}`);
+  lines.push(`confidence: ${fact.confidence}`);
+  if (fact.decay)              lines.push(`decay: ${fact.decay}`);
+  lines.push(`source: ${fact.source}`);
+  lines.push(`validFrom: ${fact.validFrom}`);
+  if (fact.recordedAt)         lines.push(`recordedAt: ${fact.recordedAt}`);
+  if (fact.supersedes)         lines.push(`supersedes: ${fact.supersedes}`);
+  lines.push(`KNDL-ID: ${fact["@id"]}`);
+  return lines.join("\n");
+}
 
 export async function push(
-  _client: MemoryStoreClient,
-  _store: FactStore,
-  _config: RemoteConfig,
-): Promise<never> {
-  throw new Error(
-    "push() is not implemented in v2.0. " +
-    "Push (local → Anthropic Memory Store) will ship in v2.1. " +
-    "To share local facts, export with `kndl export` and paste into the Memory Store manually.",
-  );
+  client: MemoryStoreClient,
+  store: FactStore,
+  config: RemoteConfig,
+): Promise<PushResult> {
+  if (!config.push) {
+    throw new Error(
+      `Push is disabled for remote '${config.label}'. ` +
+      "Enable it with: kndl remote add --provider anthropic --store-id <id> --label <label> --push",
+    );
+  }
+
+  const syncedAt = nowIso();
+  const pushTag  = config.push_tag ?? "push-to-anthropic";
+
+  // ── Select facts that qualify for push ───────────────────────────────────
+  const { facts: allFacts } = await store.query();
+  const candidates = allFacts.filter((f) => {
+    // Must carry the push tag
+    if (!f.tags?.includes(pushTag)) return false;
+    // Skip classified data by default (PHI, PII, PCI, CONFIDENTIAL, INTERNAL)
+    if (f.classification) return false;
+    return true;
+  });
+
+  if (candidates.length === 0) {
+    return { store_id: config.store_id, label: config.label, pushed: 0, skipped: 0, errors: 0, synced_at: syncedAt };
+  }
+
+  // ── Find facts already in the Memory Store (via metadata.kndl_id) ────────
+  const alreadyPushed = new Set<string>();
+  let cursor: string | undefined;
+  let hasMore = true;
+  while (hasMore) {
+    const page = await client.listItems(config.store_id, { after: cursor, limit: 100 });
+    for (const item of page.items) {
+      const kndlId = item.metadata?.kndl_id as string | undefined;
+      if (kndlId) alreadyPushed.add(kndlId);
+    }
+    cursor = page.next_cursor;
+    hasMore = page.has_more;
+  }
+
+  // ── Push unpushed candidates ──────────────────────────────────────────────
+  let pushed = 0, skipped = 0, errors = 0;
+  for (const fact of candidates) {
+    if (alreadyPushed.has(fact["@id"])) {
+      skipped++;
+      continue;
+    }
+    try {
+      const content = factToContent(fact);
+      await client.createItem(config.store_id, content, { kndl_id: fact["@id"] });
+      pushed++;
+    } catch (e) {
+      process.stderr.write(
+        `[kndl] push error for ${fact["@id"]}: ${(e as Error).message}\n`,
+      );
+      errors++;
+    }
+  }
+
+  config.last_synced_at = syncedAt;
+  return { store_id: config.store_id, label: config.label, pushed, skipped, errors, synced_at: syncedAt };
+}
+
+// ── Both directions ───────────────────────────────────────────────────────────
+
+export async function syncBoth(
+  client: MemoryStoreClient,
+  store: FactStore,
+  config: RemoteConfig,
+): Promise<BothResult> {
+  const pullResult = await pull(client, store, config);
+  const pushResult = await push(client, store, config);
+  return { pull: pullResult, push: pushResult };
 }

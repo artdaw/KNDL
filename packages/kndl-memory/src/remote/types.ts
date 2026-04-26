@@ -57,3 +57,19 @@ export interface SyncResult {
   contradictions: number; // conflicts detected after pull
   synced_at: string;     // ISO datetime
 }
+
+/** Result of a sync push. */
+export interface PushResult {
+  store_id: string;
+  label: string;
+  pushed: number;        // new items created in the Memory Store
+  skipped: number;       // facts already present in the Memory Store
+  errors: number;        // facts that failed to push (logged to stderr)
+  synced_at: string;     // ISO datetime
+}
+
+/** Combined result when direction = "both". */
+export interface BothResult {
+  pull: SyncResult;
+  push: PushResult;
+}
