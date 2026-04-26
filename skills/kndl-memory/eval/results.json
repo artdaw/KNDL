@@ -1,0 +1,13 @@
+{
+  "run_at": null,
+  "model": null,
+  "total": 0,
+  "passed": 0,
+  "failed": 0,
+  "pass_rate": null,
+  "threshold": 70,
+  "verdict": "NOT_RUN",
+  "note": "Run `tsx packages/kndl-memory/eval/runner.ts` with ANTHROPIC_API_KEY to populate this file.",
+  "by_archetype": {},
+  "questions": []
+}

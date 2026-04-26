@@ -1,65 +1,318 @@
 {
-  "scenario": "credit_decision",
-  "today": "2026-04-26T12:00:00Z",
-  "fixtures": "examples/loan-decision.example.jsonld",
-  "instructions_for_eval": "Run each question twice: once with the JSON dump pasted into the system prompt, once with the kndl-memory MCP server connected. Score binary right/wrong. KNDL should win on at least 5/8 small + 2/3 at scale.",
-  "questions": [
+  "version": "2.0",
+  "description": "KNDL eval suite — 33 binary-scored questions across 8 domains. Run each question twice: vanilla (facts in system prompt) and KNDL-MCP (tools connected). Score right/wrong. Pass threshold: ≥70% of questions KNDL wins.",
+  "archetypes": {
+    "decayed_confidence": "Agent must apply decay formula and refuse to state stale facts as current",
+    "supersession":       "Agent must use the superseded fact, not the original",
+    "as_of":              "Agent must time-travel to the correct belief at a past timestamp",
+    "contradiction":      "Agent must rank conflicting facts and surface the conflict explicitly",
+    "provenance":         "Agent must trace the audit chain and cite exact source URIs",
+    "negation":           "Agent must treat negated:true as known-false, not merely absent",
+    "derivedFrom":        "Agent must follow inference chains and weight by chain length",
+    "composite":          "Requires combining multiple archetypes in one answer"
+  },
+  "scenarios": [
     {
-      "id": "q1-decay-employment",
-      "archetype": "decayed_confidence",
-      "prompt": "Is customer 9281 currently employed at ACME GmbH? How confident are you?",
-      "correct_behavior": "Refuse to assert current employment. The fact is 633 days old with 0.5/180d decay; effective confidence ~0.08. Recommend re-verification.",
-      "vanilla_failure_mode": "Reads original confidence 0.9 and says 'yes, employed at ACME' or hedges only weakly."
+      "id": "loan-decision",
+      "name": "Credit decision — Customer 9281",
+      "corpus_dir": "examples/loan-decision/",
+      "eval_date": "2026-04-26T12:00:00Z",
+      "questions": [
+        {
+          "id": "ld-q1",
+          "archetype": "decayed_confidence",
+          "prompt": "Is customer 9281 currently employed at ACME GmbH? How confident are you?",
+          "correct_behavior": "Refuse to assert current employment. The fact is 633 days old with 0.5/180d decay; effective confidence ~0.08. State that the fact is stale and recommend re-verification.",
+          "vanilla_failure_mode": "Reads original confidence 0.9 and says 'yes, employed at ACME' with little hedging."
+        },
+        {
+          "id": "ld-q2",
+          "archetype": "decayed_confidence",
+          "prompt": "Should we trust the credit score reading for customer 9281 today?",
+          "correct_behavior": "Yes — 3 days old, decay 0.5/30d, effective confidence ~0.88. Still fresh and actionable.",
+          "vanilla_failure_mode": "Either over-trusts or fails to differentiate freshness from the stale employment fact."
+        },
+        {
+          "id": "ld-q3",
+          "archetype": "supersession",
+          "prompt": "What is customer 9281's current credit score?",
+          "setup_note": "The 720 fact has been superseded by 740. Both are in the corpus.",
+          "correct_behavior": "740 — cite the new fact @id, note the older 720 was superseded.",
+          "vanilla_failure_mode": "Returns 720 or presents both as equally valid."
+        },
+        {
+          "id": "ld-q4",
+          "archetype": "as_of",
+          "prompt": "On 2026-04-22, what did we believe customer 9281's credit score was?",
+          "correct_behavior": "720 — the 740 fact had not been recorded yet (recordedAt after 2026-04-22).",
+          "vanilla_failure_mode": "Returns 740 (the latest value) regardless of the as-of date."
+        },
+        {
+          "id": "ld-q5",
+          "archetype": "contradiction",
+          "prompt": "There are two credit score readings — Experian 720 and SCHUFA 680. Which should we trust?",
+          "correct_behavior": "Apply ranking: not-negated, newer recordedAt, higher effective confidence. Prefer Experian 720 (eff ~0.88) over SCHUFA 680 (eff ~0.63). Flag the conflict explicitly.",
+          "vanilla_failure_mode": "Picks one arbitrarily, averages them, or presents both without ranking."
+        },
+        {
+          "id": "ld-q6",
+          "archetype": "provenance",
+          "prompt": "Where does our information about customer 9281's default event come from?",
+          "correct_behavior": "Source is SCHUFA, recorded 6 days ago, effective ~0.97. Cite the source URI exactly.",
+          "vanilla_failure_mode": "Hand-waves about 'records' without exact URI; may invent sources."
+        },
+        {
+          "id": "ld-q7",
+          "archetype": "composite",
+          "prompt": "Customer 9281 is requesting a 50,000 EUR loan. Summarize their financial profile and recommend approve / decline / escalate. Cite which facts you used.",
+          "correct_behavior": "Use credit (fresh, 0.88), default (fresh, 0.97), discount income (stale 0.46), DO NOT rely on employment (decayed 0.08). Recommend ESCALATE due to recent default + need for fresh employment and income verification.",
+          "vanilla_failure_mode": "Treats stale employment as current; may approve or decline without flagging decayed data."
+        },
+        {
+          "id": "ld-q8",
+          "archetype": "decayed_confidence",
+          "prompt": "I heard customer 9281 might be filing for bankruptcy. Should we escalate?",
+          "correct_behavior": "The rumor is in memory at confidence ~0.26 (after decay) from a forum source. Mention it as low-confidence, do not state as fact, recommend verification before action.",
+          "vanilla_failure_mode": "Ignores the rumor entirely, or treats low-confidence forum post as credible."
+        }
+      ]
     },
     {
-      "id": "q2-decay-credit",
-      "archetype": "decayed_confidence",
-      "prompt": "Should we trust the credit score reading for customer 9281 today?",
-      "correct_behavior": "Yes — 3 days old, decay 0.5/30d, effective ~0.88. Still very fresh.",
-      "vanilla_failure_mode": "May either over-trust or fail to differentiate from older facts."
+      "id": "iot-sensor",
+      "name": "IoT — Building 7 sensor telemetry",
+      "corpus_dir": "examples/iot-sensor/",
+      "eval_date": "2026-04-26T10:30:00Z",
+      "questions": [
+        {
+          "id": "iot-q1",
+          "archetype": "decayed_confidence",
+          "prompt": "Is Room 3A in Building 7 currently occupied?",
+          "correct_behavior": "The 08:55 occupancy reading has decayed with 0.5/30m — by 10:30 effective confidence is near zero. The 10:00 'not occupied' reading is also decaying. Neither should be stated as current fact without a fresh sensor read.",
+          "vanilla_failure_mode": "States 'yes, occupied' based on the 08:55 reading without applying decay."
+        },
+        {
+          "id": "iot-q2",
+          "archetype": "supersession",
+          "prompt": "What is the latest temperature reading from sensor T001?",
+          "correct_behavior": "26.1°C at 09:00 — this supersedes the 22.5°C reading from 08:00. Cite the 09:00 fact.",
+          "vanilla_failure_mode": "Returns 22.5°C (the first reading) or presents both without indicating which is current."
+        },
+        {
+          "id": "iot-q3",
+          "archetype": "provenance",
+          "prompt": "What triggered the HVAC fault alert for Room 3A, and how confident are we?",
+          "correct_behavior": "Derived from two facts: temperature 26.1°C (conf 0.99) and occupancy 0.88 (decayed further). Inference confidence 0.82. Cite both derivedFrom source @ids.",
+          "vanilla_failure_mode": "States the alert as a standalone fact without tracing the derivedFrom chain."
+        },
+        {
+          "id": "iot-q4",
+          "archetype": "decayed_confidence",
+          "prompt": "What was the energy consumption in Building 7 this morning?",
+          "correct_behavior": "47.2 kWh recorded at 09:01. Decay is 0.5/24h — after ~1.5 hours, effective confidence ~0.96. Still valid but note it decays over the day.",
+          "vanilla_failure_mode": "Reports 47.2 kWh as a definitive fact without acknowledging the decay."
+        }
+      ]
     },
     {
-      "id": "q3-supersession",
-      "archetype": "supersession",
-      "prompt": "What is customer 9281's current credit score?",
-      "setup_note": "Run after supersede_fact: original 720 superseded by 740.",
-      "correct_behavior": "740. Cite the new fact's id, mention the older 720 was superseded today.",
-      "vanilla_failure_mode": "Returns 720 (or both, confused about which is current)."
+      "id": "personal-memory",
+      "name": "Personal assistant — Alice's profile",
+      "corpus_dir": "examples/personal-memory/",
+      "eval_date": "2026-04-26T12:00:00Z",
+      "questions": [
+        {
+          "id": "pm-q1",
+          "archetype": "supersession",
+          "prompt": "What is Alice's current role?",
+          "correct_behavior": "Staff engineer on the payments team — this supersedes the senior engineer fact from January. Cite the April 15 update.",
+          "vanilla_failure_mode": "Returns 'senior engineer' (the original) or presents both without distinguishing current from superseded."
+        },
+        {
+          "id": "pm-q2",
+          "archetype": "as_of",
+          "prompt": "What was Alice's role at the start of 2026?",
+          "correct_behavior": "Senior engineer on payments — the staff engineer promotion happened April 15, after this date.",
+          "vanilla_failure_mode": "Returns 'staff engineer' (the current role) regardless of the time constraint."
+        },
+        {
+          "id": "pm-q3",
+          "archetype": "derivedFrom",
+          "prompt": "Does Alice prefer async communication or meetings?",
+          "correct_behavior": "Async (confidence 0.78). This is a derived/inferred fact — cite the source fact it was derived from and flag it as inference, not direct statement.",
+          "vanilla_failure_mode": "States 'async' as certain fact without noting it's inferred and at 0.78 confidence."
+        }
+      ]
     },
     {
-      "id": "q4-as-of",
-      "archetype": "as_of",
-      "prompt": "On 2026-04-22, what did we believe customer 9281's credit score was?",
-      "correct_behavior": "720 — the 740 fact had not been recorded yet.",
-      "vanilla_failure_mode": "Returns the latest value (740) regardless of as-of date."
+      "id": "threat-intel",
+      "name": "Threat intelligence — Emotet campaign",
+      "corpus_dir": "examples/threat-intel/",
+      "eval_date": "2026-04-25T12:00:00Z",
+      "questions": [
+        {
+          "id": "ti-q1",
+          "archetype": "negation",
+          "prompt": "Should we block traffic to 192.0.2.1 as a C2 server?",
+          "correct_behavior": "No — the C2 classification was retracted as a false positive. The fact is negated (negated:true) and superseded. 192.0.2.1 belongs to a CDN. Do not block.",
+          "vanilla_failure_mode": "Sees the original C2 fact and recommends blocking, missing the retraction."
+        },
+        {
+          "id": "ti-q2",
+          "archetype": "contradiction",
+          "prompt": "Is update.example.com malicious or legitimate?",
+          "correct_behavior": "Contradiction — one fact says Emotet C2 (0.85 decayed), another says legitimate CDN update server (0.7). Surface both, note the conflict, recommend manual investigation before blocking.",
+          "vanilla_failure_mode": "Returns one answer without flagging the contradiction."
+        },
+        {
+          "id": "ti-q3",
+          "archetype": "decayed_confidence",
+          "prompt": "Is the 192.0.2.1 C2 indicator still fresh enough to act on?",
+          "correct_behavior": "Irrelevant — the indicator was retracted. Even if not, 0.5/24h decay on a 24h-old IOC would reduce confidence to ~0.45, borderline. The retraction makes it moot.",
+          "vanilla_failure_mode": "Ignores the retraction and either trusts or discounts based on age alone."
+        },
+        {
+          "id": "ti-q4",
+          "archetype": "provenance",
+          "prompt": "What is the chain of evidence linking the Emotet malware hash to the C2 domain?",
+          "correct_behavior": "derivedFrom chain: C2 domain fact derived from malware hash fact (which is from the Emotet malware report). Cite both @ids and sources. Aggregate confidence ~0.83.",
+          "vanilla_failure_mode": "States the connection without tracing the derivedFrom link or aggregating confidence."
+        }
+      ]
     },
     {
-      "id": "q5-contradiction",
-      "archetype": "contradiction",
-      "prompt": "There are two credit score readings — Experian 720 and SCHUFA 680. Which should we trust?",
-      "correct_behavior": "Apply ranking: not-negated, newer recorded, higher effective confidence. Surface the conflict explicitly. Prefer Experian 720 (eff ~0.88) over SCHUFA 680 (eff ~0.63), but flag.",
-      "vanilla_failure_mode": "Picks one arbitrarily or averages them, no provenance distinction."
+      "id": "clinical",
+      "name": "Clinical — Patient 9001",
+      "corpus_dir": "examples/clinical/",
+      "eval_date": "2026-04-17T14:00:00Z",
+      "questions": [
+        {
+          "id": "cl-q1",
+          "archetype": "supersession",
+          "prompt": "What is patient 9001's confirmed diagnosis?",
+          "correct_behavior": "Type 2 diabetes mellitus (confirmed March 17, confidence 0.97) — this supersedes the preliminary 'suspected' assessment from March 10. Cite the confirmed fact.",
+          "vanilla_failure_mode": "Returns 'type 2 diabetes suspected' (the preliminary fact) or presents both as equally valid."
+        },
+        {
+          "id": "cl-q2",
+          "archetype": "negation",
+          "prompt": "Does patient 9001 have a penicillin allergy?",
+          "correct_behavior": "No — this is a KNOWN ABSENCE (negated:true), explicitly stated by the patient. Do not treat it as 'unknown' or 'no information'. Cite the negated fact.",
+          "vanilla_failure_mode": "Says 'no allergy information found' or treats the absence as unknown rather than explicitly denied."
+        },
+        {
+          "id": "cl-q3",
+          "archetype": "decayed_confidence",
+          "prompt": "Is the HbA1c reading from March 17 still clinically valid today?",
+          "correct_behavior": "HbA1c reflects 3-month average glycemia; with 0.5/90d decay, after ~40 days effective confidence ~0.74. Still in the 'usable with hedge' range but approaching the 'recommend re-test' threshold.",
+          "vanilla_failure_mode": "Reports 8.2% as current fact without applying decay or noting recency."
+        },
+        {
+          "id": "cl-q4",
+          "archetype": "derivedFrom",
+          "prompt": "Why was Metformin prescribed for patient 9001?",
+          "correct_behavior": "Derived from two facts: confirmed T2 diabetes diagnosis AND HbA1c 8.2% (both PHI). Cite both @ids in the derivedFrom chain. Confidence 0.99 from prescribing clinician.",
+          "vanilla_failure_mode": "States 'because of diabetes' without tracing the derivedFrom chain or citing the HbA1c specifically."
+        }
+      ]
     },
     {
-      "id": "q6-provenance",
-      "archetype": "provenance",
-      "prompt": "Where does our information about customer 9281's default come from? Who is the original source?",
-      "correct_behavior": "Walk provenance: SCHUFA, recorded 6 days ago, effective ~0.97. Cite source URI exactly.",
-      "vanilla_failure_mode": "Hand-waves about 'records' without citing exact URI; may invent sources."
+      "id": "legal-ediscovery",
+      "name": "Legal — Smith v ACME contract dispute",
+      "corpus_dir": "examples/legal-ediscovery/",
+      "eval_date": "2026-02-10T12:00:00Z",
+      "questions": [
+        {
+          "id": "le-q1",
+          "archetype": "supersession",
+          "prompt": "Where was the Smith-ACME contract signed?",
+          "correct_behavior": "Per Johnson's amended testimony (Feb 3): remotely via DocuSign. This supersedes the original testimony citing Chicago ACME HQ. Cite the amendment @id.",
+          "vanilla_failure_mode": "Returns 'Chicago, ACME HQ' (original testimony) or presents both as equally valid."
+        },
+        {
+          "id": "le-q2",
+          "archetype": "as_of",
+          "prompt": "What did witness Johnson originally testify on January 15?",
+          "correct_behavior": "That the contract was signed at ACME HQ in Chicago — this is what was in the record before the February 3 amendment.",
+          "vanilla_failure_mode": "Returns the amended testimony (DocuSign), not the original, ignoring the as-of constraint."
+        },
+        {
+          "id": "le-q3",
+          "archetype": "contradiction",
+          "prompt": "Witnesses Johnson and Brown gave different locations for the contract signing. How do we resolve this?",
+          "correct_behavior": "Contradiction: Johnson says Chicago/DocuSign (amended, higher confidence), Brown says New York Smith offices (0.8, uncontested). Rank: Johnson's amended testimony is newer and higher effective confidence. Surface both. Do not resolve without additional evidence.",
+          "vanilla_failure_mode": "Picks one arbitrarily or presents them without ranking by recency and confidence."
+        }
+      ]
     },
     {
-      "id": "q7-loan-decision",
-      "archetype": "composite",
-      "prompt": "Customer 9281 is requesting a 50,000 EUR loan. Summarize their financial profile and recommend approve / decline / escalate. Cite which facts you used.",
-      "correct_behavior": "Use credit (fresh, 0.88), default (fresh, 0.97), discount income (stale 0.46), DO NOT rely on employment (decayed to 0.08). Recommend ESCALATE due to recent default + need for fresh employment+income verification.",
-      "vanilla_failure_mode": "Treats 633-day-old employment as current, may decline outright on the default without context, or approve without flagging stale data."
+      "id": "scientific-lab",
+      "name": "Scientific lab — EXP-042 buffer pH",
+      "corpus_dir": "examples/scientific-lab/",
+      "eval_date": "2026-05-02T10:00:00Z",
+      "questions": [
+        {
+          "id": "sl-q1",
+          "archetype": "negation",
+          "prompt": "One pH reading was 6.9. Should we include it in our analysis?",
+          "correct_behavior": "No — this reading has been explicitly retracted (negated:true) due to confirmed electrode contamination. Treat as known-invalid, not merely absent.",
+          "vanilla_failure_mode": "Includes the 6.9 reading in the analysis or says 'we have a reading of 6.9'."
+        },
+        {
+          "id": "sl-q2",
+          "archetype": "derivedFrom",
+          "prompt": "What is the consensus buffer pH for EXP-042?",
+          "correct_behavior": "7.40 ± 0.02 (n=2, from runs 1 and 2 at 7.41 and 7.38). The consensus fact cites both measurements in derivedFrom. The retracted 6.9 was excluded. This was subsequently published (DOI: 10.1000/jcb.2026.042).",
+          "vanilla_failure_mode": "Returns 7.41 or 7.38 without noting the consensus derivation, or includes the retracted reading."
+        },
+        {
+          "id": "sl-q3",
+          "archetype": "provenance",
+          "prompt": "Has the EXP-042 pH result been peer-reviewed and published?",
+          "correct_behavior": "Yes — published in Journal of Chemical Biology, doi:10.1000/jcb.2026.042, with confidence 0.99. Provenance chain: published result ← consensus ← run 1 + run 2.",
+          "vanilla_failure_mode": "States the result without noting the publication, or conflates the raw measurement confidence with the published result."
+        }
+      ]
     },
     {
-      "id": "q8-rumor-handling",
-      "archetype": "low_confidence",
-      "prompt": "I heard customer 9281 might be filing for bankruptcy. Should we escalate?",
-      "correct_behavior": "The rumor exists in memory at confidence 0.3 / effective ~0.26 from a forum source. Mention it as low-confidence, do not state as fact, recommend verification before action.",
-      "vanilla_failure_mode": "Either ignores the rumor entirely, or treats it as credible because the system 'knows about it'."
+      "id": "ai-evals",
+      "name": "AI evaluations — GPT-5 benchmarks",
+      "corpus_dir": "examples/ai-evals/",
+      "eval_date": "2026-04-20T00:00:00Z",
+      "questions": [
+        {
+          "id": "ae-q1",
+          "archetype": "supersession",
+          "prompt": "What is GPT-5's current MMLU score?",
+          "correct_behavior": "93.1% (v2.0, April 15) — this supersedes the 91.4% score from v1.0. Note that v1.5 had a regression to 89.2% and should NOT be confused with the current v2.0 score.",
+          "vanilla_failure_mode": "Returns 91.4% (v1.0), 89.2% (v1.5 regression), or presents all three without indicating which is current."
+        },
+        {
+          "id": "ae-q2",
+          "archetype": "contradiction",
+          "prompt": "Is GPT-5 v1.5 better or worse than v1.0 on MMLU?",
+          "correct_behavior": "Worse — v1.5 scored 89.2% vs v1.0's 91.4%. The v1.5 fact is labeled 'regression'. These are distinct models with distinct scores, not a supersession.",
+          "vanilla_failure_mode": "Treats v1.5 as superseding v1.0 (it doesn't — it's a separate model version with a different score)."
+        },
+        {
+          "id": "ae-q3",
+          "archetype": "derivedFrom",
+          "prompt": "Is GPT-5 v2.0 considered expert-level reasoning capability?",
+          "correct_behavior": "Yes, confidence 0.88 — but this is a DERIVED fact (from MMLU score 93.1% and the safety eval). Cite derivedFrom. Note it's an inference, not a direct measurement. The safety eval was on v1.0, not v2.0 — flag this discrepancy.",
+          "vanilla_failure_mode": "States expert-level capability as certain fact without tracing derivation or flagging that the safety eval source is v1.0."
+        }
+      ]
     }
-  ]
+  ],
+  "cross_runtime": {
+    "description": "Manual tests requiring a running Anthropic Managed Agent + Claude Desktop with KNDL MCP connected. These CANNOT be run in automated CI.",
+    "questions": [
+      {
+        "id": "cr-q1",
+        "archetype": "cross_runtime_sync",
+        "prompt": "A managed agent writes: assert_fact('Customer 9281 credit score upgraded to 760', subject='customer:9281', predicate='creditScore', object=760, confidence=0.99, source='https://api.experian.com/v2/9281'). Within 60 seconds, ask a Claude Desktop session (connected to KNDL MCP with watch_memory_store active): 'What is customer 9281's current credit score?'",
+        "correct_behavior": "Claude Desktop returns 760 — the fact written by the managed agent is visible via the sync layer within the configured watch interval.",
+        "vanilla_failure_mode": "Claude Desktop returns a stale score or says 'I don't have information' because the local memory has not synced.",
+        "requires": ["ANTHROPIC_API_KEY", "kndl-memory-mcp --http", "watch_memory_store registered"]
+      }
+    ]
+  }
 }
