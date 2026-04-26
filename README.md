@@ -35,8 +35,8 @@ kndl-mcp / CLI    =  HOW     query, decay, contradiction detection, provenance
 
 ```bash
 git clone https://github.com/artdaw/kndl
-cd kndl
-make install && make build
+cd kndl/packages/kndl-memory
+pnpm install && pnpm build
 ```
 
 Add to **Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
@@ -53,9 +53,10 @@ Add to **Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_
 }
 ```
 
-Restart Claude Desktop. Now ask: *"Remember that Alice is a staff engineer with confidence 0.95."*
+> **If you use nvm**, specify the full node path so Claude Desktop uses the right version:
+> `"command": "/Users/you/.nvm/versions/node/v24.9.0/bin/node"`
 
-Claude writes a `.fact.json` file. Next session, it reads it back — with the confidence level, provenance, and decay exactly as you wrote them.
+Restart Claude Desktop. Now ask: *"Remember that Alice is a staff engineer with confidence 0.95."*
 
 ---
 
@@ -81,15 +82,12 @@ One immutable file per assertion. Every fact is a JSON-LD document:
   "@context": "https://kndl.artdaw.com/context/v1.jsonld",
   "@id":       "fact:alice-role-20260426t100000z-ab12cd34",
   "@type":     "Fact",
-
   "statement":  "Alice is a staff engineer on the payments team",
   "subject":    "person:alice",
   "predicate":  "role",
   "object":     "staff engineer, payments",
-
   "confidence": 0.95,
   "decay":      "0.5/180d",
-
   "source":     "human://gleb",
   "validFrom":  "2026-04-26T10:00:00Z",
   "recordedAt": "2026-04-26T10:00:00Z"
@@ -97,10 +95,7 @@ One immutable file per assertion. Every fact is a JSON-LD document:
 ```
 
 `decay: "0.5/180d"` — confidence halves every 180 days.
-Effective confidence at query time: `confidence × rate ^ (elapsed / window)`.
-
-**Facts are immutable.** Updates create a new fact with `supersedes` pointing at the old one.
-History is preserved for time-travel; only the latest is shown in active queries.
+**Facts are immutable.** Updates use `supersedes`; history preserved for time-travel.
 
 ---
 
@@ -109,50 +104,48 @@ History is preserved for time-travel; only the latest is shown in active queries
 | Tool | What it does |
 |------|-------------|
 | `assert_fact` | Write a new immutable fact |
-| `query_facts` | Read active facts with decay-adjusted confidence at `as_of` |
+| `query_facts` | Read active facts with decay-adjusted confidence. Use `subject` for exact URI match or `text` for substring search when you don't know the exact subject. |
 | `contradictions` | Find conflicting facts, ranked by recency + confidence |
-| `supersede_fact` | Replace a fact — old version preserved for time-travel |
-| `as_of` | Bitemporal query: what did memory believe at timestamp X? |
-| `provenance_chain` | Walk `derivedFrom` + `supersedes` backward to the source |
-| `subscribe` | Get notified when a fact changes |
-| `unsubscribe` | Cancel a subscription |
-| `list_subscriptions` | List active subscriptions |
-| `sync_memory_store` | Pull from an Anthropic Memory Store (needs `ANTHROPIC_API_KEY`) |
+| `supersede_fact` | Replace a fact — history preserved for time-travel |
+| `as_of` | Bitemporal: what did memory believe at timestamp X? |
+| `provenance_chain` | Walk `derivedFrom` + `supersedes` backward |
+| `subscribe` / `unsubscribe` / `list_subscriptions` | Fact change notifications |
+| `sync_memory_store` | Sync with Anthropic Memory Store — `direction: "pull" | "push" | "both"` |
 | `list_memory_stores` | List configured remote stores + last-sync timestamps |
 
 ---
 
 ## Storage
 
-Set `KNDL_STORAGE` to choose where facts live:
-
-| URL | Backend | Use case |
-|-----|---------|----------|
-| `fs:/memory` | Filesystem (one `.fact.json` per fact) | **Anthropic Memory mount** |
-| `sqlite:./kndl.db` | SQLite, WAL mode | **Claude Desktop standalone** ← default |
+| `KNDL_STORAGE` | Backend | Use case |
+|---|---|---|
+| `fs:/memory` | Filesystem `.fact.json` files | **Anthropic Memory mount** |
+| `sqlite:./kndl.db` | SQLite WAL | **Claude Desktop standalone** ← default |
 | `duckdb:./kndl.duckdb` | DuckDB columnar | Analytical workloads |
 | `supabase:<url>?key=<anon>` | Supabase + RLS | Multi-tenant cloud |
 
 ---
 
-## Use with Anthropic Memory (Skill)
+## CLI
 
-Copy the Skill bundle into your agent's skills directory:
+`kndl` is the CLI binary. After `pnpm build` it lives at `dist/cli.js`.
 
+**Make it available as `kndl`:**
 ```bash
-# Drop into your Anthropic Memory store
-cp -r skills/kndl-memory/SKILL.md   /memory/skills/
-cp -r skills/kndl-memory/context/   /memory/context/
+# Option A — link globally
+cd packages/kndl-memory && npm link
+
+# Option B — shell alias (add to ~/.zshrc or ~/.bashrc)
+alias kndl="node /path/to/kndl/packages/kndl-memory/dist/cli.js"
+
+# Option C — run directly without installing
+node packages/kndl-memory/dist/cli.js help
 ```
 
-Claude then automatically writes structured facts instead of markdown, queries them with decay applied, and surfaces contradictions before answering.
-
----
-
-## CLI reference
+### Commands
 
 ```bash
-export KNDL_STORAGE=fs:./memory   # or sqlite:, duckdb:, supabase:
+export KNDL_STORAGE=sqlite:./kndl.db
 
 # Write a fact
 kndl add \
@@ -161,33 +154,54 @@ kndl add \
   --confidence 0.95 --source "human://gleb" \
   --decay "0.5/180d" --valid-from now
 
-# Query active facts (decay applied)
+# Query — exact subject match
 kndl query --subject person:alice
 
-# Find contradictions
+# Query — text search (use when you don't know the exact subject URI)
+kndl query --text alice
+
+# Contradictions, time-travel, provenance
 kndl contradict --subject person:alice --predicate role
-
-# Time-travel
 kndl as-of 2026-01-01T00:00:00Z --subject person:alice
-
-# Audit trail
 kndl provenance --id fact:alice-role-...
 
-# Sync from Anthropic Memory Store
+# Remote sync — pull Anthropic Memory Store into local
 kndl remote add --provider anthropic --store-id store_abc --label personal
 kndl remote pull personal
+
+# Remote sync — push local facts to Anthropic Memory Store
+kndl remote add --provider anthropic --store-id store_abc --label work --push
+kndl add ... --tags push-to-anthropic   # tag facts you want to push
+kndl remote push work                   # push tagged, non-classified facts
+
+# Pull + push in one go
+kndl remote sync work
+kndl remote ls
 ```
 
 ---
 
-## HTTP server (multi-agent / Goose)
+## Use with Anthropic Memory (Skill)
 
-Run one server for shared memory across Claude Desktop + Goose + LM Studio:
+```bash
+cp -r skills/kndl-memory/SKILL.md   ./memory/skills/
+cp -r skills/kndl-memory/context/   ./memory/context/
+```
+
+Claude writes structured `.fact.json` files, queries with decay applied, surfaces contradictions before answering.
+
+---
+
+## HTTP server (multi-agent)
 
 ```bash
 KNDL_STORAGE=sqlite:./shared.db \
   node packages/kndl-memory/dist/server.js --http
 # → http://localhost:8000/mcp
+
+# With debug logging (logs every tool call + timing):
+LOG_LEVEL=DEBUG KNDL_STORAGE=sqlite:./shared.db \
+  node packages/kndl-memory/dist/server.js --http
 ```
 
 **Goose** (`~/.config/goose/config.yaml`):
@@ -198,45 +212,39 @@ extensions:
     url: http://localhost:8000/mcp
 ```
 
-**LM Studio** (`~/.lmstudio/mcp.json`):
-```json
-{ "mcpServers": { "kndl": { "type": "http", "url": "http://localhost:8000/mcp" } } }
-```
-
 ---
 
 ## Repository
 
 ```
-packages/kndl-memory/     @kndl/memory — TypeScript library + MCP server + CLI
+packages/kndl-memory/     @kndl/memory npm package (TypeScript, Node >=22)
   src/
-    core.ts               decay math, fact construction, shared query algorithms
-    types.ts              Fact, FactInput, FactStore interface
-    stores/               fs · sqlite · duckdb · supabase backends
-    remote/               Anthropic Memory Store sync
-    server.ts             kndl-memory-mcp MCP server (stdio + HTTP)
+    core.ts               decay math, fact construction, query algorithms
+    types.ts              Fact, FactInput, QueryOptions, FactStore interface
+    stores/               fs · sqlite · duckdb · supabase + makeStore()
+    remote/               Anthropic Memory Store pull + push + syncBoth
+    server.ts             kndl-memory-mcp (stdio + HTTP, one Server per session)
     cli.ts                kndl CLI
-  eval/runner.ts          eval runner — 33 questions, Claude-as-judge
-  tests/                  36 passing tests
+  tests/                  40 passing tests
 
-skills/kndl-memory/       Claude Skill bundle (drop into /memory/skills/)
-  SKILL.md                conventions Claude follows
-  context/v1.jsonld        JSON-LD @context
+skills/kndl-memory/       Claude Skill bundle
+  SKILL.md                drop into /memory/skills/
+  context/v1.jsonld        vendored JSON-LD @context
   examples/               8 domain bundles · 42 facts
 
-website/                  docs — kndl.artdaw.com (React + Vite)
+website/                  kndl.artdaw.com (React + Vite, 7 pages)
 ```
 
 ---
 
 ## Eval
 
-KNDL must beat vanilla (facts pasted in system prompt) on ≥ 70% of 33 questions to ship.
-
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
-make publish-eval   # runs eval → writes results → builds website
+make publish-eval   # runs 33-question eval → writes results.json → builds site
 ```
+
+KNDL must beat vanilla on ≥ 70% of questions to ship.
 
 ---
 
