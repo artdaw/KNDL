@@ -4,10 +4,10 @@ import styles from "./Nav.module.css";
 
 const LINKS = [
   { to: "/protocol",  label: "Protocol" },
-  { to: "/skill",     label: "Skill" },
   { to: "/examples",  label: "Examples" },
   { to: "/explorer",  label: "Explorer" },
   { to: "/mcp",       label: "MCP" },
+  { to: "/skill",     label: "Skill" },
   { to: "/eval",      label: "Eval" },
 ];
 

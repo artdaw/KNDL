@@ -37,3 +37,7 @@ Thumbs.db
 
 # Local
 kndl.db
+kndl.db-shm
+kndl.db-wal
+memory
+.memory

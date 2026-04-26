@@ -1,89 +1,6 @@
 import { SEO, techArticleSchema } from "../components/SEO";
+import JsonHighlight from "../components/JsonHighlight";
 import styles from "./ProtocolPage.module.css";
-
-// ── JSON syntax highlighter ───────────────────────────────────────────────────
-// Single-pass tokenizer — no external library.
-
-type Token = { type: string; value: string };
-
-function tokenizeJson(src: string): Token[] {
-  const tokens: Token[] = [];
-  let i = 0;
-  while (i < src.length) {
-    // Whitespace / structure
-    if (/[\s,[\]{}]/.test(src[i])) {
-      let v = "";
-      while (i < src.length && /[\s,[\]{}]/.test(src[i])) v += src[i++];
-      tokens.push({ type: "punct", value: v });
-      continue;
-    }
-    // Colon
-    if (src[i] === ":") {
-      tokens.push({ type: "punct", value: src[i++] });
-      continue;
-    }
-    // String
-    if (src[i] === '"') {
-      let v = '"';
-      i++;
-      while (i < src.length && src[i] !== '"') {
-        if (src[i] === "\\") { v += src[i++]; }
-        v += src[i++];
-      }
-      v += '"';
-      i++;
-      // Determine if it's a key (next non-space char is ":")
-      let j = i;
-      while (j < src.length && src[j] === " ") j++;
-      const isKey = src[j] === ":";
-      const raw = v.slice(1, -1);
-      if (isKey) {
-        const type = raw.startsWith("@") ? "at-key" : "key";
-        tokens.push({ type, value: v });
-      } else {
-        // URL vs plain string value
-        const type = raw.startsWith("http") || raw.startsWith("fact:") || raw.startsWith("human://") || raw.startsWith("sensor://") ? "url" : "string";
-        tokens.push({ type, value: v });
-      }
-      continue;
-    }
-    // Number
-    if (/[-\d]/.test(src[i])) {
-      let v = "";
-      while (i < src.length && /[-\d.eE+]/.test(src[i])) v += src[i++];
-      tokens.push({ type: "number", value: v });
-      continue;
-    }
-    // true / false / null
-    if (src.startsWith("true", i))  { tokens.push({ type: "bool", value: "true"  }); i += 4; continue; }
-    if (src.startsWith("false", i)) { tokens.push({ type: "bool", value: "false" }); i += 5; continue; }
-    if (src.startsWith("null", i))  { tokens.push({ type: "null", value: "null"  }); i += 4; continue; }
-    tokens.push({ type: "punct", value: src[i++] });
-  }
-  return tokens;
-}
-
-const TOKEN_COLORS: Record<string, string> = {
-  "at-key":  "var(--accent)",
-  "key":     "var(--accent2)",
-  "string":  "var(--accent4)",
-  "url":     "#7dd3fc",
-  "number":  "#f97316",
-  "bool":    "var(--accent3)",
-  "null":    "var(--text-dim)",
-  "punct":   "var(--text-dim)",
-};
-
-function JsonHighlight({ src }: { src: string }) {
-  const tokens = tokenizeJson(src);
-  return (
-    <pre className={styles.pre}>
-      {tokens.map((t, i) => (
-        <span key={i} style={{ color: TOKEN_COLORS[t.type] }}>{t.value}</span>
-      ))}
-    </pre>
-  );
-}
 
 const FACT_EXAMPLE = `{
   "@id":        "fact:customer-9281-creditscore-20260425T235249Z-b6c88774",
@@ -175,7 +92,7 @@ export default function ProtocolPage() {
           </p>
           <div className={styles.codeWrap}>
             <div className={styles.codeLabel}>fact-customer-9281-creditscore.fact.json</div>
-            <JsonHighlight src={FACT_EXAMPLE} />
+            <JsonHighlight src={FACT_EXAMPLE} className={styles.pre} />
           </div>
         </section>
 

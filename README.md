@@ -35,8 +35,8 @@ kndl-mcp / CLI    =  HOW     query, decay, contradiction detection, provenance
 
 ```bash
 git clone https://github.com/artdaw/kndl
-cd kndl/packages/kndl-memory
-pnpm install && pnpm build
+cd kndl
+make install && make build
 ```
 
 Add to **Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`):

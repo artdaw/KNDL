@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { SEO, softwareSourceCodeSchema } from "../components/SEO";
+import JsonHighlight from "../components/JsonHighlight";
 import styles from "./LandingPage.module.css";
 
 const ALICE_FACT = `{
@@ -172,7 +173,7 @@ export default function LandingPage() {
             </div>
             <div className={styles.factPreview}>
               <div className={styles.factLabel}>personal-memory / alice-role.fact.json</div>
-              <pre className={styles.factCode}>{ALICE_FACT}</pre>
+              <JsonHighlight src={ALICE_FACT} className={styles.factCode} />
             </div>
           </div>
         </section>
