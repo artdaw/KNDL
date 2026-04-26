@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with this repository.
+This file provides guidance to Claude Code when working with this repository.
 
 ## Project Overview
 
@@ -12,8 +12,6 @@ KNDL              =  WHAT    the format of files Claude writes (.fact.json)
 kndl-mcp / CLI    =  HOW     query, decay, provenance, sync
 ```
 
-Every fact is an immutable JSON-LD file. Every assertion carries confidence, decay, provenance, bitemporal validity, and a supersession chain.
-
 ## Repository Structure
 
 ```
@@ -22,13 +20,13 @@ packages/kndl-memory/   @kndl/memory — TypeScript library + MCP server + CLI
     core.ts             decay math, fact construction, applyQuery, findContradictions
     types.ts            Fact, FactInput, QueryOptions, FactStore interface
     stores/             fs.ts · sqlite.ts · duckdb.ts · supabase.ts + makeStore()
-    remote/             Anthropic Memory Store sync (pull + push)
-      anthropic.ts      REST client + FakeMemoryStoreClient
+    remote/
+      types.ts          MemoryStore, Memory, MemoryVersion, MemoryStoreClient interface
+      anthropic.ts      AnthropicMemoryClient (full REST API) + FakeMemoryStoreClient
       sync.ts           pull() · push() · syncBoth()
       config.ts         ~/.kndl/remotes.json management
-      types.ts          MemoryStoreClient, RemoteConfig, SyncResult, PushResult
     notify.ts           NotifyingStore, SubscriptionRegistry, attachFsWatcher
-    server.ts           kndl-memory-mcp MCP server (stdio + HTTP)
+    server.ts           kndl-memory-mcp MCP server (stdio + HTTP, 23 tools)
     cli.ts              kndl CLI binary
 
 skills/kndl-memory/     Claude Skill bundle
@@ -56,10 +54,10 @@ Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
 
 | Package | Language | Tools |
 |---|---|---|
-| `packages/kndl-memory` | TypeScript 5.4 | pnpm · tsup · vitest · node:test |
+| `packages/kndl-memory` | TypeScript 5.4 | pnpm · tsup · node:test |
 | `website` | TypeScript / React 19 | pnpm · Vite · React Router 7 |
 
-Node.js ≥ 22 required (`better-sqlite3` is a native addon; must be compiled for the running Node version).
+Node.js ≥ 22. `better-sqlite3` is a native addon — if you switch Node versions via nvm, run `npm rebuild better-sqlite3` in `packages/kndl-memory/`.
 
 ## The Fact Shape
 
@@ -80,8 +78,6 @@ Node.js ≥ 22 required (`better-sqlite3` is a native addon; must be compiled fo
 }
 ```
 
-Key rules: one file per fact, files are immutable, updates use `supersedes`.
-
 ## kndl-memory Package
 
 ### Build & test
@@ -90,7 +86,7 @@ Key rules: one file per fact, files are immutable, updates use `supersedes`.
 cd packages/kndl-memory
 pnpm install
 pnpm build       # tsup → dist/
-pnpm test        # 40 passing tests (vitest + node:test)
+npm test         # 43 passing tests (node:test)
 ```
 
 ### Storage backends (`KNDL_STORAGE`)
@@ -102,77 +98,86 @@ pnpm test        # 40 passing tests (vitest + node:test)
 | `duckdb:./kndl.duckdb` | DuckDB columnar | analytical |
 | `supabase:<url>?key=<anon>` | Supabase + RLS | multi-tenant cloud |
 
-`better-sqlite3` is a native Node addon. If you switch Node versions via nvm, run `npm rebuild better-sqlite3` in `packages/kndl-memory`.
-
 ### MCP server
 
 ```bash
-# stdio (Claude Desktop)
-node dist/server.js
-
-# HTTP (Goose, LM Studio, multi-client)
-LOG_LEVEL=DEBUG node dist/server.js --http
-# → http://localhost:8000/mcp
+node dist/server.js              # stdio (Claude Desktop)
+LOG_LEVEL=DEBUG node dist/server.js --http  # HTTP port 8000 with debug logging
 ```
 
 ### CLI
 
 ```bash
-# After pnpm build, run directly:
-node dist/cli.js add --statement "..." --confidence 0.9 --source "human://gleb"
-
-# Or link globally:
-npm link    # makes `kndl` available on PATH
-kndl help
+node dist/cli.js help            # run directly
+npm link && kndl help            # or link globally
 ```
 
-### Remote sync
+## MCP Tools (23 total)
+
+### Fact memory (11)
+
+`assert_fact` · `query_facts` (supports `text` substring search) · `contradictions` · `supersede_fact` · `as_of` · `provenance_chain` · `subscribe` · `unsubscribe` · `list_subscriptions` · `sync_memory_store` (direction: pull|push|both) · `list_memory_stores`
+
+### Anthropic Memory Store management (12, require `ANTHROPIC_API_KEY`)
+
+**Store CRUD:** `create_memory_store` · `list_all_stores` · `get_memory_store` · `update_memory_store` · `delete_memory_store` · `archive_memory_store`
+
+**Memory CRUD:** `list_memories` (supports `path_prefix`) · `get_memory` · `create_memory` · `update_memory` · `delete_memory`
+
+## Anthropic Memory Stores API
+
+Base URL: `https://api.anthropic.com`
+Auth: `x-api-key` header
+Beta: `anthropic-beta: memory-stores-2025-08-01`
+
+Key resources:
+- `POST /v1/memory_stores` — create store
+- `GET  /v1/memory_stores/{id}/memories` — list memories (use `?view=full` for content)
+- `POST /v1/memory_stores/{id}/memories` — create memory (requires `path` + `content`)
+- `GET  /v1/memory_stores/{id}/memory_versions` — audit trail
+- Memories have filesystem-like `path` (e.g. `/notes/alice.md`, `/kndl-facts/fact-...`)
+- KNDL pushed facts land at `/kndl-facts/{slugified-fact-id}`
+
+## Remote Sync
+
+### Pull (Anthropic → local)
+- Lists memories with `view=full`, translates each to a Fact
+- Source URI: `anthropic-memory://{storeId}{path}`
+- Idempotent via content-hash tag; supersedes on content change
+
+### Push (local → Anthropic)
+- Selects facts tagged `push-to-anthropic` (configurable via `push_tag`)
+- Skips classified facts (PHI/PII/etc.) by default
+- Creates memories at `/kndl-facts/{slugified-fact-id}`
+- Idempotent: skips paths already present in the store
 
 ```bash
-# Register a remote (pull only, default)
-kndl remote add --provider anthropic --store-id store_abc --label personal
-
-# Register with push enabled
-kndl remote add --provider anthropic --store-id store_abc --label work --push --push-tag push-to-anthropic
-
-kndl remote pull personal      # Anthropic → local
-kndl remote push work          # local → Anthropic (tagged facts, no classified data)
-kndl remote sync work          # pull then push
-kndl remote ls                 # list all remotes
-kndl remote rm personal        # remove
+kndl remote add --provider anthropic --store-id store_abc --label work --push
+kndl add ... --tags push-to-anthropic
+kndl remote push work      # push tagged facts
+kndl remote sync work      # pull + push
 ```
-
-Push selects facts tagged with `push_tag` (default `push-to-anthropic`) and skips classified facts (`PHI`, `PII`, etc.) by default. Idempotent via `metadata.kndl_id`.
-
-## MCP tools (11)
-
-`assert_fact` · `query_facts` · `contradictions` · `supersede_fact` · `as_of` · `provenance_chain` · `subscribe` · `unsubscribe` · `list_subscriptions` · `sync_memory_store` · `list_memory_stores`
-
-`sync_memory_store` accepts `direction: "pull" | "push" | "both"`.
-
-`query_facts` accepts `text` for case-insensitive substring search across `statement` + `subject` (use when you don't know the exact subject URI).
 
 ## Website
 
 ```bash
-cd website
-pnpm install
-pnpm dev      # http://localhost:5173
-pnpm build    # → dist/ (prerendered 6 route shells)
+cd website && pnpm install && pnpm dev
+pnpm build   # → dist/ (6 prerendered route shells)
 ```
 
 Routes: `/` · `/protocol` · `/skill` · `/examples` · `/explorer` · `/mcp` · `/eval`
 
-The `EvalPage` fetches `/eval/results.json` at runtime. To populate it:
+`EvalPage` fetches `/eval/results.json` at runtime. Populate with:
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
 make publish-eval
 ```
 
-## Key files to know
+## Key Files
 
-- `src/core.ts` — `applyQuery()`, `findContradictions()`, `buildProvenanceChain()`, `effectiveConfidence()`
-- `src/stores/index.ts` — `makeStore()` factory (dispatches on `KNDL_STORAGE`)
+- `src/core.ts` — `applyQuery()`, `findContradictions()`, `effectiveConfidence()`
+- `src/stores/index.ts` — `makeStore()` factory
+- `src/remote/anthropic.ts` — `AnthropicMemoryClient` (full API) + `FakeMemoryStoreClient`
 - `src/remote/sync.ts` — `pull()`, `push()`, `syncBoth()`
 - `src/server.ts` — `makeServer()` factory (one instance per HTTP connection)
 - `skills/kndl-memory/SKILL.md` — the Claude Skill conventions

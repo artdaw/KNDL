@@ -99,19 +99,37 @@ One immutable file per assertion. Every fact is a JSON-LD document:
 
 ---
 
-## MCP tools (11)
+## MCP tools (23)
+
+### Fact memory (11)
 
 | Tool | What it does |
 |------|-------------|
 | `assert_fact` | Write a new immutable fact |
-| `query_facts` | Read active facts with decay-adjusted confidence. Use `subject` for exact URI match or `text` for substring search when you don't know the exact subject. |
+| `query_facts` | Read active facts with decay-adjusted confidence. Use `subject` for exact match or `text` for substring search. |
 | `contradictions` | Find conflicting facts, ranked by recency + confidence |
 | `supersede_fact` | Replace a fact — history preserved for time-travel |
 | `as_of` | Bitemporal: what did memory believe at timestamp X? |
 | `provenance_chain` | Walk `derivedFrom` + `supersedes` backward |
 | `subscribe` / `unsubscribe` / `list_subscriptions` | Fact change notifications |
-| `sync_memory_store` | Sync with Anthropic Memory Store — `direction: "pull" | "push" | "both"` |
-| `list_memory_stores` | List configured remote stores + last-sync timestamps |
+| `sync_memory_store` | Sync a configured remote — `direction: "pull" \| "push" \| "both"` |
+| `list_memory_stores` | List configured remotes + last-sync timestamps |
+
+### Memory Store management (12, all require `ANTHROPIC_API_KEY`)
+
+| Tool | What it does |
+|------|-------------|
+| `create_memory_store` | Create a new Anthropic Memory Store |
+| `list_all_stores` | List all Memory Stores in your account |
+| `get_memory_store` | Get details of a store by ID |
+| `update_memory_store` | Rename or update a store |
+| `delete_memory_store` | Permanently delete a store |
+| `archive_memory_store` | Archive a store (soft delete) |
+| `list_memories` | List memories in a store (supports `path_prefix` filter) |
+| `get_memory` | Get a memory by ID (returns full content) |
+| `create_memory` | Create a memory at a given path |
+| `update_memory` | Update memory content or path |
+| `delete_memory` | Delete a memory |
 
 ---
 
@@ -128,56 +146,54 @@ One immutable file per assertion. Every fact is a JSON-LD document:
 
 ## CLI
 
-`kndl` is the CLI binary. After `pnpm build` it lives at `dist/cli.js`.
+After `pnpm build`, the binary is at `dist/cli.js`. Make it available as `kndl`:
 
-**Make it available as `kndl`:**
 ```bash
 # Option A — link globally
 cd packages/kndl-memory && npm link
 
-# Option B — shell alias (add to ~/.zshrc or ~/.bashrc)
+# Option B — shell alias
 alias kndl="node /path/to/kndl/packages/kndl-memory/dist/cli.js"
 
-# Option C — run directly without installing
+# Option C — run directly
 node packages/kndl-memory/dist/cli.js help
 ```
 
-### Commands
+### Fact commands
 
 ```bash
 export KNDL_STORAGE=sqlite:./kndl.db
 
-# Write a fact
 kndl add \
   --statement "Alice is a staff engineer, payments" \
   --subject person:alice --predicate role \
   --confidence 0.95 --source "human://gleb" \
   --decay "0.5/180d" --valid-from now
 
-# Query — exact subject match
-kndl query --subject person:alice
-
-# Query — text search (use when you don't know the exact subject URI)
-kndl query --text alice
-
-# Contradictions, time-travel, provenance
-kndl contradict --subject person:alice --predicate role
+kndl query --subject person:alice        # exact subject match
+kndl query --text alice                  # substring search
+kndl contradict --subject person:alice
 kndl as-of 2026-01-01T00:00:00Z --subject person:alice
 kndl provenance --id fact:alice-role-...
+```
 
-# Remote sync — pull Anthropic Memory Store into local
+### Remote sync commands
+
+```bash
+# Pull-only remote
 kndl remote add --provider anthropic --store-id store_abc --label personal
 kndl remote pull personal
 
-# Remote sync — push local facts to Anthropic Memory Store
+# Push-enabled remote
 kndl remote add --provider anthropic --store-id store_abc --label work --push
-kndl add ... --tags push-to-anthropic   # tag facts you want to push
-kndl remote push work                   # push tagged, non-classified facts
-
-# Pull + push in one go
-kndl remote sync work
+kndl add ... --tags push-to-anthropic   # tag facts to push
+kndl remote push work
+kndl remote sync work   # pull + push
 kndl remote ls
 ```
+
+Push selects facts tagged `push-to-anthropic` and skips classified data by default.
+Memories are stored at `/kndl-facts/{fact-id}` in the Memory Store.
 
 ---
 
@@ -188,28 +204,15 @@ cp -r skills/kndl-memory/SKILL.md   ./memory/skills/
 cp -r skills/kndl-memory/context/   ./memory/context/
 ```
 
-Claude writes structured `.fact.json` files, queries with decay applied, surfaces contradictions before answering.
-
 ---
 
 ## HTTP server (multi-agent)
 
 ```bash
-KNDL_STORAGE=sqlite:./shared.db \
-  node packages/kndl-memory/dist/server.js --http
+KNDL_STORAGE=sqlite:./shared.db node packages/kndl-memory/dist/server.js --http
 # → http://localhost:8000/mcp
 
-# With debug logging (logs every tool call + timing):
-LOG_LEVEL=DEBUG KNDL_STORAGE=sqlite:./shared.db \
-  node packages/kndl-memory/dist/server.js --http
-```
-
-**Goose** (`~/.config/goose/config.yaml`):
-```yaml
-extensions:
-  kndl:
-    type: streamable_http
-    url: http://localhost:8000/mcp
+LOG_LEVEL=DEBUG ... node dist/server.js --http   # per-request debug logging
 ```
 
 ---
@@ -222,14 +225,18 @@ packages/kndl-memory/     @kndl/memory npm package (TypeScript, Node >=22)
     core.ts               decay math, fact construction, query algorithms
     types.ts              Fact, FactInput, QueryOptions, FactStore interface
     stores/               fs · sqlite · duckdb · supabase + makeStore()
-    remote/               Anthropic Memory Store pull + push + syncBoth
-    server.ts             kndl-memory-mcp (stdio + HTTP, one Server per session)
+    remote/
+      types.ts            MemoryStore, Memory, MemoryVersion, MemoryStoreClient
+      anthropic.ts        AnthropicMemoryClient (full API) + FakeMemoryStoreClient
+      sync.ts             pull() · push() · syncBoth()
+      config.ts           ~/.kndl/remotes.json management
+    server.ts             kndl-memory-mcp (stdio + HTTP, 23 tools)
     cli.ts                kndl CLI
-  tests/                  40 passing tests
+  tests/                  43 passing tests
 
 skills/kndl-memory/       Claude Skill bundle
   SKILL.md                drop into /memory/skills/
-  context/v1.jsonld        vendored JSON-LD @context
+  context/v1.jsonld        JSON-LD @context
   examples/               8 domain bundles · 42 facts
 
 website/                  kndl.artdaw.com (React + Vite, 7 pages)
@@ -241,10 +248,10 @@ website/                  kndl.artdaw.com (React + Vite, 7 pages)
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
-make publish-eval   # runs 33-question eval → writes results.json → builds site
+make publish-eval
 ```
 
-KNDL must beat vanilla on ≥ 70% of questions to ship.
+KNDL must beat vanilla on ≥ 70% of 33 questions to ship.
 
 ---
 
