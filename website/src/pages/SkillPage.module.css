@@ -369,11 +369,26 @@
 }
 
 @media (max-width: 768px) {
-  .title { font-size: 24px; }
-  .stepNum { min-width: 52px; font-size: 14px; padding: 16px 12px; }
-  .stepBody { padding: 16px; }
+  .title      { font-size: 24px; }
+  .stepNum    { min-width: 52px; font-size: 14px; padding: 16px 12px; }
+  .stepBody   { padding: 16px; }
   .stepHeader { flex-direction: column; align-items: flex-start; }
   .table th, .table td { padding: 8px 12px; }
+}
+
+@media (max-width: 680px) {
+  .container        { padding: 32px 16px 60px; }
+  .title            { font-size: 22px; }
+  /* Install steps: stack number above body */
+  .installStep      { flex-direction: column; gap: 12px; }
+  .installStepNum   { width: 28px; height: 28px; font-size: 12px; }
+  .installCode      { font-size: 11px; padding: 12px 14px; }
+  /* Download card: stack vertically */
+  .downloadCard     { flex-direction: column; gap: 16px; padding: 16px; }
+  .downloadButtons  { flex-direction: row; flex-wrap: wrap; }
+  /* Decay table */
+  .table { font-size: 11px; }
+  .table th, .table td { padding: 6px 10px; }
 }
 
 /* ── Numbered install steps ── */

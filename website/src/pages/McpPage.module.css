@@ -222,9 +222,17 @@
   line-height: 1.5;
 }
 
-@media (max-width: 600px) {
-  .archGrid  { grid-template-columns: 1fr; }
-  .toolRow   { flex-direction: column; align-items: flex-start; gap: 4px; }
-  .toolName  { min-width: unset; }
-  .title     { font-size: 24px; }
+@media (max-width: 680px) {
+  .container  { padding: 32px 16px 60px; }
+  .title      { font-size: 22px; }
+  .archGrid   { grid-template-columns: 1fr; }
+  .toolRow    { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .toolName   { min-width: unset; }
+  /* Storage table: collapse to single column */
+  .storageRow { grid-template-columns: 1fr; gap: 4px; padding: 12px 14px; }
+  .storageWhen { display: none; }
+  /* Claude Desktop config blocks: smaller font */
+  .h2 { letter-spacing: 1.5px; }
+  /* Layer pills wrap */
+  .layerPills { flex-wrap: wrap; gap: 6px; }
 }

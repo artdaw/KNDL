@@ -507,3 +507,12 @@
   .useCaseGrid { grid-template-columns: 1fr; }
   .ctaRow      { grid-template-columns: 1fr 1fr; }
 }
+
+@media (max-width: 420px) {
+  .heroLogo    { font-size: 36px; }
+  .heroTagline { font-size: 13px; }
+  .ctaRow      { grid-template-columns: 1fr; }
+  /* Fact code block: prevent overflow */
+  .factCode    { font-size: 10px; overflow-x: auto; }
+  .factPreview { overflow-x: hidden; }
+}

@@ -330,9 +330,22 @@
 
 @media (max-width: 768px) {
   .archetypeGrid { grid-template-columns: 1fr; }
-  .headerTop { flex-direction: column; }
-  .title { font-size: 24px; }
-  .overallRow { gap: 20px; }
+  .headerTop     { flex-direction: column; }
+  .title         { font-size: 24px; }
+}
+
+@media (max-width: 680px) {
+  .container     { padding: 32px 16px 60px; }
+  .title         { font-size: 22px; }
+  /* Summary cards: stack vertically */
+  .summaryGrid   { flex-direction: column; }
+  .summaryCard   { min-width: unset; }
+  .summaryBig    { font-size: 22px; }
+  /* Not-run card */
+  .notRunCard    { padding: 24px 20px; }
+  /* Per-question table: hide columns */
+  .qArchetype    { display: none; }
+  .qQuestion     { max-width: 180px; font-size: 12px; }
 }
 
 /* ── Loading / error states ── */
