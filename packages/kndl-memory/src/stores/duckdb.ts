@@ -4,6 +4,7 @@
 // Fast for AVG(effective_confidence) GROUP BY predicate, bulk imports, etc.
 
 import { resolve } from "node:path";
+
 import type { Fact, FactInput, FactStore, QueryOptions, QueryResult,
   ContradictionsResult, ProvenanceResult, AssertResult, SupersedeResult } from "../types.js";
 import {
@@ -26,8 +27,20 @@ CREATE TABLE IF NOT EXISTS facts (
 );
 `;
 
+interface DuckDBConnection {
+  run(sql: string, ...params: any[]): Promise<any>;
+  prepare(sql: string): Promise<any>;
+  close?(): void;
+}
+
+interface DuckDBModule {
+  DuckDBInstance: {
+    create(path: string): Promise<{ connect(): Promise<DuckDBConnection> }>;
+  };
+}
+
 export class DuckDbFactStore implements FactStore {
-  private conn!: import("@duckdb/node-api").DuckDBConnection;
+  private conn!: DuckDBConnection;
   private ready: Promise<void>;
 
   constructor(dbPath: string) {
@@ -35,7 +48,7 @@ export class DuckDbFactStore implements FactStore {
   }
 
   private async _init(path: string): Promise<void> {
-    let mod: typeof import("@duckdb/node-api");
+    let mod: DuckDBModule;
     try {
       mod = await import("@duckdb/node-api");
     } catch {

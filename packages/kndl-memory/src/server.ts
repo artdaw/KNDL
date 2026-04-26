@@ -41,7 +41,7 @@ import { z } from "zod";
 import { makeStore } from "./stores/index";
 import { NotifyingStore, SubscriptionRegistry, attachFsWatcher } from "./notify";
 import { AnthropicMemoryClient } from "./remote/anthropic";
-import { pull } from "./remote/sync";
+import { pull, push, syncBoth } from "./remote/sync";
 import { loadRemoteConfigs, addRemote, saveRemoteConfigs } from "./remote/config";
 import type { FactInput } from "./types";
 
@@ -162,9 +162,46 @@ const UnsubscribeSchema = z.object({
 });
 
 const SyncMemoryStoreSchema = z.object({
-  label:        z.string().describe("Remote label as registered with `kndl remote add`"),
-  direction:    z.enum(["pull"]).default("pull").describe("Only 'pull' supported in v2.0"),
-  since:        z.string().optional().describe("ISO datetime — pull only items created after this (if supported by the API)"),
+  label:     z.string().describe("Remote label as registered with `kndl remote add`"),
+  direction: z.enum(["pull", "push", "both"]).default("pull").describe(
+    "'pull' — Anthropic → local (default). " +
+    "'push' — local → Anthropic (tagged facts, no classified data). " +
+    "'both' — pull then push."
+  ),
+});
+
+// Store admin schemas (direct Anthropic API, bypasses local config)
+const CreateStoreSchema = z.object({
+  name:        z.string().describe("Human-readable name for the Memory Store"),
+  description: z.string().optional(),
+});
+
+const StoreIdSchema = z.object({
+  store_id: z.string().describe("Anthropic Memory Store ID (e.g. store_abc123)"),
+});
+
+const UpdateStoreSchema = StoreIdSchema.extend({
+  name:        z.string().optional(),
+  description: z.string().optional(),
+});
+
+const ListMemoriesSchema = StoreIdSchema.extend({
+  path_prefix: z.string().optional().describe("Filter memories by path prefix, e.g. '/kndl-facts/'"),
+  limit:       z.number().int().positive().optional(),
+});
+
+const CreateMemorySchema = StoreIdSchema.extend({
+  path:    z.string().describe("Filesystem-style path, e.g. '/notes/alice.md'"),
+  content: z.string().describe("Text content of the memory"),
+});
+
+const MemoryIdSchema = StoreIdSchema.extend({
+  memory_id: z.string().describe("Memory ID"),
+});
+
+const UpdateMemorySchema = MemoryIdSchema.extend({
+  content: z.string().optional(),
+  path:    z.string().optional(),
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -241,8 +278,20 @@ const TOOLS = [
   { name: "subscribe",          schema: SubscribeSchema,     description: "Register for notifications when facts matching the filter are written. Returns a subscription id. Re-read kndl://fact/{id} on notifications/resources/updated." },
   { name: "unsubscribe",        schema: UnsubscribeSchema,   description: "Cancel a subscription by id." },
   { name: "list_subscriptions",  schema: z.object({}),             description: "List active subscriptions and session count." },
-  { name: "sync_memory_store",   schema: SyncMemoryStoreSchema,    description: "Pull facts from a configured Anthropic Memory Store into the local fact store. Requires ANTHROPIC_API_KEY. Register stores with `kndl remote add`." },
-  { name: "list_memory_stores",  schema: z.object({}),             description: "List configured remote Anthropic Memory Stores and their last-sync timestamps." },
+  { name: "sync_memory_store",   schema: SyncMemoryStoreSchema,    description: "Sync with a configured Anthropic Memory Store (registered via kndl remote add). direction=pull|push|both. Requires ANTHROPIC_API_KEY." },
+  { name: "list_memory_stores",  schema: z.object({}),             description: "List configured remote Memory Stores and their last-sync timestamps." },
+  // Direct Memory Store API
+  { name: "create_memory_store", schema: CreateStoreSchema,        description: "Create a new Anthropic Memory Store via the API. Returns store_id needed for other operations." },
+  { name: "list_all_stores",     schema: z.object({}),             description: "List all Anthropic Memory Stores in your account." },
+  { name: "get_memory_store",    schema: StoreIdSchema,            description: "Get details of an Anthropic Memory Store by ID." },
+  { name: "update_memory_store", schema: UpdateStoreSchema,        description: "Update the name or description of a Memory Store." },
+  { name: "delete_memory_store", schema: StoreIdSchema,            description: "Permanently delete a Memory Store and all its memories." },
+  { name: "archive_memory_store",schema: StoreIdSchema,            description: "Archive a Memory Store (soft delete; recoverable)." },
+  { name: "list_memories",       schema: ListMemoriesSchema,       description: "List memories in a Memory Store. Use path_prefix to filter (e.g. '/kndl-facts/')." },
+  { name: "get_memory",          schema: MemoryIdSchema,           description: "Get a specific memory by ID (returns full content)." },
+  { name: "create_memory",       schema: CreateMemorySchema,       description: "Create a memory in a Memory Store at the given path." },
+  { name: "update_memory",       schema: UpdateMemorySchema,       description: "Update the content or path of an existing memory." },
+  { name: "delete_memory",       schema: MemoryIdSchema,           description: "Delete a memory from a Memory Store." },
 ] as const;
 
   srv.setRequestHandler(ListToolsRequestSchema, async () => ({
@@ -320,11 +369,20 @@ const TOOLS = [
         const config = remotes.find((r) => r.label === a.label);
         if (!config) throw new Error(`Remote '${a.label}' not found. Run \`kndl remote add\` first.`);
         const client = new AnthropicMemoryClient(apiKey);
-        const result = await pull(client, store, config);
+        let result: unknown;
+        if (a.direction === "pull") {
+          result = await pull(client, store, config);
+          debug(`← tool:${name} ${Date.now() - t0}ms pull pulled=${(result as { pulled: number }).pulled}`);
+        } else if (a.direction === "push") {
+          result = await push(client, store, config);
+          debug(`← tool:${name} ${Date.now() - t0}ms push pushed=${(result as { pushed: number }).pushed}`);
+        } else {
+          result = await syncBoth(client, store, config);
+          debug(`← tool:${name} ${Date.now() - t0}ms both`);
+        }
         const idx = remotes.findIndex((r) => r.label === a.label);
         if (idx >= 0) remotes[idx] = config;
         saveRemoteConfigs(remotes);
-        debug(`← tool:${name} ${Date.now() - t0}ms pulled=${result.pulled} superseded=${result.superseded}`);
         return ok(result);
       }
       case "list_memory_stores": {
@@ -332,9 +390,112 @@ const TOOLS = [
         debug(`← tool:${name} ${Date.now() - t0}ms count=${remotes.length}`);
         return ok({ count: remotes.length, remotes: remotes.map((r) => ({
           label: r.label, provider: r.provider, store_id: r.store_id,
-          last_synced_at: r.last_synced_at ?? null,
+          push: r.push, last_synced_at: r.last_synced_at ?? null,
         }))});
       }
+
+      // ── Direct Memory Store API ────────────────────────────────────────────
+      case "create_memory_store": {
+        const apiKey = process.env.ANTHROPIC_API_KEY;
+        if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set.");
+        const a = CreateStoreSchema.parse(args);
+        const client = new AnthropicMemoryClient(apiKey);
+        const r = ok(await client.createStore(a.name, { description: a.description }));
+        debug(`← tool:${name} ${Date.now() - t0}ms id=${JSON.parse(r.content[0].text).id}`);
+        return r;
+      }
+      case "list_all_stores": {
+        const apiKey = process.env.ANTHROPIC_API_KEY;
+        if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set.");
+        const client = new AnthropicMemoryClient(apiKey);
+        const r = ok(await client.listStores());
+        debug(`← tool:${name} ${Date.now() - t0}ms`);
+        return r;
+      }
+      case "get_memory_store": {
+        const apiKey = process.env.ANTHROPIC_API_KEY;
+        if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set.");
+        const a = StoreIdSchema.parse(args);
+        const client = new AnthropicMemoryClient(apiKey);
+        const store = await client.getStore(a.store_id);
+        if (!store) throw new Error(`Memory Store '${a.store_id}' not found.`);
+        debug(`← tool:${name} ${Date.now() - t0}ms`);
+        return ok(store);
+      }
+      case "update_memory_store": {
+        const apiKey = process.env.ANTHROPIC_API_KEY;
+        if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set.");
+        const a = UpdateStoreSchema.parse(args);
+        const client = new AnthropicMemoryClient(apiKey);
+        const r = ok(await client.updateStore(a.store_id, { name: a.name, description: a.description }));
+        debug(`← tool:${name} ${Date.now() - t0}ms`);
+        return r;
+      }
+      case "delete_memory_store": {
+        const apiKey = process.env.ANTHROPIC_API_KEY;
+        if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set.");
+        const a = StoreIdSchema.parse(args);
+        const client = new AnthropicMemoryClient(apiKey);
+        const r = ok(await client.deleteStore(a.store_id));
+        debug(`← tool:${name} ${Date.now() - t0}ms`);
+        return r;
+      }
+      case "archive_memory_store": {
+        const apiKey = process.env.ANTHROPIC_API_KEY;
+        if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set.");
+        const a = StoreIdSchema.parse(args);
+        const client = new AnthropicMemoryClient(apiKey);
+        const r = ok(await client.archiveStore(a.store_id));
+        debug(`← tool:${name} ${Date.now() - t0}ms`);
+        return r;
+      }
+      case "list_memories": {
+        const apiKey = process.env.ANTHROPIC_API_KEY;
+        if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set.");
+        const a = ListMemoriesSchema.parse(args);
+        const client = new AnthropicMemoryClient(apiKey);
+        const r = ok(await client.listMemories(a.store_id, { path_prefix: a.path_prefix, limit: a.limit, view: "basic" }));
+        debug(`← tool:${name} ${Date.now() - t0}ms`);
+        return r;
+      }
+      case "get_memory": {
+        const apiKey = process.env.ANTHROPIC_API_KEY;
+        if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set.");
+        const a = MemoryIdSchema.parse(args);
+        const client = new AnthropicMemoryClient(apiKey);
+        const memory = await client.getMemory(a.store_id, a.memory_id, "full");
+        if (!memory) throw new Error(`Memory '${a.memory_id}' not found in store '${a.store_id}'.`);
+        debug(`← tool:${name} ${Date.now() - t0}ms`);
+        return ok(memory);
+      }
+      case "create_memory": {
+        const apiKey = process.env.ANTHROPIC_API_KEY;
+        if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set.");
+        const a = CreateMemorySchema.parse(args);
+        const client = new AnthropicMemoryClient(apiKey);
+        const r = ok(await client.createMemory(a.store_id, a.path, a.content));
+        debug(`← tool:${name} ${Date.now() - t0}ms id=${JSON.parse(r.content[0].text).id}`);
+        return r;
+      }
+      case "update_memory": {
+        const apiKey = process.env.ANTHROPIC_API_KEY;
+        if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set.");
+        const a = UpdateMemorySchema.parse(args);
+        const client = new AnthropicMemoryClient(apiKey);
+        const r = ok(await client.updateMemory(a.store_id, a.memory_id, { content: a.content, path: a.path }));
+        debug(`← tool:${name} ${Date.now() - t0}ms`);
+        return r;
+      }
+      case "delete_memory": {
+        const apiKey = process.env.ANTHROPIC_API_KEY;
+        if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set.");
+        const a = MemoryIdSchema.parse(args);
+        const client = new AnthropicMemoryClient(apiKey);
+        const r = ok(await client.deleteMemory(a.store_id, a.memory_id));
+        debug(`← tool:${name} ${Date.now() - t0}ms`);
+        return r;
+      }
+
       default:
         throw new Error(`unknown tool: ${name}`);
     }

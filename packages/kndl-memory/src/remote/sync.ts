@@ -12,12 +12,12 @@
 //   Classified facts (PHI/PII/etc.) skipped unless config allows.
 
 import { createHash } from "node:crypto";
-import type { FactStore, Fact } from "../types.js";
-import { nowIso } from "../core.js";
+import type { FactStore, Fact } from "../types";
+import { nowIso } from "../core";
 import type {
   MemoryStoreClient, Memory,
   RemoteConfig, SyncResult, PushResult, BothResult,
-} from "./types.js";
+} from "./types";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -101,7 +101,7 @@ export async function pull(
 
   config.last_synced_at = syncedAt;
 
-  const { count: contradictions } = await store.contradictions({ tenant: config.label });
+  const { count: contradictions } = await store.contradictions({ subject: config.label });
   return { store_id: config.store_id, label: config.label, pulled, skipped, superseded, contradictions, synced_at: syncedAt };
 }
 

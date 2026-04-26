@@ -13,12 +13,12 @@ import type {
   MemoryVersion,
   PagedResult,
   ListStoresOptions, ListMemoriesOptions, ListVersionsOptions,
-} from "./types.js";
+} from "./types";
 
 const BASE_URL    = "https://api.anthropic.com";
 const API_VERSION = "2023-06-01";
 // Beta identifier for Memory Stores (update if Anthropic changes it)
-const BETA_HEADER = "memory-stores-2025-08-01";
+const BETA_HEADER = "managed-agents-2026-04-01";
 
 // ── Retry on 429 / 529 ───────────────────────────────────────────────────────
 
