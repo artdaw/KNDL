@@ -1,0 +1,14 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:model-gpt5-v1.5-mmlu-regression-20260410t000000z-m3n4o5p6",
+  "@type": "Fact",
+  "statement": "GPT-5 v1.5 MMLU score regressed to 89.2% — likely due to RLHF overfitting",
+  "subject": "model:gpt5-v1.5",
+  "predicate": "mmlu_5shot",
+  "object": 89.2,
+  "confidence": 0.98,
+  "source": "https://openai.com/research/gpt5-v1.5-evals",
+  "validFrom": "2026-04-10T00:00:00Z",
+  "recordedAt": "2026-04-10T00:00:00Z",
+  "tags": ["benchmark", "mmlu", "regression"]
+}

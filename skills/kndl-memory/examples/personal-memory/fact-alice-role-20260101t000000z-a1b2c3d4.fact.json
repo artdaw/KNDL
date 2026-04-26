@@ -1,0 +1,14 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:alice-role-20260101t000000z-a1b2c3d4",
+  "@type": "Fact",
+  "statement": "Alice is a senior engineer on the payments team",
+  "subject": "person:alice",
+  "predicate": "role",
+  "object": "senior engineer, payments",
+  "confidence": 0.95,
+  "decay": "0.5/180d",
+  "source": "human://gleb",
+  "validFrom": "2026-01-01T00:00:00Z",
+  "recordedAt": "2026-01-01T10:00:00Z"
+}

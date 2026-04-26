@@ -1,0 +1,16 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:ip-192-0-2-1-c2-server-20260424t120000z-a1b2c3d4",
+  "@type": "Fact",
+  "statement": "192.0.2.1 is observed as an active C2 server for Cobalt Strike",
+  "subject": "ip:192.0.2.1",
+  "predicate": "indicator_type",
+  "object": "c2_cobalt_strike",
+  "confidence": 0.9,
+  "decay": "0.5/24h",
+  "source": "https://feeds.example.com/ti/cobalt-strike",
+  "validFrom": "2026-04-24T12:00:00Z",
+  "observedAt": "2026-04-24T11:45:00Z",
+  "recordedAt": "2026-04-24T12:00:00Z",
+  "tags": ["apt", "cobalt-strike", "c2"]
+}

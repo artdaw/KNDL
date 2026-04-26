@@ -1,0 +1,14 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:exp042-buffer-ph-run1-20260420t100000z-a1b2c3d4",
+  "@type": "Fact",
+  "statement": "Experiment EXP-042 buffer pH measured at 7.41 in run 1 (electrode calibrated)",
+  "subject": "experiment:EXP-042",
+  "predicate": "buffer_ph",
+  "object": 7.41,
+  "confidence": 0.95,
+  "source": "instrument://lab-a/ph-meter-003",
+  "validFrom": "2026-04-20T10:00:00Z",
+  "observedAt": "2026-04-20T09:58:00Z",
+  "recordedAt": "2026-04-20T10:00:00Z"
+}

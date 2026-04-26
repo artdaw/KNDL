@@ -1,0 +1,16 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:patient-9001-diagnosis-initial-20260310t140000z-a1b2c3d4",
+  "@type": "Fact",
+  "statement": "Patient 9001 presents with symptoms consistent with Type 2 diabetes (preliminary assessment)",
+  "subject": "patient:9001",
+  "predicate": "diagnosis",
+  "object": "type2_diabetes_suspected",
+  "confidence": 0.7,
+  "source": "clinician://dr-chen",
+  "validFrom": "2026-03-10T14:00:00Z",
+  "observedAt": "2026-03-10T13:45:00Z",
+  "recordedAt": "2026-03-10T14:00:00Z",
+  "classification": "PHI",
+  "consent": "consent:patient-9001-care-team-2026"
+}

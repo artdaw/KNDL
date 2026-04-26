@@ -1,0 +1,15 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:smith-v-acme-testimony-johnson-location-20260115t140000z-a1b2c3d4",
+  "@type": "Fact",
+  "statement": "Witness Johnson testified that the contract was signed at ACME HQ in Chicago on January 10",
+  "subject": "event:smith-v-acme-contract-signing",
+  "predicate": "location",
+  "object": "Chicago, ACME HQ",
+  "confidence": 0.85,
+  "source": "deposition://smith-v-acme/johnson-20260115",
+  "validFrom": "2026-01-10T00:00:00Z",
+  "observedAt": "2026-01-10T14:00:00Z",
+  "recordedAt": "2026-01-15T14:00:00Z",
+  "classification": "CONFIDENTIAL"
+}

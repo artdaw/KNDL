@@ -1,0 +1,17 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:patient-9001-penicillin-allergy-20260310t140000z-m3n4o5p6",
+  "@type": "Fact",
+  "statement": "Patient 9001 has NO known penicillin allergy — explicitly denied by patient",
+  "subject": "patient:9001",
+  "predicate": "allergy",
+  "object": "penicillin",
+  "confidence": 0.9,
+  "source": "clinician://dr-chen",
+  "validFrom": "2026-03-10T14:00:00Z",
+  "observedAt": "2026-03-10T13:45:00Z",
+  "recordedAt": "2026-03-10T14:00:00Z",
+  "negated": true,
+  "classification": "PHI",
+  "consent": "consent:patient-9001-care-team-2026"
+}

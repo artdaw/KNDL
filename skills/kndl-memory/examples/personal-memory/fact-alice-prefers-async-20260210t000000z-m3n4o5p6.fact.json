@@ -1,0 +1,16 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:alice-prefers-async-20260210t000000z-m3n4o5p6",
+  "@type": "Fact",
+  "statement": "Alice prefers async communication over meetings — inferred from multiple interactions",
+  "subject": "person:alice",
+  "predicate": "communication_preference",
+  "object": "async",
+  "confidence": 0.78,
+  "source": "agent://assistant",
+  "validFrom": "2026-02-10T00:00:00Z",
+  "recordedAt": "2026-02-10T14:00:00Z",
+  "derivedFrom": [
+    "fact:alice-role-20260101t000000z-a1b2c3d4"
+  ]
+}

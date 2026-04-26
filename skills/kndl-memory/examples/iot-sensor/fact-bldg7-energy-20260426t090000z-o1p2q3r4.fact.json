@@ -1,0 +1,15 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:bldg7-energy-consumption-20260426t090000z-o1p2q3r4",
+  "@type": "Fact",
+  "statement": "Building 7 energy consumption this hour is 47.2 kWh",
+  "subject": "building:bldg7",
+  "predicate": "energy_kwh_hourly",
+  "object": 47.2,
+  "confidence": 0.99,
+  "decay": "0.5/24h",
+  "source": "meter://bldg7/main",
+  "validFrom": "2026-04-26T09:00:00Z",
+  "recordedAt": "2026-04-26T09:01:00Z",
+  "classification": "INTERNAL"
+}

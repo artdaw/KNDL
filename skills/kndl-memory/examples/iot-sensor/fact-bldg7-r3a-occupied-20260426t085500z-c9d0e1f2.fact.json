@@ -1,0 +1,15 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:bldg7-r3a-occupied-20260426t085500z-c9d0e1f2",
+  "@type": "Fact",
+  "statement": "Building 7 Room 3A is occupied",
+  "subject": "room:bldg7-r3a",
+  "predicate": "occupied",
+  "object": true,
+  "confidence": 0.88,
+  "decay": "0.5/30m",
+  "source": "pir://bldg7/r3a",
+  "validFrom": "2026-04-26T08:55:00Z",
+  "observedAt": "2026-04-26T08:55:00Z",
+  "recordedAt": "2026-04-26T08:55:01Z"
+}

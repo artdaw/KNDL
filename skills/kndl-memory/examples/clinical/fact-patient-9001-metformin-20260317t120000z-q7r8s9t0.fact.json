@@ -1,0 +1,20 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:patient-9001-metformin-20260317t120000z-q7r8s9t0",
+  "@type": "Fact",
+  "statement": "Patient 9001 prescribed Metformin 500mg twice daily for Type 2 diabetes management",
+  "subject": "patient:9001",
+  "predicate": "prescription",
+  "object": "metformin_500mg_bid",
+  "confidence": 0.99,
+  "source": "clinician://dr-chen",
+  "validFrom": "2026-03-17T12:00:00Z",
+  "recordedAt": "2026-03-17T12:00:00Z",
+  "derivedFrom": [
+    "fact:patient-9001-diagnosis-confirmed-20260317t110000z-e5f6g7h8",
+    "fact:patient-9001-hba1c-20260317t090000z-i9j0k1l2"
+  ],
+  "classification": "PHI",
+  "consent": "consent:patient-9001-care-team-2026",
+  "retention": "P7Y"
+}

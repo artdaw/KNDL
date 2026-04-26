@@ -1,0 +1,16 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:smith-v-acme-testimony-johnson-location-amended-20260203t100000z-e5f6g7h8",
+  "@type": "Fact",
+  "statement": "Witness Johnson amended testimony: contract was signed remotely via DocuSign, not at ACME HQ",
+  "subject": "event:smith-v-acme-contract-signing",
+  "predicate": "location",
+  "object": "remote_docusign",
+  "confidence": 0.9,
+  "source": "deposition://smith-v-acme/johnson-amended-20260203",
+  "validFrom": "2026-01-10T00:00:00Z",
+  "observedAt": "2026-01-10T14:00:00Z",
+  "recordedAt": "2026-02-03T10:00:00Z",
+  "supersedes": "fact:smith-v-acme-testimony-johnson-location-20260115t140000z-a1b2c3d4",
+  "classification": "CONFIDENTIAL"
+}

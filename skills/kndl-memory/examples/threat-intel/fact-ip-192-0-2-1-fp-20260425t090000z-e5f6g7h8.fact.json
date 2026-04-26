@@ -1,0 +1,16 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:ip-192-0-2-1-false-positive-20260425t090000z-e5f6g7h8",
+  "@type": "Fact",
+  "statement": "192.0.2.1 C2 classification was a false positive — IP belongs to a CDN edge node",
+  "subject": "ip:192.0.2.1",
+  "predicate": "indicator_type",
+  "object": "false_positive",
+  "confidence": 0.95,
+  "source": "https://abuse.example.com/whitelist",
+  "validFrom": "2026-04-25T09:00:00Z",
+  "recordedAt": "2026-04-25T09:00:00Z",
+  "supersedes": "fact:ip-192-0-2-1-c2-server-20260424t120000z-a1b2c3d4",
+  "negated": true,
+  "tags": ["retraction"]
+}
