@@ -20,7 +20,7 @@ const TOOLS_SUBSCRIPTIONS = [
 ];
 
 const TOOLS_REMOTE = [
-  { name: "sync_memory_store",  desc: "Pull facts from an Anthropic Memory Store into local storage. Requires ANTHROPIC_API_KEY." },
+  { name: "sync_memory_store",  desc: "Sync with an Anthropic Memory Store. direction='pull' (default): Anthropic → local. direction='push': local tagged facts → Anthropic (no classified data). direction='both': pull then push. Requires ANTHROPIC_API_KEY." },
   { name: "list_memory_stores", desc: "List configured remote Anthropic Memory Stores and their last-sync timestamps." },
 ];
 
@@ -33,8 +33,15 @@ pnpm install
 pnpm build
 
 # Two binaries produced:
-#   dist/cli.js     → kndl  (CLI)
-#   dist/server.js  → kndl-memory-mcp  (MCP server)`;
+#   dist/cli.js     → kndl CLI
+#   dist/server.js  → kndl-memory-mcp MCP server
+
+# Make kndl available on PATH (choose one):
+npm link                          # option A — global link
+# alias kndl="node $(pwd)/dist/cli.js"  # option B — shell alias
+# node dist/cli.js help           # option C — run directly
+
+kndl help`;
 
 // Default storage is fs:./memory (Anthropic Memory mount).
 // For Claude Desktop without Anthropic Memory, sqlite is recommended.
@@ -96,21 +103,36 @@ const STORAGE_TABLE = [
 ];
 
 // Remote sync: Anthropic Memory Stores API (not generic endpoints)
-const REMOTE_SYNC = `# Register an Anthropic Memory Store
+const REMOTE_SYNC = `# Register a remote (pull-only, default)
 kndl remote add --provider anthropic \\
   --store-id store_abc123 --label personal
 
-# Pull facts from that store into local storage
-# (requires ANTHROPIC_API_KEY)
+# Pull facts from Anthropic → local  (requires ANTHROPIC_API_KEY)
 kndl remote pull personal
 
-# Or trigger via MCP tool:
+# Register a remote with push enabled
+kndl remote add --provider anthropic \\
+  --store-id store_abc123 --label work --push
+
+# Tag facts you want to push
+kndl add --statement "Alice is staff engineer" \\
+  --subject person:alice --predicate role \\
+  --confidence 0.95 --source "human://gleb" \\
+  --tags push-to-anthropic
+
+# Push local tagged facts → Anthropic (no classified data)
+kndl remote push work
+
+# Pull then push in one go
+kndl remote sync work
+
+# Via MCP tools:
 # sync_memory_store({ label: "personal", direction: "pull" })
+# sync_memory_store({ label: "work", direction: "push" })
+# sync_memory_store({ label: "work", direction: "both" })
 
-# List all registered remotes
+# List / remove remotes
 kndl remote ls
-
-# Remove a remote
 kndl remote rm personal`;
 
 const USAGE_EXAMPLE = `# Ask Claude to remember a fact
@@ -274,8 +296,10 @@ export default function McpPage() {
         <section className={styles.section}>
           <h2 className={styles.h2}>Remote sync — Anthropic Memory Stores</h2>
           <p className={styles.p}>
-            Pull facts from an Anthropic Memory Store into local storage via CLI or MCP tool.
-            Requires <code className={styles.ic}>ANTHROPIC_API_KEY</code>. Push is deferred to v2.1.
+            Bidirectional sync between local storage and an Anthropic Memory Store.
+            Requires <code className={styles.ic}>ANTHROPIC_API_KEY</code>.
+            Push selects facts tagged <code className={styles.ic}>push-to-anthropic</code> and skips
+            classified data (PHI/PII/etc.) by default. Idempotent in both directions.
           </p>
           <CodeBlock code={REMOTE_SYNC} label="terminal" />
         </section>
