@@ -195,6 +195,25 @@ kndl remote ls
 Push selects facts tagged `push-to-anthropic` and skips classified data by default.
 Memories are stored at `/kndl-facts/{fact-id}` in the Memory Store.
 
+### Memory Store management (requires `ANTHROPIC_API_KEY`)
+
+```bash
+# Store CRUD
+kndl store create  --name "My Store" --description "optional"
+kndl store ls      [--archived]
+kndl store get     <store_id>
+kndl store update  <store_id> --name "New Name"
+kndl store delete  <store_id>
+kndl store archive <store_id>
+
+# Memory CRUD (filesystem-style paths)
+kndl memory create  --store <store_id> --path /notes/alice.md --content "Alice is a staff engineer"
+kndl memory ls      --store <store_id> [--prefix /notes/]
+kndl memory get     --store <store_id> <memory_id>
+kndl memory update  --store <store_id> <memory_id> --content "Updated content"
+kndl memory delete  --store <store_id> <memory_id>
+```
+
 ---
 
 ## Use with Anthropic Memory (Skill)

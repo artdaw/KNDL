@@ -158,6 +158,29 @@ kndl remote push work      # push tagged facts
 kndl remote sync work      # pull + push
 ```
 
+### Memory Store management CLI (requires `ANTHROPIC_API_KEY`)
+
+```bash
+# Store CRUD
+kndl store create  --name "My Store" [--description "..."]
+kndl store ls      [--archived]
+kndl store get     <store_id>
+kndl store update  <store_id> [--name "..."] [--description "..."]
+kndl store delete  <store_id>
+kndl store archive <store_id>
+
+# Memory CRUD — paths are filesystem-style (/notes/alice.md, /kndl-facts/...)
+kndl memory create  --store <id> --path <path> --content <text>
+kndl memory ls      --store <id> [--prefix <path>]
+kndl memory get     --store <id> <memory_id>
+kndl memory update  --store <id> <memory_id> [--content <t>] [--path <p>]
+kndl memory delete  --store <id> <memory_id>
+
+# Each has --help:
+kndl store help
+kndl memory help
+```
+
 ## Website
 
 ```bash

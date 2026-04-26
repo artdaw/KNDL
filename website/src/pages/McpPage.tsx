@@ -135,6 +135,25 @@ kndl remote sync work
 kndl remote ls
 kndl remote rm personal`;
 
+const STORE_CLI = `# Memory Store CRUD  (requires ANTHROPIC_API_KEY)
+kndl store create  --name "My Store" --description "optional"
+kndl store ls      [--archived]
+kndl store get     <store_id>
+kndl store update  <store_id> --name "New Name"
+kndl store delete  <store_id>
+kndl store archive <store_id>
+
+# Memory CRUD — paths are filesystem-style (e.g. /notes/alice.md)
+kndl memory create  --store <store_id> --path /notes/alice.md --content "Alice is staff engineer"
+kndl memory ls      --store <store_id> [--prefix /notes/]
+kndl memory get     --store <store_id> <memory_id>
+kndl memory update  --store <store_id> <memory_id> --content "Updated"
+kndl memory delete  --store <store_id> <memory_id>
+
+# Each sub-command group has inline help:
+kndl store help
+kndl memory help`;
+
 const USAGE_EXAMPLE = `# Ask Claude to remember a fact
 "Alice was promoted to staff engineer on the payments team."
 
@@ -302,6 +321,20 @@ export default function McpPage() {
             classified data (PHI/PII/etc.) by default. Idempotent in both directions.
           </p>
           <CodeBlock code={REMOTE_SYNC} label="terminal" />
+        </section>
+
+        {/* Store/memory CLI */}
+        <section className={styles.section}>
+          <h2 className={styles.h2}>Memory Store &amp; Memory management CLI</h2>
+          <p className={styles.p}>
+            Direct CRUD for Memory Stores and their Memories via the Anthropic API.
+            Paths are filesystem-style (e.g.{" "}
+            <code className={styles.ic}>/notes/alice.md</code>,{" "}
+            <code className={styles.ic}>/kndl-facts/fact-...</code>).
+            Pushed KNDL facts land at{" "}
+            <code className={styles.ic}>/kndl-facts/&#123;slugified-id&#125;</code>.
+          </p>
+          <CodeBlock code={STORE_CLI} label="terminal" />
         </section>
 
         {/* Usage example */}
