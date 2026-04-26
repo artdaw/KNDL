@@ -17,6 +17,10 @@
 
 ---
 
+<iframe width="560" height="315" src="https://www.youtube.com/embed/-TIbS4SalO4?si=lUlw0ILF4MCYJuxI" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+---
+
 Anthropic just shipped Memory for agents — a filesystem.
 But filesystems are dumb about confidence, time, and source.
 Agents fill them with markdown that **can't be queried, won't decay, and loses provenance the moment it's written.**
