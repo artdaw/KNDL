@@ -21,7 +21,7 @@
 import type { FactInput } from "./types.js";
 import { makeStore } from "./stores/index.js";
 import { AnthropicMemoryClient } from "./remote/anthropic.js";
-import { pull } from "./remote/sync.js";
+import { pull, push, syncBoth } from "./remote/sync.js";
 import { loadRemoteConfigs, addRemote, removeRemote, saveRemoteConfigs } from "./remote/config.js";
 
 interface Args {
@@ -116,7 +116,7 @@ function buildInput(flags: Record<string, unknown>): FactInput {
 
 const HELP = `kndl — confidence-, time-, and provenance-aware memory CLI
 
-Commands:
+Fact commands:
   add              Write a new fact
   supersede        Write a fact replacing an older one (preserves history)
   query            Read active facts with effective confidence at as_of time
@@ -125,16 +125,23 @@ Commands:
   list             List fact IDs
   show             Print a fact by ID
   migrate          Migrate v1 SQLite database → v2 JSON-LD facts
-  remote           Manage and sync Anthropic Memory Store remotes
+
+Memory Store sync:
+  remote           Manage configured remotes (add, pull, push, sync, ls, rm)
+
+Anthropic Memory Stores API (requires ANTHROPIC_API_KEY):
+  store            CRUD for Memory Stores (create, ls, get, update, delete, archive)
+  memory           CRUD for Memories within a store (create, ls, get, update, delete)
+
   help             Show this message
 
 Env:
   KNDL_STORAGE          Storage URL, e.g. fs:./memory  sqlite:./kndl.db
   KNDL_MEMORY_DIR       Legacy alias — equivalent to KNDL_STORAGE=fs:<dir>
-  ANTHROPIC_API_KEY     Required for remote sync commands
+  ANTHROPIC_API_KEY     Required for store/memory/remote commands
   KNDL_REMOTE_STORES    "anthropic:<store_id>:<label>" shorthand (no file needed)
 
-Run \`kndl <command> --help\` for options, or read SKILL.md.
+Run \`kndl store help\` or \`kndl memory help\` for sub-command details.
 `;
 
 async function main(argv: string[]): Promise<number> {
@@ -322,12 +329,15 @@ async function main(argv: string[]): Promise<number> {
             const label    = requireFlag(s(rflags.label),    "label");
             const storeId  = requireFlag(s(rflags["store-id"]), "store-id");
             const provider = (s(rflags.provider) ?? "anthropic") as "anthropic";
+            const enablePush = b(rflags.push);
+            const pushTag    = s(rflags["push-tag"]);
             addRemote({
               label, provider, store_id: storeId,
               default_confidence: Number(rflags["default-confidence"] ?? 0.85),
-              push: false,
+              push: enablePush,
+              ...(pushTag ? { push_tag: pushTag } : {}),
             });
-            out({ added: label, store_id: storeId, provider });
+            out({ added: label, store_id: storeId, provider, push: enablePush, push_tag: pushTag ?? "push-to-anthropic" });
             return 0;
           }
           case "pull": {
@@ -346,10 +356,43 @@ async function main(argv: string[]): Promise<number> {
             out(result);
             return 0;
           }
+          case "push": {
+            const label = requireFlag(s(rflags._) ?? s(sub[1]), "label");
+            const apiKey = process.env.ANTHROPIC_API_KEY;
+            if (!apiKey) fail("ANTHROPIC_API_KEY is not set");
+            const remotes = loadRemoteConfigs();
+            const config = remotes.find((r) => r.label === label);
+            if (!config) fail(`Remote '${label}' not found. Run \`kndl remote add\` first.`);
+            const client = new AnthropicMemoryClient(apiKey);
+            const store = makeStore();
+            const result = await push(client, store, config!);
+            const idx = remotes.findIndex((r) => r.label === label);
+            if (idx >= 0) remotes[idx] = config!;
+            saveRemoteConfigs(remotes);
+            out(result);
+            return 0;
+          }
+          case "sync": {
+            const label = requireFlag(s(rflags._) ?? s(sub[1]), "label");
+            const apiKey = process.env.ANTHROPIC_API_KEY;
+            if (!apiKey) fail("ANTHROPIC_API_KEY is not set");
+            const remotes = loadRemoteConfigs();
+            const config = remotes.find((r) => r.label === label);
+            if (!config) fail(`Remote '${label}' not found. Run \`kndl remote add\` first.`);
+            const client = new AnthropicMemoryClient(apiKey);
+            const store = makeStore();
+            const result = await syncBoth(client, store, config!);
+            const idx = remotes.findIndex((r) => r.label === label);
+            if (idx >= 0) remotes[idx] = config!;
+            saveRemoteConfigs(remotes);
+            out(result);
+            return 0;
+          }
           case "ls":
           case "list": {
             out(loadRemoteConfigs().map((r) => ({
               label: r.label, provider: r.provider, store_id: r.store_id,
+              push: r.push, push_tag: r.push_tag ?? "push-to-anthropic",
               last_synced_at: r.last_synced_at ?? null,
             })));
             return 0;
@@ -362,10 +405,141 @@ async function main(argv: string[]): Promise<number> {
             return 0;
           }
           default:
-            fail(`unknown remote sub-command: ${subCmd ?? "(none)"}. Try: add, pull, ls, rm`);
+            fail(`unknown remote sub-command: ${subCmd ?? "(none)"}. Try: add, pull, push, sync, ls, rm`);
+        }
+      }
+      // ── store — Memory Store CRUD ────────────────────────────────────────────
+      case "store": {
+        const sub    = argv.slice(1);
+        const subCmd = sub[0];
+        const { flags: sf } = parseArgs(sub.slice(1));
+        const apiKey = process.env.ANTHROPIC_API_KEY;
+        if (!apiKey) fail("ANTHROPIC_API_KEY is not set");
+        const api = new AnthropicMemoryClient(apiKey);
+
+        const STORE_HELP = `kndl store — Anthropic Memory Store CRUD
+
+Sub-commands:
+  create  --name <name> [--description <desc>]   Create a new Memory Store
+  ls      [--archived]                            List all stores
+  get     <store_id>                              Get store details
+  update  <store_id> [--name <n>] [--description <d>]  Update store
+  delete  <store_id>                              Permanently delete a store
+  archive <store_id>                              Archive a store (soft delete)
+`;
+        if (!subCmd || subCmd === "help" || sf.help) {
+          process.stdout.write(STORE_HELP);
+          return 0;
+        }
+
+        switch (subCmd) {
+          case "create": {
+            const name = requireFlag(s(sf.name), "name");
+            out(await api.createStore(name, { description: s(sf.description) }));
+            return 0;
+          }
+          case "ls":
+          case "list": {
+            out(await api.listStores({ include_archived: b(sf.archived) }));
+            return 0;
+          }
+          case "get": {
+            const id = requireFlag(s(sf._) ?? s(sub[1]), "store_id");
+            const store = await api.getStore(id);
+            if (!store) fail(`Store '${id}' not found`);
+            out(store!);
+            return 0;
+          }
+          case "update": {
+            const id = requireFlag(s(sf._) ?? s(sub[1]), "store_id");
+            out(await api.updateStore(id, { name: s(sf.name), description: s(sf.description) }));
+            return 0;
+          }
+          case "delete": {
+            const id = requireFlag(s(sf._) ?? s(sub[1]), "store_id");
+            out(await api.deleteStore(id));
+            return 0;
+          }
+          case "archive": {
+            const id = requireFlag(s(sf._) ?? s(sub[1]), "store_id");
+            out(await api.archiveStore(id));
+            return 0;
+          }
+          default:
+            fail(`unknown store sub-command: ${subCmd}. Try: create, ls, get, update, delete, archive`);
         }
         return 0;
       }
+
+      // ── memory — Memory CRUD ─────────────────────────────────────────────────
+      case "memory": {
+        const sub    = argv.slice(1);
+        const subCmd = sub[0];
+        const { flags: mf } = parseArgs(sub.slice(1));
+        const apiKey = process.env.ANTHROPIC_API_KEY;
+        if (!apiKey) fail("ANTHROPIC_API_KEY is not set");
+        const api = new AnthropicMemoryClient(apiKey);
+
+        const MEMORY_HELP = `kndl memory — Memory CRUD within an Anthropic Memory Store
+
+Sub-commands:
+  create  --store <id> --path <path> --content <text>   Create a memory
+  ls      --store <id> [--prefix <path>]                List memories
+  get     --store <id> <memory_id>                      Get memory (full content)
+  update  --store <id> <memory_id> [--content <t>] [--path <p>]  Update
+  delete  --store <id> <memory_id>                      Delete a memory
+
+Path convention: filesystem-style, e.g. /notes/alice.md, /kndl-facts/fact-...
+`;
+        if (!subCmd || subCmd === "help" || mf.help) {
+          process.stdout.write(MEMORY_HELP);
+          return 0;
+        }
+
+        const storeId = requireFlag(s(mf.store), "store");
+
+        switch (subCmd) {
+          case "create": {
+            const path    = requireFlag(s(mf.path),    "path");
+            const content = requireFlag(s(mf.content), "content");
+            out(await api.createMemory(storeId, path, content));
+            return 0;
+          }
+          case "ls":
+          case "list": {
+            out(await api.listMemories(storeId, {
+              path_prefix: s(mf.prefix),
+              limit:       n(mf.limit),
+              view:        "basic",
+            }));
+            return 0;
+          }
+          case "get": {
+            const memId = requireFlag(s(mf._) ?? s(sub[1]), "memory_id");
+            const mem = await api.getMemory(storeId, memId, "full");
+            if (!mem) fail(`Memory '${memId}' not found in store '${storeId}'`);
+            out(mem!);
+            return 0;
+          }
+          case "update": {
+            const memId = requireFlag(s(mf._) ?? s(sub[1]), "memory_id");
+            out(await api.updateMemory(storeId, memId, {
+              content: s(mf.content),
+              path:    s(mf.path),
+            }));
+            return 0;
+          }
+          case "delete": {
+            const memId = requireFlag(s(mf._) ?? s(sub[1]), "memory_id");
+            out(await api.deleteMemory(storeId, memId));
+            return 0;
+          }
+          default:
+            fail(`unknown memory sub-command: ${subCmd}. Try: create, ls, get, update, delete`);
+        }
+        return 0;
+      }
+
       default:
         fail(`unknown command: ${cmd}. Run \`kndl help\` for usage.`);
     }
