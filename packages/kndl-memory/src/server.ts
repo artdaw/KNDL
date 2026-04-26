@@ -45,6 +45,19 @@ import { pull } from "./remote/sync";
 import { loadRemoteConfigs, addRemote, saveRemoteConfigs } from "./remote/config";
 import type { FactInput } from "./types";
 
+// ── Logger ────────────────────────────────────────────────────────────────────
+
+const LOG_LEVEL = (process.env.LOG_LEVEL ?? "WARNING").toUpperCase();
+const IS_DEBUG  = LOG_LEVEL === "DEBUG";
+
+function debug(...parts: unknown[]): void {
+  if (!IS_DEBUG) return;
+  const ts = new Date().toISOString().slice(11, 23); // HH:MM:SS.mmm
+  process.stderr.write(`[kndl-memory] DEBUG ${ts} ${parts.map(p =>
+    typeof p === "object" ? JSON.stringify(p) : String(p)
+  ).join(" ")}\n`);
+}
+
 // ── Store setup ──────────────────────────────────────────────────────────────
 
 const innerStore = makeStore();
@@ -241,48 +254,61 @@ const TOOLS = [
 
   srv.setRequestHandler(CallToolRequestSchema, async (req) => {
   const { name, arguments: args } = req.params;
+  const t0 = Date.now();
+  debug(`→ tool:${name}`, args ?? {});
   try {
     switch (name) {
       case "assert_fact": {
         const a = AssertSchema.parse(args);
-        return ok(await store.assertFact(toFactInput(a)));
+        const r = ok(await store.assertFact(toFactInput(a)));
+        debug(`← tool:${name} ${Date.now() - t0}ms id=${JSON.parse(r.content[0].text).id}`);
+        return r;
       }
       case "query_facts": {
         const a = QuerySchema.parse(args);
-        return ok(await store.query({
-          subject: a.subject, predicate: a.predicate,
-          asOf: a.as_of, minConfidence: a.min_confidence,
-          tenant: a.tenant, allowPhi: a.allow_phi,
-        }));
+        const r = ok(await store.query({ subject: a.subject, predicate: a.predicate, asOf: a.as_of, minConfidence: a.min_confidence, tenant: a.tenant, allowPhi: a.allow_phi }));
+        debug(`← tool:${name} ${Date.now() - t0}ms count=${JSON.parse(r.content[0].text).count}`);
+        return r;
       }
       case "contradictions": {
         const a = ContradictionsSchema.parse(args);
-        return ok(await store.contradictions({ subject: a.subject, predicate: a.predicate }));
+        const r = ok(await store.contradictions({ subject: a.subject, predicate: a.predicate }));
+        debug(`← tool:${name} ${Date.now() - t0}ms count=${JSON.parse(r.content[0].text).count}`);
+        return r;
       }
       case "supersede_fact": {
         const a = SupersedeSchema.parse(args);
         const { old_id, ...rest } = a;
-        return ok(await store.supersedeFact(old_id, toFactInput(rest as z.infer<typeof AssertSchema>)));
+        const r = ok(await store.supersedeFact(old_id, toFactInput(rest as z.infer<typeof AssertSchema>)));
+        debug(`← tool:${name} ${Date.now() - t0}ms id=${JSON.parse(r.content[0].text).id}`);
+        return r;
       }
       case "as_of": {
         const a = AsOfSchema.parse(args);
-        return ok(await store.query({ subject: a.subject, predicate: a.predicate, asOf: a.as_of }));
+        const r = ok(await store.query({ subject: a.subject, predicate: a.predicate, asOf: a.as_of }));
+        debug(`← tool:${name} ${Date.now() - t0}ms count=${JSON.parse(r.content[0].text).count}`);
+        return r;
       }
       case "provenance_chain": {
         const a = ProvenanceSchema.parse(args);
-        return ok(await store.provenanceChain(a.id, a.max_depth));
+        const r = ok(await store.provenanceChain(a.id, a.max_depth));
+        debug(`← tool:${name} ${Date.now() - t0}ms depth=${JSON.parse(r.content[0].text).depth}`);
+        return r;
       }
       case "subscribe": {
         const a = SubscribeSchema.parse(args);
         const id = subscriptions.add({ subject: a.subject, predicate: a.predicate, tenant: a.tenant });
+        debug(`← tool:${name} ${Date.now() - t0}ms subscription_id=${id}`);
         return ok({ subscription_id: id, filter: a, message: `Subscribed. Re-read kndl://fact/<id> on notifications/resources/updated.` });
       }
       case "unsubscribe": {
         const a = UnsubscribeSchema.parse(args);
         const removed = subscriptions.remove(a.id);
+        debug(`← tool:${name} ${Date.now() - t0}ms removed=${removed}`);
         return ok({ removed, id: a.id });
       }
       case "list_subscriptions": {
+        debug(`← tool:${name} ${Date.now() - t0}ms count=${subscriptions.size}`);
         return ok({ count: subscriptions.size, subscriptions: subscriptions.list(), active_sessions: activeSessions.size });
       }
       case "sync_memory_store": {
@@ -294,14 +320,15 @@ const TOOLS = [
         if (!config) throw new Error(`Remote '${a.label}' not found. Run \`kndl remote add\` first.`);
         const client = new AnthropicMemoryClient(apiKey);
         const result = await pull(client, store, config);
-        // Persist updated watermark
         const idx = remotes.findIndex((r) => r.label === a.label);
         if (idx >= 0) remotes[idx] = config;
         saveRemoteConfigs(remotes);
+        debug(`← tool:${name} ${Date.now() - t0}ms pulled=${result.pulled} superseded=${result.superseded}`);
         return ok(result);
       }
       case "list_memory_stores": {
         const remotes = loadRemoteConfigs();
+        debug(`← tool:${name} ${Date.now() - t0}ms count=${remotes.length}`);
         return ok({ count: remotes.length, remotes: remotes.map((r) => ({
           label: r.label, provider: r.provider, store_id: r.store_id,
           last_synced_at: r.last_synced_at ?? null,
@@ -311,6 +338,7 @@ const TOOLS = [
         throw new Error(`unknown tool: ${name}`);
     }
   } catch (e) {
+    debug(`← tool:${name} ERROR ${Date.now() - t0}ms`, (e as Error).message);
     return err(e);
   }
   });
@@ -330,14 +358,18 @@ const TOOLS = [
 
   srv.setRequestHandler(ReadResourceRequestSchema, async (req) => {
     const uri = req.params.uri;
+    const t0 = Date.now();
+    debug(`→ resource:read ${uri}`);
     if (uri.startsWith("kndl://fact/")) {
       const id = decodeURIComponent(uri.slice("kndl://fact/".length));
       const fact = await store.show(id);
       if (!fact) {
+        debug(`← resource:read ${Date.now() - t0}ms NOT_FOUND ${uri}`);
         return { contents: [{ uri, mimeType: "application/json", text: JSON.stringify({ error: "not found", id }) }] };
       }
       const result = await store.query({ subject: fact.subject });
       const live = result.facts.find((f) => f["@id"] === id);
+      debug(`← resource:read ${Date.now() - t0}ms OK ${uri}`);
       return {
         contents: [{
           uri,
@@ -378,11 +410,16 @@ if (isHttp) {
       let transport!: InstanceType<typeof StreamableHTTPServerTransport>;
       transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => randomUUID(),
-        onsessioninitialized: (id: string) => { transports.set(id, transport); },
+        onsessioninitialized: (id: string) => {
+          transports.set(id, transport);
+          debug(`session:open id=${id} sessions=${transports.size}`);
+        },
       });
       transport.onclose = () => {
-        if (transport.sessionId) transports.delete(transport.sessionId);
+        const id = transport.sessionId;
+        if (id) transports.delete(id);
         activeSessions.delete(sessionServer);
+        debug(`session:close id=${id ?? "?"} sessions=${transports.size}`);
       };
       await sessionServer.connect(transport);
       activeSessions.add(sessionServer);
