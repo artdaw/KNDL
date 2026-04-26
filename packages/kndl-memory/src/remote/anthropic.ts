@@ -1,172 +1,242 @@
-// remote/anthropic.ts — thin REST wrapper around the Anthropic Memory Stores beta API.
+// remote/anthropic.ts — Anthropic Memory Stores API client.
 //
-// Uses fetch() directly rather than the @anthropic-ai/sdk so that API surface
-// changes don't require a hard dependency bump. Gate all calls on ANTHROPIC_API_KEY.
+// REST wrapper against https://api.anthropic.com/v1/memory_stores
+// Spec: https://platform.claude.com/docs/en/api/go/beta/memory_stores
 //
-// NOTE (Phase 5 — open question Q7):
-//   The Memory Stores API is in beta. We have NOT yet verified whether
-//   it supports a watermark / "since" cursor for incremental pulls.
-//   Until verified:
-//     - We always paginate through the full list and detect new items by
-//       comparing to the last_cursor stored in remotes.json.
-//     - watch_memory_store is NOT shipped in v2.0 (would require the watcher
-//       loop to poll efficiently; polling the full list every N seconds is
-//       too expensive at reasonable intervals).
-//   Once the watermark call is confirmed, upgrade listItems to use it and
-//   re-enable watch_memory_store.
-//
-// Endpoints assumed (adjust if the beta API differs):
-//   GET  /v1/memory-stores/{store_id}/items[?after=<cursor>&limit=<n>]
-//   GET  /v1/memory-stores/{store_id}/items/{item_id}
-//   POST /v1/memory-stores/{store_id}/items   (used by push, v2.1)
-//
-// Beta header: anthropic-beta: memory-stores-2025-08-01
-// (Pin this to a date you've tested against; update when the API stabilises.)
+// Uses fetch() directly — no SDK dependency so API surface changes don't
+// require a hard version bump. Gate all calls on ANTHROPIC_API_KEY.
 
-import type { MemoryStoreClient, MemoryStoreItem, MemoryStoreListResult, ListItemsOptions } from "./types.js";
+import type {
+  MemoryStoreClient,
+  MemoryStore, DeletedMemoryStore,
+  Memory, MemoryListItem, DeletedMemory,
+  MemoryVersion,
+  PagedResult,
+  ListStoresOptions, ListMemoriesOptions, ListVersionsOptions,
+} from "./types.js";
 
-const BASE_URL = "https://api.anthropic.com";
-const BETA_HEADER = "memory-stores-2025-08-01";
+const BASE_URL    = "https://api.anthropic.com";
 const API_VERSION = "2023-06-01";
+// Beta identifier for Memory Stores (update if Anthropic changes it)
+const BETA_HEADER = "memory-stores-2025-08-01";
 
-/** Exponential backoff on 429 / 529 responses. */
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  maxRetries = 4,
-  baseDelayMs = 1000,
-): Promise<T> {
+// ── Retry on 429 / 529 ───────────────────────────────────────────────────────
+
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 4, baseMs = 1000): Promise<T> {
   let lastErr: unknown;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      return await fn();
-    } catch (e) {
+    try { return await fn(); }
+    catch (e) {
       lastErr = e;
       const status = (e as { status?: number }).status;
       if (status !== 429 && status !== 529) throw e;
       if (attempt === maxRetries) break;
-      const delay = baseDelayMs * Math.pow(2, attempt) + Math.random() * 200;
-      await new Promise((r) => setTimeout(r, delay));
+      await new Promise(r => setTimeout(r, baseMs * Math.pow(2, attempt) + Math.random() * 200));
     }
   }
   throw lastErr;
 }
 
+// ── HTTP helpers ──────────────────────────────────────────────────────────────
+
 export class AnthropicMemoryClient implements MemoryStoreClient {
   constructor(private readonly apiKey: string) {}
 
-  private async fetch<T>(path: string, init?: RequestInit): Promise<T> {
-    const url = `${BASE_URL}${path}`;
-    const resp = await withRetry(async () => {
-      const r = await fetch(url, {
-        ...init,
-        headers: {
-          "x-api-key":        this.apiKey,
-          "anthropic-version": API_VERSION,
-          "anthropic-beta":    BETA_HEADER,
-          "content-type":      "application/json",
-          ...(init?.headers ?? {}),
-        },
-      });
-      if (!r.ok) {
-        const body = await r.text().catch(() => "");
-        const err: { status: number; message: string } = {
-          status: r.status,
-          message: `Anthropic API ${r.status}: ${body.slice(0, 200)}`,
-        };
-        throw Object.assign(new Error(err.message), { status: r.status });
-      }
-      return r;
-    });
-    return resp.json() as Promise<T>;
-  }
-
-  async listItems(storeId: string, opts: ListItemsOptions = {}): Promise<MemoryStoreListResult> {
-    const params = new URLSearchParams();
-    if (opts.after) params.set("after", opts.after);
-    if (opts.limit) params.set("limit", String(opts.limit));
-    const qs = params.toString() ? `?${params}` : "";
-
-    // Expected response shape — adjust to actual API response envelope.
-    const raw = await this.fetch<{
-      data?: MemoryStoreItem[];
-      items?: MemoryStoreItem[];
-      next_cursor?: string;
-      has_more?: boolean;
-    }>(`/v1/memory-stores/${storeId}/items${qs}`);
-
-    const items = raw.data ?? raw.items ?? [];
+  private headers(): Record<string, string> {
     return {
-      items,
-      next_cursor: raw.next_cursor,
-      has_more: raw.has_more ?? !!raw.next_cursor,
+      "x-api-key":        this.apiKey,
+      "anthropic-version": API_VERSION,
+      "anthropic-beta":    BETA_HEADER,
+      "content-type":      "application/json",
     };
   }
 
-  async getItem(storeId: string, itemId: string): Promise<MemoryStoreItem | null> {
-    try {
-      return await this.fetch<MemoryStoreItem>(
-        `/v1/memory-stores/${storeId}/items/${itemId}`,
-      );
-    } catch (e) {
-      if ((e as { status?: number }).status === 404) return null;
-      throw e;
-    }
+  private async req<T>(method: string, path: string, body?: unknown, qs?: Record<string, string>): Promise<T> {
+    const url = new URL(BASE_URL + path);
+    if (qs) Object.entries(qs).forEach(([k, v]) => v !== undefined && url.searchParams.set(k, v));
+    return withRetry(async () => {
+      const r = await fetch(url.toString(), {
+        method,
+        headers: this.headers(),
+        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      });
+      if (!r.ok) {
+        const text = await r.text().catch(() => "");
+        const err: { status: number; message: string } = { status: r.status, message: `Anthropic API ${r.status}: ${text.slice(0, 300)}` };
+        throw Object.assign(new Error(err.message), { status: r.status });
+      }
+      if (r.status === 204) return undefined as T;
+      return r.json() as Promise<T>;
+    });
   }
 
-  async createItem(
-    storeId: string,
-    content: string,
-    metadata?: Record<string, unknown>,
-  ): Promise<MemoryStoreItem> {
-    return this.fetch<MemoryStoreItem>(`/v1/memory-stores/${storeId}/items`, {
-      method: "POST",
-      body: JSON.stringify({ content, metadata }),
-    });
+  // ── Store CRUD ──────────────────────────────────────────────────────────────
+
+  async createStore(name: string, opts?: { description?: string; metadata?: Record<string, string> }): Promise<MemoryStore> {
+    return this.req("POST", "/v1/memory_stores", { name, ...opts });
+  }
+
+  async listStores(opts: ListStoresOptions = {}): Promise<PagedResult<MemoryStore>> {
+    const qs: Record<string, string> = {};
+    if (opts.include_archived) qs["include_archived"] = "true";
+    if (opts.limit)            qs["limit"] = String(opts.limit);
+    if (opts.page)             qs["page"]  = opts.page;
+    const raw = await this.req<{ data: MemoryStore[]; next_page?: string; has_more?: boolean }>("GET", "/v1/memory_stores", undefined, qs);
+    return { data: raw.data ?? [], next_page: raw.next_page, has_more: raw.has_more ?? !!raw.next_page };
+  }
+
+  async getStore(storeId: string): Promise<MemoryStore | null> {
+    try { return await this.req("GET", `/v1/memory_stores/${storeId}`); }
+    catch (e) { if ((e as { status?: number }).status === 404) return null; throw e; }
+  }
+
+  async updateStore(storeId: string, opts: { name?: string; description?: string; metadata?: Record<string, string> }): Promise<MemoryStore> {
+    return this.req("POST", `/v1/memory_stores/${storeId}`, opts);
+  }
+
+  async deleteStore(storeId: string): Promise<DeletedMemoryStore> {
+    return this.req("DELETE", `/v1/memory_stores/${storeId}`);
+  }
+
+  async archiveStore(storeId: string): Promise<MemoryStore> {
+    return this.req("POST", `/v1/memory_stores/${storeId}/archive`);
+  }
+
+  // ── Memory CRUD ─────────────────────────────────────────────────────────────
+
+  async createMemory(storeId: string, path: string, content: string): Promise<Memory> {
+    return this.req("POST", `/v1/memory_stores/${storeId}/memories`, { path, content }, { view: "full" });
+  }
+
+  async listMemories(storeId: string, opts: ListMemoriesOptions = {}): Promise<PagedResult<MemoryListItem>> {
+    const qs: Record<string, string> = { view: opts.view ?? "basic" };
+    if (opts.path_prefix) qs["path_prefix"] = opts.path_prefix;
+    if (opts.limit)       qs["limit"]       = String(opts.limit);
+    if (opts.page)        qs["page"]        = opts.page;
+    if (opts.order)       qs["order"]       = opts.order;
+    const raw = await this.req<{ data: MemoryListItem[]; next_page?: string; has_more?: boolean }>("GET", `/v1/memory_stores/${storeId}/memories`, undefined, qs);
+    return { data: raw.data ?? [], next_page: raw.next_page, has_more: raw.has_more ?? !!raw.next_page };
+  }
+
+  async getMemory(storeId: string, memoryId: string, view: "basic" | "full" = "full"): Promise<Memory | null> {
+    try { return await this.req("GET", `/v1/memory_stores/${storeId}/memories/${memoryId}`, undefined, { view }); }
+    catch (e) { if ((e as { status?: number }).status === 404) return null; throw e; }
+  }
+
+  async updateMemory(storeId: string, memoryId: string, opts: { content?: string; path?: string; precondition?: { content_sha256: string } }): Promise<Memory> {
+    const body: Record<string, unknown> = {};
+    if (opts.content !== undefined) body["content"] = opts.content;
+    if (opts.path    !== undefined) body["path"]    = opts.path;
+    if (opts.precondition)          body["precondition"] = { type: "content_sha256", content_sha256: opts.precondition.content_sha256 };
+    return this.req("POST", `/v1/memory_stores/${storeId}/memories/${memoryId}`, body, { view: "full" });
+  }
+
+  async deleteMemory(storeId: string, memoryId: string, opts: { expected_content_sha256?: string } = {}): Promise<DeletedMemory> {
+    const qs: Record<string, string> = {};
+    if (opts.expected_content_sha256) qs["expected_content_sha256"] = opts.expected_content_sha256;
+    return this.req("DELETE", `/v1/memory_stores/${storeId}/memories/${memoryId}`, undefined, qs);
+  }
+
+  // ── Memory Versions ─────────────────────────────────────────────────────────
+
+  async listVersions(storeId: string, opts: ListVersionsOptions = {}): Promise<PagedResult<MemoryVersion>> {
+    const qs: Record<string, string> = { view: "full" };
+    if (opts.memory_id) qs["memory_id"] = opts.memory_id;
+    if (opts.operation) qs["operation"] = opts.operation;
+    if (opts.limit)     qs["limit"]     = String(opts.limit);
+    if (opts.page)      qs["page"]      = opts.page;
+    const raw = await this.req<{ data: MemoryVersion[]; next_page?: string; has_more?: boolean }>("GET", `/v1/memory_stores/${storeId}/memory_versions`, undefined, qs);
+    return { data: raw.data ?? [], next_page: raw.next_page, has_more: raw.has_more ?? !!raw.next_page };
+  }
+
+  async getVersion(storeId: string, versionId: string): Promise<MemoryVersion | null> {
+    try { return await this.req("GET", `/v1/memory_stores/${storeId}/memory_versions/${versionId}`, undefined, { view: "full" }); }
+    catch (e) { if ((e as { status?: number }).status === 404) return null; throw e; }
+  }
+
+  async redactVersion(storeId: string, versionId: string): Promise<MemoryVersion> {
+    return this.req("POST", `/v1/memory_stores/${storeId}/memory_versions/${versionId}/redact`);
   }
 }
 
 // ── Fake client for tests / CI ────────────────────────────────────────────────
 
 export class FakeMemoryStoreClient implements MemoryStoreClient {
-  private stores = new Map<string, Map<string, MemoryStoreItem>>();
+  private stores = new Map<string, MemoryStore>();
+  private memories = new Map<string, Map<string, Memory>>(); // storeId → memoryId → Memory
   private seq = 0;
 
-  seed(storeId: string, items: Array<{ content: string; metadata?: Record<string, unknown> }>): void {
-    if (!this.stores.has(storeId)) this.stores.set(storeId, new Map());
-    const store = this.stores.get(storeId)!;
-    for (const item of items) {
-      const id = `fake_item_${++this.seq}`;
-      const now = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
-      store.set(id, { id, store_id: storeId, content: item.content, created_at: now, metadata: item.metadata });
-    }
+  private nowIso() { return new Date().toISOString().replace(/\.\d{3}Z$/, "Z"); }
+  private id(prefix: string) { return `${prefix}_${++this.seq}`; }
+
+  // seed helpers for tests
+  seedStore(name: string, id?: string): MemoryStore {
+    const store: MemoryStore = { id: id ?? this.id("store"), type: "memory_store", name, created_at: this.nowIso(), updated_at: this.nowIso() };
+    this.stores.set(store.id, store);
+    return store;
+  }
+  seedMemory(storeId: string, path: string, content: string): Memory {
+    if (!this.memories.has(storeId)) this.memories.set(storeId, new Map());
+    const mem: Memory = { id: this.id("mem"), type: "memory", path, content, content_sha256: `hash_${this.seq}`, content_size_bytes: content.length, memory_store_id: storeId, memory_version_id: this.id("ver"), created_at: this.nowIso(), updated_at: this.nowIso() };
+    this.memories.get(storeId)!.set(mem.id, mem);
+    return mem;
   }
 
-  async listItems(storeId: string, opts: ListItemsOptions = {}): Promise<MemoryStoreListResult> {
-    const store = this.stores.get(storeId);
-    const all = store ? [...store.values()] : [];
-    const startIdx = opts.after
-      ? all.findIndex((i) => i.id === opts.after) + 1
-      : 0;
-    const limit = opts.limit ?? 100;
-    const page = all.slice(startIdx, startIdx + limit);
-    const hasMore = startIdx + limit < all.length;
-    return {
-      items: page,
-      next_cursor: hasMore ? page[page.length - 1]?.id : undefined,
-      has_more: hasMore,
-    };
+  // Store CRUD
+  async createStore(name: string, opts?: { description?: string }): Promise<MemoryStore> {
+    const store: MemoryStore = { id: this.id("store"), type: "memory_store", name, description: opts?.description, created_at: this.nowIso(), updated_at: this.nowIso() };
+    this.stores.set(store.id, store);
+    return store;
+  }
+  async listStores(): Promise<PagedResult<MemoryStore>> {
+    return { data: [...this.stores.values()], has_more: false };
+  }
+  async getStore(id: string): Promise<MemoryStore | null> { return this.stores.get(id) ?? null; }
+  async updateStore(id: string, opts: { name?: string; description?: string }): Promise<MemoryStore> {
+    const s = this.stores.get(id); if (!s) throw new Error(`store not found: ${id}`);
+    Object.assign(s, opts, { updated_at: this.nowIso() });
+    return s;
+  }
+  async deleteStore(id: string): Promise<DeletedMemoryStore> {
+    this.stores.delete(id); this.memories.delete(id);
+    return { id, type: "memory_store_deleted" };
+  }
+  async archiveStore(id: string): Promise<MemoryStore> {
+    const s = this.stores.get(id); if (!s) throw new Error(`store not found: ${id}`);
+    s.archived_at = this.nowIso(); return s;
   }
 
-  async getItem(storeId: string, itemId: string): Promise<MemoryStoreItem | null> {
-    return this.stores.get(storeId)?.get(itemId) ?? null;
+  // Memory CRUD
+  async createMemory(storeId: string, path: string, content: string): Promise<Memory> {
+    if (!this.memories.has(storeId)) this.memories.set(storeId, new Map());
+    const mem: Memory = { id: this.id("mem"), type: "memory", path, content, content_sha256: `hash_${this.seq}`, content_size_bytes: content.length, memory_store_id: storeId, memory_version_id: this.id("ver"), created_at: this.nowIso(), updated_at: this.nowIso() };
+    this.memories.get(storeId)!.set(mem.id, mem);
+    return mem;
+  }
+  async listMemories(storeId: string, opts: ListMemoriesOptions = {}): Promise<PagedResult<MemoryListItem>> {
+    const all = [...(this.memories.get(storeId)?.values() ?? [])];
+    const filtered = opts.path_prefix ? all.filter(m => m.path.startsWith(opts.path_prefix!)) : all;
+    return { data: filtered as MemoryListItem[], has_more: false };
+  }
+  async getMemory(storeId: string, memoryId: string): Promise<Memory | null> {
+    return this.memories.get(storeId)?.get(memoryId) ?? null;
+  }
+  async updateMemory(storeId: string, memoryId: string, opts: { content?: string; path?: string }): Promise<Memory> {
+    const m = this.memories.get(storeId)?.get(memoryId); if (!m) throw new Error("not found");
+    if (opts.content !== undefined) m.content = opts.content;
+    if (opts.path    !== undefined) m.path    = opts.path;
+    m.updated_at = this.nowIso();
+    return m;
+  }
+  async deleteMemory(storeId: string, memoryId: string): Promise<DeletedMemory> {
+    this.memories.get(storeId)?.delete(memoryId);
+    return { id: memoryId, type: "memory_deleted" };
   }
 
-  async createItem(storeId: string, content: string, metadata?: Record<string, unknown>): Promise<MemoryStoreItem> {
-    if (!this.stores.has(storeId)) this.stores.set(storeId, new Map());
-    const id = `fake_item_${++this.seq}`;
-    const now = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
-    const item: MemoryStoreItem = { id, store_id: storeId, content, created_at: now, metadata };
-    this.stores.get(storeId)!.set(id, item);
-    return item;
+  // Versions (stub)
+  async listVersions(): Promise<PagedResult<MemoryVersion>> { return { data: [], has_more: false }; }
+  async getVersion(): Promise<MemoryVersion | null> { return null; }
+  async redactVersion(storeId: string, versionId: string): Promise<MemoryVersion> {
+    throw new Error(`redact not supported in fake client: ${storeId}/${versionId}`);
   }
 }
