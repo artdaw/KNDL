@@ -124,8 +124,9 @@ const AssertSchema = z.object({
 });
 
 const QuerySchema = z.object({
-  subject:        z.string().optional(),
+  subject:        z.string().optional().describe("Exact subject URI, e.g. 'person:alice', 'customer:9281'. Must match exactly what was stored."),
   predicate:      z.string().optional(),
+  text:           z.string().optional().describe("Case-insensitive substring search across statement + subject. Use this when you don't know the exact subject URI — e.g. 'alice' finds facts with subject 'person:alice' or statement containing 'Alice'."),
   as_of:          z.string().optional().describe("ISO datetime or 'now'"),
   min_confidence: z.number().min(0).max(1).optional(),
   tenant:         z.string().optional(),
@@ -232,7 +233,7 @@ function makeServer(): Server {
 
 const TOOLS = [
   { name: "assert_fact",        schema: AssertSchema,        description: "Write a new immutable fact. Include source, confidence, validFrom. Add decay for time-sensitive data ('0.5/30d' halves every 30 days)." },
-  { name: "query_facts",        schema: QuerySchema,         description: "Read active (non-superseded) facts with effective confidence at as_of time. Filter by subject/predicate. Defaults to now." },
+  { name: "query_facts",        schema: QuerySchema,         description: "Read active facts with effective confidence at as_of time. Use 'subject' for exact URI match (e.g. 'person:alice') or 'text' for substring search when you don't know the exact subject." },
   { name: "contradictions",     schema: ContradictionsSchema, description: "Find disagreeing active facts about the same subject/predicate, ranked by recency, confidence, and chain length." },
   { name: "supersede_fact",     schema: SupersedeSchema,     description: "Write a new fact replacing an older one. Preserves history — old fact hidden from queries but available for as_of time-travel." },
   { name: "as_of",              schema: AsOfSchema,          description: "Bitemporal time-travel: what did memory believe at the given timestamp." },
@@ -266,7 +267,7 @@ const TOOLS = [
       }
       case "query_facts": {
         const a = QuerySchema.parse(args);
-        const r = ok(await store.query({ subject: a.subject, predicate: a.predicate, asOf: a.as_of, minConfidence: a.min_confidence, tenant: a.tenant, allowPhi: a.allow_phi }));
+        const r = ok(await store.query({ subject: a.subject, predicate: a.predicate, text: a.text, asOf: a.as_of, minConfidence: a.min_confidence, tenant: a.tenant, allowPhi: a.allow_phi }));
         debug(`← tool:${name} ${Date.now() - t0}ms count=${JSON.parse(r.content[0].text).count}`);
         return r;
       }

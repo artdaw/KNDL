@@ -54,6 +54,10 @@ export interface QueryOptions {
   minConfidence?: number;
   tenant?: string;
   allowPhi?: boolean;
+  /** Case-insensitive substring search across statement + subject fields.
+   *  Use when you don't know the exact subject URI (e.g. search "alice"
+   *  finds facts with subject "person:alice" or statement containing "Alice"). */
+  text?: string;
 }
 
 export interface QueryResultFact extends Fact {

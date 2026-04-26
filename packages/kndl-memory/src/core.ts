@@ -150,12 +150,19 @@ export function applyQuery(facts: Fact[], opts: QueryOptions = {}): QueryResult 
   const asOfMs = new Date(asOf).getTime();
   const minConf = opts.minConfidence ?? 0;
 
+  const textLower = opts.text?.toLowerCase();
+
   const rows: QueryResultFact[] = facts
     .filter((f) => !superseded.has(f["@id"]))
     .filter((f) => factMatches(f, opts.subject, opts.predicate))
     .filter((f) => !opts.tenant || f.tenant === opts.tenant)
     .filter((f) => new Date(f.recordedAt).getTime() <= asOfMs)
     .filter((f) => !(f.classification === "PHI" && !opts.allowPhi))
+    // text: case-insensitive substring across statement + subject
+    .filter((f) => !textLower || (
+      f.statement.toLowerCase().includes(textLower) ||
+      (f.subject ?? "").toLowerCase().includes(textLower)
+    ))
     .map((f) => ({ ...f, effective_confidence: round4(effectiveConfidence(f, asOf)) }))
     .filter((f) => f.effective_confidence >= minConf)
     .sort((a, b) => b.effective_confidence - a.effective_confidence);
