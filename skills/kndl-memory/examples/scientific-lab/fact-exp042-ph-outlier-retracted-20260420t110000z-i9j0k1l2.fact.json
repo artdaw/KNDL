@@ -1,0 +1,16 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:exp042-buffer-ph-outlier-retracted-20260420t110000z-i9j0k1l2",
+  "@type": "Fact",
+  "statement": "Experiment EXP-042 pH reading of 6.9 in intermediate run retracted — electrode contamination confirmed",
+  "subject": "experiment:EXP-042",
+  "predicate": "buffer_ph",
+  "object": 6.9,
+  "confidence": 0.1,
+  "source": "researcher://dr-patel",
+  "validFrom": "2026-04-20T11:00:00Z",
+  "observedAt": "2026-04-20T10:58:00Z",
+  "recordedAt": "2026-04-20T12:30:00Z",
+  "negated": true,
+  "tags": ["retracted", "contamination"]
+}

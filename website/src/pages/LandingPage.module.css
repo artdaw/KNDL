@@ -26,7 +26,7 @@
   pointer-events: none;
 }
 
-.logo {
+.heroLogo {
   font-family: var(--font-mono);
   font-size: 72px;
   font-weight: 700;
@@ -37,26 +37,36 @@
   animation: fadeUp 0.8s ease-out;
 }
 
-.logo span {
-  color: var(--text-dim);
-  font-weight: 300;
-}
-
-.subtitle {
+.heroSub {
   font-size: 20px;
   color: var(--text-dim);
   font-style: italic;
   letter-spacing: 0.5px;
-  animation: fadeUp 0.8s ease-out 0.15s both;
+  animation: fadeUp 0.8s ease-out 0.1s both;
 }
 
-.tagline {
-  margin-top: 24px;
-  font-size: 13px;
-  color: var(--text-dim);
+.heroTagline {
+  margin-top: 10px;
+  font-size: 15px;
+  color: var(--text);
+  animation: fadeUp 0.8s ease-out 0.2s both;
+}
+
+.heroPills {
+  margin-top: 20px;
   font-family: var(--font-mono);
-  font-weight: 300;
+  font-size: 12px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
   animation: fadeUp 0.8s ease-out 0.3s both;
+}
+
+.pillarDot {
+  color: var(--border);
 }
 
 .heroActions {
@@ -123,44 +133,140 @@
   border-bottom: 1px solid var(--border);
 }
 
-.quickLook {
+.body {
+  font-size: 17px;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+  line-height: 1.75;
+}
+
+/* ── Problem section ── */
+.problemGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1.1fr;
   gap: 40px;
   align-items: start;
 }
 
-.body {
-  font-size: 17px;
-  color: var(--text);
-  margin-bottom: 16px;
-  line-height: 1.75;
+.problemText {}
+
+.problemList {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
 }
 
-.pillRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 24px;
-}
-
-.pill {
-  font-family: var(--font-mono);
-  font-size: 11px;
+.problemList li {
+  font-size: 15px;
   color: var(--text-dim);
-  border: 1px solid;
-  border-radius: 20px;
-  padding: 4px 12px;
+  padding: 6px 0 6px 20px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+  line-height: 1.5;
 }
 
-/* ── Feature grid ── */
-.featureGrid {
+.problemList li::before {
+  content: "—";
+  position: absolute;
+  left: 0;
+  color: var(--accent3);
+  font-family: var(--font-mono);
+}
+
+.factPreview {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.factLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.factCode {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--text);
+  padding: 16px;
+  margin: 0;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* ── Three layers ── */
+.layerGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 }
 
-.featureCard {
+.layerCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px 20px;
+  position: relative;
+}
+
+.layerCard[data-dim] {
+  opacity: 0.5;
+}
+
+.layerCard[data-accent] {
+  border-color: var(--accent);
+  box-shadow: 0 0 20px rgba(0, 229, 160, 0.06);
+}
+
+.layerCard[data-accent2] {
+  border-color: rgba(0, 184, 212, 0.3);
+}
+
+.layerWhat {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.layerName {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+.layerDesc {
+  font-size: 13.5px;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+.layerBadge {
+  margin-top: 12px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+/* ── Pillar grid ── */
+.pillarGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.pillarCard {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -168,75 +274,194 @@
   transition: border-color 0.3s, transform 0.2s;
 }
 
-.featureCard:hover {
+.pillarCard:hover {
   border-color: var(--card-accent, var(--accent));
   transform: translateY(-2px);
 }
 
-.featureIcon {
-  font-size: 22px;
+.pillarIcon {
+  font-size: 20px;
   display: block;
   margin-bottom: 10px;
 }
 
-.featureTitle {
+.pillarTitle {
   font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 600;
   margin-bottom: 6px;
 }
 
-.featureDesc {
-  font-size: 14px;
+.pillarDesc {
+  font-size: 13.5px;
   color: var(--text-dim);
   line-height: 1.55;
+}
+
+/* ── Use cases grid ── */
+.useCaseGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.useCaseCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+
+.useCaseCard:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 24px rgba(0, 229, 160, 0.07);
+}
+
+/* icon + title row */
+.useCaseTop {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.useCaseIcon {
+  width: 24px;
+  height: 24px;
+  color: var(--accent);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.useCaseMeta {
+  flex: 1;
+  min-width: 0;
+}
+
+.useCaseTitle {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+
+.useCaseTag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--accent);
+  background: rgba(0, 229, 160, 0.07);
+  border: 1px solid rgba(0, 229, 160, 0.18);
+  border-radius: 20px;
+  padding: 2px 8px;
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.useCaseDesc {
+  font-size: 12.5px;
+  color: var(--text-dim);
+  line-height: 1.55;
+  flex: 1;
+}
+
+.useCaseHint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+  opacity: 0.65;
+  margin-top: auto;
+  transition: opacity 0.15s, letter-spacing 0.15s;
+}
+
+.useCaseCard:hover .useCaseHint {
+  opacity: 1;
+  letter-spacing: 0.3px;
 }
 
 /* ── CTA row ── */
 .ctaRow {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
   margin-bottom: 80px;
 }
 
 .ctaCard {
   display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 20px;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px 18px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   text-decoration: none;
-  color: var(--text);
-  transition: border-color 0.2s, transform 0.2s;
+  color: inherit;
+  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
 }
 
 .ctaCard:hover {
-  border-color: var(--accent);
-  transform: translateY(-2px);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.25);
 }
 
-.ctaIcon { font-size: 24px; flex-shrink: 0; }
+.ctaTop {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
 
-.ctaTitle {
+.ctaIcon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.ctaLabel {
   font-family: var(--font-mono);
   font-size: 13px;
-  font-weight: 600;
-  color: var(--accent);
-  margin-bottom: 4px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.ctaSub {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.3;
+  margin-top: 2px;
 }
 
 .ctaDesc {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-dim);
+  line-height: 1.5;
+  flex: 1;
 }
 
 .ctaArrow {
-  margin-left: auto;
-  color: var(--text-dim);
-  font-size: 18px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.7;
+  margin-top: auto;
+  transition: opacity 0.15s, letter-spacing 0.15s;
+}
+
+.ctaCard:hover .ctaArrow {
+  opacity: 1;
+  letter-spacing: 0.5px;
 }
 
 /* ── Footer ── */
@@ -262,10 +487,32 @@
 }
 
 /* ── Responsive ── */
+@media (max-width: 900px) {
+  .ctaRow { grid-template-columns: repeat(3, 1fr); }
+}
+
 @media (max-width: 768px) {
-  .logo        { font-size: 48px; }
-  .quickLook   { grid-template-columns: 1fr; }
-  .featureGrid { grid-template-columns: 1fr; }
-  .ctaRow      { grid-template-columns: 1fr; }
+  .heroLogo    { font-size: 48px; }
+  .problemGrid { grid-template-columns: 1fr; }
+  .layerGrid   { grid-template-columns: 1fr; }
+  .pillarGrid  { grid-template-columns: 1fr 1fr; }
+  .useCaseGrid { grid-template-columns: 1fr 1fr; }
+  .ctaRow      { grid-template-columns: repeat(2, 1fr); }
   .container   { padding: 0 20px; }
+  .hero        { padding: 80px 20px 60px; }
+}
+
+@media (max-width: 500px) {
+  .pillarGrid  { grid-template-columns: 1fr; }
+  .useCaseGrid { grid-template-columns: 1fr; }
+  .ctaRow      { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 420px) {
+  .heroLogo    { font-size: 36px; }
+  .heroTagline { font-size: 13px; }
+  .ctaRow      { grid-template-columns: 1fr; }
+  /* Fact code block: prevent overflow */
+  .factCode    { font-size: 10px; overflow-x: auto; }
+  .factPreview { overflow-x: hidden; }
 }

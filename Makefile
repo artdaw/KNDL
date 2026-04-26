@@ -1,69 +1,63 @@
 .PHONY: help \
-        py-install py-test py-test-cov py-lint py-build \
-		mcp-install mcp-run mcp-run-http mcp-test \
+        kndl-install kndl-build kndl-test kndl-lint kndl-eval \
         web-install web-dev web-build web-preview \
-		install build test lint clean
+        mcp-run mcp-run-http \
+        install build test clean
+
+NODE = node
+PNPM = pnpm
 
 # ── Default: list targets ─────────────────────────────────────────────────────
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-	  awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
+	  awk 'BEGIN {FS = ":.*?## "}; {printf "  %-22s %s\n", $$1, $$2}'
 
-# ── Python library ────────────────────────────────────────────────────────────
-py-install: ## Install Python library deps
-	cd packages/python && uv sync --all-extras
+# ── @kndl/memory package ──────────────────────────────────────────────────────
+kndl-install: ## Install @kndl/memory deps
+	cd packages/kndl-memory && $(PNPM) install
 
-py-test: ## Run Python tests
-	cd packages/python && uv run pytest -v
+kndl-build: ## Build @kndl/memory (ESM + type declarations)
+	cd packages/kndl-memory && $(PNPM) run build
 
-py-test-cov: ## Run Python tests with coverage
-	cd packages/python && uv run pytest --cov=src/kndl --cov-report=term-missing
+kndl-test: ## Run @kndl/memory tests (stores + remote, 36 tests)
+	cd packages/kndl-memory && $(PNPM) test
 
-py-lint: ## Lint Python (ruff + mypy)
-	cd packages/python && uv run ruff check src tests && uv run mypy src
+kndl-lint: ## Type-check @kndl/memory
+	cd packages/kndl-memory && npx tsc --noEmit
 
-py-build: ## Build Python wheel
-	cd packages/python && uv build
+kndl-eval: ## Run eval and publish results to website/public/eval/results.json
+	cd packages/kndl-memory && npx tsx eval/runner.ts \
+	  --out ../../website/public/eval/results.json
+
+publish-eval: kndl-eval web-build ## Run eval, publish results, build website
 
 # ── MCP server ────────────────────────────────────────────────────────────────
-mcp-install: ## Install MCP server deps
-	cd packages/mcp-server && uv sync --all-extras
+mcp-run: ## Start kndl-memory-mcp (stdio, default storage)
+	cd packages/kndl-memory && $(NODE) dist/server.js
 
-mcp-run: ## Start MCP server (stdio)
-	cd packages/mcp-server && uv run python -m kndl_mcp
-
-mcp-run-http: ## Start MCP server (HTTP, port 8000)
-	cd packages/mcp-server && uv run python -m kndl_mcp --http
-
-mcp-lint: ## Lint MCP (ruff + mypy)
-	cd packages/mcp-server && uv run ruff check src tests && uv run mypy src
-
-mcp-test: ## Run MCP integration tests
-	cd packages/mcp-server && uv run pytest -v
+mcp-run-http: ## Start kndl-memory-mcp (HTTP port 8000, DEBUG logging)
+	cd packages/kndl-memory && LOG_LEVEL=DEBUG $(NODE) dist/server.js --http
 
 # ── Website ───────────────────────────────────────────────────────────────────
-web-install: ## Install website pnpm deps
-	cd website && pnpm install
+web-install: ## Install website deps
+	cd website && $(PNPM) install
 
 web-dev: ## Start Vite dev server
-	cd website && pnpm run dev
+	cd website && $(PNPM) run dev
 
 web-build: ## Build website for production
-	cd website && pnpm run build
+	cd website && $(PNPM) run build
 
 web-preview: ## Preview production build
-	cd website && pnpm run preview
+	cd website && $(PNPM) run preview
 
 # ── Aggregates ────────────────────────────────────────────────────────────────
-install: py-install mcp-install ## Install all packages
+install: kndl-install web-install ## Install all packages
 
-build: py-build ## Build all packages
+build: kndl-build web-build ## Build all packages
 
-test: py-test mcp-test ## Run all test suites
+test: kndl-test ## Run all tests
 
-lint: py-lint mcp-lint ## Run all linters
-
-clean: ## Remove build artifacts and venvs
-	cd packages/python     && rm -rf dist .venv
-	cd packages/mcp-server && rm -rf dist .venv
+clean: ## Remove build artifacts and node_modules
+	cd packages/kndl-memory && rm -rf dist node_modules
 	cd website             && rm -rf dist node_modules

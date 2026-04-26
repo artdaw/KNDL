@@ -1,0 +1,14 @@
+{
+  "@context": "../context/v1.jsonld",
+  "@id": "fact:customer-9281-defaultevent-20260425T235231Z-e4b6d53c",
+  "@type": "Fact",
+  "statement": "Customer 9281 defaulted on 12500 EUR with bank-abc",
+  "confidence": 0.98,
+  "source": "https://schufa.de/9281",
+  "validFrom": "2026-04-20T00:00:00Z",
+  "recordedAt": "2026-04-25T23:52:31Z",
+  "subject": "customer:9281",
+  "predicate": "defaultEvent",
+  "object": "12500 EUR with bank-abc",
+  "decay": "0.5/365d"
+}

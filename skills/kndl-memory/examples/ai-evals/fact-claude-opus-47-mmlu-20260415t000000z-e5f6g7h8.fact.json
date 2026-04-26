@@ -1,0 +1,15 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:model-claude-opus-47-mmlu-20260415t000000z-e5f6g7h8",
+  "@type": "Fact",
+  "statement": "Claude Opus 4.7 scores 93.8% on MMLU benchmark (5-shot), improving on Sonnet 4.5",
+  "subject": "model:claude-opus-4-7",
+  "predicate": "mmlu_5shot",
+  "object": 93.8,
+  "confidence": 0.99,
+  "decay": "0.5/365d",
+  "source": "https://anthropic.com/research/claude-4-evals",
+  "validFrom": "2026-04-15T00:00:00Z",
+  "recordedAt": "2026-04-15T00:00:00Z",
+  "tags": ["benchmark", "mmlu", "claude-opus"]
+}

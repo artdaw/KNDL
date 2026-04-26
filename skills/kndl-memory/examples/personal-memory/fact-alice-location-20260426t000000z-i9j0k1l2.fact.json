@@ -1,0 +1,14 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:alice-location-20260426t000000z-i9j0k1l2",
+  "@type": "Fact",
+  "statement": "Alice is based in Berlin",
+  "subject": "person:alice",
+  "predicate": "city",
+  "object": "Berlin",
+  "confidence": 0.85,
+  "decay": "0.5/90d",
+  "source": "human://gleb",
+  "validFrom": "2026-01-01T00:00:00Z",
+  "recordedAt": "2026-04-26T00:00:00Z"
+}

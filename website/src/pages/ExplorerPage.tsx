@@ -1,560 +1,702 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { parseKNDL, typeColor, GraphData, GraphNodeData } from "../utils/kndlParser";
-import { useForceLayout, Position } from "../hooks/useForceLayout";
+import { useSearchParams } from "react-router";
 import { SEO, techArticleSchema } from "../components/SEO";
+import { DOMAINS, type DomainBundle, type Fact } from "../data/examples";
 import styles from "./ExplorerPage.module.css";
 
-// ── Sample KNDL ───────────────────────────────────────────────────────────────
+// ── Decay helpers ─────────────────────────────────────────────────────────────
 
-const SAMPLE = `node @berlin :: Location {
-  name     = "Berlin"
-  country  = "Germany"
-  pop      = 3645000
-  ~confidence 0.99
-  ~source     "wikidata://Q64"
+const UNIT_SEC: Record<string, number> = { s: 1, m: 60, h: 3600, d: 86400, w: 604800, mo: 2592000, y: 31536000 };
+
+function parseDecay(decay: string): { rate: number; windowSec: number } | null {
+  const m = decay.match(/^([0-9.]+)\/(\d+(?:\.\d+)?)(s|m|h|d|w|mo|y)$/);
+  if (!m) return null;
+  return { rate: parseFloat(m[1]), windowSec: parseFloat(m[2]) * (UNIT_SEC[m[3]] ?? 86400) };
 }
 
-node @temp_01 :: Temperature {
-  value    = 18.5
-  unit     = "°C"
-  location -> @berlin
-  ~confidence 0.92
-  ~source     "sensor://bldg-7/t-001"
-  ~valid      2026-04-10T14:00Z .. 2026-04-10T14:05Z
-  ~decay      0.95 / 1h
+function effectiveConfidence(fact: Fact): number {
+  if (!fact.decay) return fact.confidence;
+  const parsed = parseDecay(fact.decay);
+  if (!parsed) return fact.confidence;
+  const elapsed = (Date.now() - new Date(fact.validFrom).getTime()) / 1000;
+  if (elapsed <= 0) return fact.confidence;
+  return fact.confidence * Math.pow(parsed.rate, elapsed / parsed.windowSec);
 }
 
-node @sensor_01 :: Device {
-  model    = "Bosch BME280"
-  floor    = 3
-  location -> @berlin
-  measures -> @temp_01
-  ~confidence 0.97
-  ~source     "inventory://sensors"
+// Detect entity-reference objects (namespace:value format)
+function isEntityRef(val: unknown): val is string {
+  return typeof val === "string" && /^[a-z][a-z0-9_-]+:[a-z0-9]/.test(val);
 }
 
-node @research_team :: Organization {
-  name     = "Climate Data Lab"
-  city     -> @berlin
-  ~confidence 0.88
-  ~source     "internal://org-chart"
+// ── Graph data model ──────────────────────────────────────────────────────────
+
+interface GNode {
+  id: string;
+  label: string;
+  facts: Fact[];
+  eff: number;        // max effective confidence
+  isSubject: boolean; // vs. object-only node
 }
 
-node @dr_mueller :: Person {
-  name     = "Dr. Lena Mueller"
-  role     = "Lead Scientist"
-  worksAt  -> @research_team
-  ~confidence 0.95
-  ~source     "agent://hr"
+interface GEdge {
+  id: string;
+  source: string;
+  target: string;
+  label: string;
+  kind: "predicate" | "supersedes" | "derivedFrom";
 }
 
-node @heat_alert :: Event {
-  type     = "TemperatureAlert"
-  severity = "moderate"
-  triggers -> @temp_01
-  ~confidence 0.80
-  ~source     "agent://monitor"
-}`;
+function buildGraph(facts: Fact[]): { nodes: GNode[]; edges: GEdge[] } {
+  const nodeMap = new Map<string, GNode>();
 
-// ── Confidence bar ────────────────────────────────────────────────────────────
+  function ensureNode(id: string, isSubject: boolean) {
+    if (!nodeMap.has(id)) {
+      const label = id.includes(":") ? id.split(":").slice(1).join(":").slice(0, 24) : id.slice(0, 24);
+      nodeMap.set(id, { id, label, facts: [], eff: 0, isSubject });
+    }
+    if (isSubject) nodeMap.get(id)!.isSubject = true;
+  }
 
-function ConfBar({ confidence }: { confidence: string }) {
-  const pct = Math.round((parseFloat(confidence) || 0) * 100);
-  const color = pct > 80 ? "#4ECDC4" : pct > 50 ? "#F7C59F" : "#E63946";
+  const edges: GEdge[] = [];
+
+  facts.forEach(f => {
+    if (!f.subject) return;
+    ensureNode(f.subject, true);
+    const node = nodeMap.get(f.subject)!;
+    node.facts.push(f);
+    node.eff = Math.max(node.eff, effectiveConfidence(f));
+
+    // Object → entity edge
+    if (isEntityRef(f.object)) {
+      ensureNode(f.object as string, false);
+      edges.push({
+        id: `pred-${f["@id"]}`,
+        source: f.subject,
+        target: f.object as string,
+        label: f.predicate ?? "relates_to",
+        kind: "predicate",
+      });
+    }
+
+    // supersedes → edge between facts' subjects
+    if (f.supersedes) {
+      const oldFact = facts.find(x => x["@id"] === f.supersedes);
+      if (oldFact?.subject && oldFact.subject !== f.subject) {
+        ensureNode(oldFact.subject, true);
+        edges.push({
+          id: `sup-${f["@id"]}`,
+          source: f.subject,
+          target: oldFact.subject,
+          label: "supersedes",
+          kind: "supersedes",
+        });
+      }
+    }
+
+    // derivedFrom → edges
+    if (f.derivedFrom) {
+      f.derivedFrom.forEach((srcId, i) => {
+        const srcFact = facts.find(x => x["@id"] === srcId);
+        if (srcFact?.subject && srcFact.subject !== f.subject) {
+          ensureNode(srcFact.subject, true);
+          edges.push({
+            id: `der-${f["@id"]}-${i}`,
+            source: f.subject!,
+            target: srcFact.subject,
+            label: "derivedFrom",
+            kind: "derivedFrom",
+          });
+        }
+      });
+    }
+  });
+
+  // Deduplicate edges (same source→target pair)
+  const seen = new Set<string>();
+  const dedupedEdges = edges.filter(e => {
+    const key = [e.source, e.target, e.kind].sort().join("|");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  return { nodes: [...nodeMap.values()], edges: dedupedEdges };
+}
+
+// ── Force simulation hook ─────────────────────────────────────────────────────
+
+interface Vec2 { x: number; y: number; vx: number; vy: number; }
+
+function useForce(
+  nodeIds: string[],
+  edges: { source: string; target: string }[],
+  width: number,
+  height: number,
+  paused: boolean,
+) {
+  const physicsRef = useRef<Map<string, Vec2>>(new Map());
+  const [positions, setPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
+  const rafRef = useRef<number>(0);
+  const draggingRef = useRef<string | null>(null);
+
+  // Initialise positions in a circle when the node list changes
+  const nodeKey = nodeIds.join(",");
+  useEffect(() => {
+    const map = new Map<string, Vec2>();
+    nodeIds.forEach((id, i) => {
+      const angle = (2 * Math.PI * i) / Math.max(nodeIds.length, 1);
+      const r = Math.min(width, height) * 0.32;
+      map.set(id, { x: width / 2 + r * Math.cos(angle), y: height / 2 + r * Math.sin(angle), vx: 0, vy: 0 });
+    });
+    physicsRef.current = map;
+  }, [nodeKey, width, height]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const edgeKey = edges.map(e => e.source + e.target).join(",");
+
+  useEffect(() => {
+    const REPULSION     = 4000;
+    const SPRING_K      = 0.04;
+    const REST_LEN      = 150;
+    const GRAVITY       = 0.015;
+    const DAMPING       = 0.82;
+    const MIN_DIST      = 30;
+
+    const tick = () => {
+      if (paused) { rafRef.current = requestAnimationFrame(tick); return; }
+      const pos = physicsRef.current;
+      const ids = [...pos.keys()];
+
+      // Centre gravity
+      ids.forEach(id => {
+        const p = pos.get(id)!;
+        p.vx += (width / 2 - p.x) * GRAVITY;
+        p.vy += (height / 2 - p.y) * GRAVITY;
+      });
+
+      // Node–node repulsion
+      for (let i = 0; i < ids.length; i++) {
+        for (let j = i + 1; j < ids.length; j++) {
+          const a = pos.get(ids[i])!;
+          const b = pos.get(ids[j])!;
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const dist = Math.max(Math.sqrt(dx * dx + dy * dy), MIN_DIST);
+          const f = REPULSION / (dist * dist);
+          const fx = f * dx / dist;
+          const fy = f * dy / dist;
+          a.vx -= fx; a.vy -= fy;
+          b.vx += fx; b.vy += fy;
+        }
+      }
+
+      // Spring attraction along edges
+      edges.forEach(({ source, target }) => {
+        const a = pos.get(source);
+        const b = pos.get(target);
+        if (!a || !b) return;
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const dist = Math.max(Math.sqrt(dx * dx + dy * dy), MIN_DIST);
+        const f = SPRING_K * (dist - REST_LEN);
+        const fx = f * dx / dist;
+        const fy = f * dy / dist;
+        a.vx += fx; a.vy += fy;
+        b.vx -= fx; b.vy -= fy;
+      });
+
+      // Integrate + clamp
+      ids.forEach(id => {
+        if (id === draggingRef.current) return; // don't move dragged node
+        const p = pos.get(id)!;
+        p.vx *= DAMPING;
+        p.vy *= DAMPING;
+        p.x = Math.max(50, Math.min(width - 50, p.x + p.vx));
+        p.y = Math.max(50, Math.min(height - 50, p.y + p.vy));
+      });
+
+      // Snapshot for rendering
+      const snap = new Map<string, { x: number; y: number }>();
+      pos.forEach((v, k) => snap.set(k, { x: v.x, y: v.y }));
+      setPositions(snap);
+
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [nodeKey, edgeKey, width, height, paused]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Drag handlers
+  const startDrag = useCallback((id: string) => { draggingRef.current = id; }, []);
+  const moveDrag  = useCallback((x: number, y: number) => {
+    const id = draggingRef.current;
+    if (!id) return;
+    const p = physicsRef.current.get(id);
+    if (p) { p.x = x; p.y = y; p.vx = 0; p.vy = 0; }
+  }, []);
+  const endDrag   = useCallback(() => { draggingRef.current = null; }, []);
+
+  return { positions, startDrag, moveDrag, endDrag };
+}
+
+// ── ForceGraph component ──────────────────────────────────────────────────────
+
+const EDGE_COLORS: Record<string, string> = {
+  predicate:   "rgba(0,229,160,0.5)",
+  supersedes:  "rgba(0,184,212,0.6)",
+  derivedFrom: "rgba(255,217,61,0.55)",
+};
+
+const NODE_COLORS = [
+  "#00e5a0","#00b8d4","#ffd93d","#ff6b9d",
+  "#a78bfa","#f97316","#22d3ee","#86efac",
+];
+
+function nodeColor(_id: string, idx: number): string {
+  return NODE_COLORS[idx % NODE_COLORS.length];
+}
+
+function ForceGraph({
+  nodes, edges, onSelect, selected,
+}: {
+  nodes: GNode[];
+  edges: GEdge[];
+  onSelect: (node: GNode | null) => void;
+  selected: GNode | null;
+}) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [dims, setDims] = useState({ w: 800, h: 520 });
+
+  useEffect(() => {
+    const el = svgRef.current?.parentElement;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect;
+      setDims({ w: width, h: Math.max(height, 420) });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const { positions, startDrag, moveDrag, endDrag } = useForce(
+    nodes.map(n => n.id),
+    edges.map(e => ({ source: e.source, target: e.target })),
+    dims.w,
+    dims.h,
+    false,
+  );
+
+  const nodeColorMap = new Map(nodes.map((n, i) => [n.id, nodeColor(n.id, i)]));
+
+  // SVG mouse event handlers for dragging
+  function onMouseDown(e: React.MouseEvent, nodeId: string) {
+    e.preventDefault();
+    startDrag(nodeId);
+    const svgEl = svgRef.current;
+    if (!svgEl) return;
+
+    function onMove(ev: MouseEvent) {
+      const rect = svgEl!.getBoundingClientRect();
+      moveDrag(ev.clientX - rect.left, ev.clientY - rect.top);
+    }
+    function onUp() {
+      endDrag();
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
+
+  return (
+    <svg
+      ref={svgRef}
+      className={styles.graphSvg}
+      width={dims.w}
+      height={dims.h}
+    >
+      <defs>
+        {Object.entries(EDGE_COLORS).map(([kind, color]) => (
+          <marker
+            key={kind}
+            id={`arrow-${kind}`}
+            viewBox="0 0 10 10"
+            refX="20"
+            refY="5"
+            markerWidth="6"
+            markerHeight="6"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 0 L 10 5 L 0 10 z" fill={color} />
+          </marker>
+        ))}
+      </defs>
+
+      {/* Edges */}
+      {edges.map(edge => {
+        const s = positions.get(edge.source);
+        const t = positions.get(edge.target);
+        if (!s || !t) return null;
+        const color = EDGE_COLORS[edge.kind] ?? EDGE_COLORS.predicate;
+        const mx = (s.x + t.x) / 2;
+        const my = (s.y + t.y) / 2;
+        return (
+          <g key={edge.id}>
+            <line
+              x1={s.x} y1={s.y} x2={t.x} y2={t.y}
+              stroke={color}
+              strokeWidth={edge.kind === "predicate" ? 1.5 : 2}
+              strokeDasharray={edge.kind === "derivedFrom" ? "5 3" : undefined}
+              markerEnd={`url(#arrow-${edge.kind})`}
+            />
+            <text
+              x={mx} y={my - 5}
+              textAnchor="middle"
+              fontSize={9}
+              fill={color}
+              style={{ pointerEvents: "none", userSelect: "none" }}
+            >
+              {edge.label.slice(0, 18)}
+            </text>
+          </g>
+        );
+      })}
+
+      {/* Nodes */}
+      {nodes.map(node => {
+        const pos = positions.get(node.id);
+        if (!pos) return null;
+        const color   = nodeColorMap.get(node.id)!;
+        const r       = node.isSubject ? 22 : 14;
+        const isSelected = selected?.id === node.id;
+        const effPct  = Math.round(node.eff * 100);
+
+        return (
+          <g
+            key={node.id}
+            transform={`translate(${pos.x},${pos.y})`}
+            style={{ cursor: "grab" }}
+            onMouseDown={e => onMouseDown(e, node.id)}
+            onClick={() => onSelect(isSelected ? null : node)}
+          >
+            {isSelected && (
+              <circle r={r + 8} fill="none" stroke={color} strokeWidth={2} opacity={0.35} />
+            )}
+            <circle
+              r={r}
+              fill={`${color}22`}
+              stroke={color}
+              strokeWidth={isSelected ? 2.5 : 1.5}
+            />
+            {/* Effective confidence arc */}
+            {effPct < 100 && (
+              <circle
+                r={r}
+                fill="none"
+                stroke={color}
+                strokeWidth={3}
+                strokeDasharray={`${(effPct / 100) * 2 * Math.PI * r} 9999`}
+                strokeDashoffset={Math.PI * r / 2}
+                opacity={0.6}
+                transform="rotate(-90)"
+                style={{ pointerEvents: "none" }}
+              />
+            )}
+            <text
+              y={4}
+              textAnchor="middle"
+              fontSize={node.isSubject ? 10 : 8}
+              fontWeight={600}
+              fill={color}
+              style={{ pointerEvents: "none", userSelect: "none" }}
+            >
+              {node.label.length > 14 ? node.label.slice(0, 13) + "…" : node.label}
+            </text>
+            <text
+              y={r + 13}
+              textAnchor="middle"
+              fontSize={8}
+              fill="rgba(255,255,255,0.45)"
+              style={{ pointerEvents: "none", userSelect: "none" }}
+            >
+              {effPct}%
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+// ── Card view sub-components ──────────────────────────────────────────────────
+
+function ConfBar({ base, effective }: { base: number; effective: number }) {
+  const basePct = Math.round(base * 100);
+  const effPct  = Math.round(effective * 100);
+  const color   = effPct > 70 ? "var(--accent)" : effPct > 40 ? "var(--accent4)" : "var(--accent3)";
   return (
     <div className={styles.confBar}>
       <div className={styles.confTrack}>
-        <div className={styles.confFill} style={{ width: `${pct}%`, background: color }} />
+        <div className={styles.confFillBase} style={{ width: `${basePct}%` }} title={`Base: ${basePct}%`} />
+        <div className={styles.confFillEff}  style={{ width: `${effPct}%`, background: color }} title={`Effective: ${effPct}%`} />
       </div>
-      <span className={styles.confPct} style={{ color }}>{pct}%</span>
+      <div className={styles.confLabels}>
+        <span className={styles.confBase}>{base.toFixed(2)}</span>
+        {effective !== base && (
+          <><span className={styles.confArrow}>→</span><span className={styles.confEff} style={{ color }}>{effective.toFixed(2)}</span></>
+        )}
+      </div>
     </div>
   );
 }
 
-// ── Detail panel ──────────────────────────────────────────────────────────────
-
-interface DetailPanelProps {
-  node: GraphNodeData;
-  graph: GraphData;
-  onClose: () => void;
-  onNavigate: (id: string) => void;
+function ClassBadge({ cls }: { cls: string }) {
+  const colorMap: Record<string, string> = {
+    PHI: "var(--accent3)", PII: "var(--accent3)", CONFIDENTIAL: "var(--accent4)", INTERNAL: "var(--accent2)",
+  };
+  return (
+    <span className={styles.classBadge} style={{ color: colorMap[cls] ?? "var(--text-dim)", borderColor: colorMap[cls] ?? "var(--border)" }}>
+      {cls}
+    </span>
+  );
 }
 
-function DetailPanel({ node, graph, onClose, onNavigate }: DetailPanelProps) {
-  const c = typeColor(node.typeName);
-  const metaEntries = Object.entries(node.meta).filter(([k]) => k !== "confidence");
-
+function FactCard({ fact, isSuperseded }: { fact: Fact; isSuperseded: boolean }) {
+  const eff = effectiveConfidence(fact);
   return (
-    <div className={styles.detailContent}>
-      <div className={styles.detailHeader}>
-        <div>
-          <div
-            className={styles.detailTypeBadge}
-            style={{ background: c.bg, color: c.text }}
-          >
-            {node.typeName}
+    <div className={`${styles.factCard} ${isSuperseded ? styles.superseded : ""}`}>
+      {isSuperseded && <div className={styles.supersededBanner}>superseded</div>}
+      {fact.negated && <div className={styles.negatedBanner}>negated</div>}
+      <p className={styles.statement}>{fact.statement}</p>
+      {(fact.subject || fact.predicate || fact.object !== undefined) && (
+        <div className={styles.spo}>
+          {fact.subject   && <span className={styles.spoSubject}>{fact.subject}</span>}
+          {fact.predicate && <span className={styles.spoPredicate}>{fact.predicate}</span>}
+          {fact.object !== undefined && <span className={styles.spoObject}>{String(fact.object)}</span>}
+        </div>
+      )}
+      <ConfBar base={fact.confidence} effective={eff} />
+      <div className={styles.meta}>
+        <div className={styles.metaRow}>
+          <span className={styles.metaLabel}>source</span>
+          <span className={styles.metaValue} title={fact.source}>{fact.source.replace(/^https?:\/\//, "").slice(0, 48)}</span>
+        </div>
+        <div className={styles.metaRow}>
+          <span className={styles.metaLabel}>validFrom</span>
+          <span className={styles.metaValue}>{fact.validFrom.slice(0, 10)}</span>
+        </div>
+        {fact.decay && (
+          <div className={styles.metaRow}>
+            <span className={styles.metaLabel}>decay</span>
+            <span className={styles.metaValue} style={{ color: "var(--accent4)" }}>{fact.decay}</span>
           </div>
-          <div className={styles.detailId}>@{node.id}</div>
-        </div>
-        <button className={styles.closeBtn} onClick={onClose} aria-label="Close">×</button>
+        )}
       </div>
-
-      {node.meta.confidence && (
-        <div className={styles.sectionBlock}>
-          <div className={styles.sectionLabel}>Confidence</div>
-          <ConfBar confidence={node.meta.confidence} />
+      <div className={styles.cardFooter}>
+        <div className={styles.badgeRow}>
+          {fact.classification && <ClassBadge cls={fact.classification} />}
+          {fact.supersedes && <span className={styles.linkBadge} title={fact.supersedes}>supersedes ↑</span>}
+          {fact.derivedFrom && fact.derivedFrom.length > 0 && (
+            <span className={styles.linkBadge} title={fact.derivedFrom.join(", ")}>derived from {fact.derivedFrom.length}</span>
+          )}
         </div>
-      )}
+        {fact.tags && fact.tags.length > 0 && (
+          <div className={styles.tags}>{fact.tags.map(t => <span key={t} className={styles.tag}>{t}</span>)}</div>
+        )}
+      </div>
+      <div className={styles.factId} title={fact["@id"]}>…{fact["@id"].replace(/^fact:/, "").slice(-20)}</div>
+    </div>
+  );
+}
 
-      {Object.keys(node.fields).length > 0 && (
-        <div className={styles.sectionBlock}>
-          <div className={styles.sectionLabel}>Fields</div>
-          {Object.entries(node.fields).map(([k, v]) => (
-            <div key={k} className={styles.fieldRow}>
-              <span className={styles.fieldKey}>{k}</span>
-              <span className={styles.fieldVal}>
-                {typeof v === "number" ? v.toLocaleString() : v}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+// ── Graph node detail panel ───────────────────────────────────────────────────
 
-      {node.edgesRaw.length > 0 && (
-        <div className={styles.sectionBlock}>
-          <div className={styles.sectionLabel}>Edges</div>
-          {node.edgesRaw.map((e, i) => {
-            const target = graph.nodes[e.target];
-            const tc = typeColor(target?.typeName ?? "Unknown");
-            return (
-              <div key={i} className={styles.edgeRow} onClick={() => onNavigate(e.target)}>
-                <span className={styles.edgeLabel}>{e.label}</span>
-                <span className={styles.edgeArrow}>→</span>
-                <span style={{ fontSize: 10, color: tc.bg }}>@{e.target}</span>
+function NodeDetail({ node, superseded }: { node: GNode; superseded: Set<string> }) {
+  return (
+    <div className={styles.nodeDetail}>
+      <div className={styles.nodeDetailHeader}>
+        <span className={styles.nodeDetailId}>{node.id}</span>
+        <span className={styles.nodeDetailEff}>{Math.round(node.eff * 100)}% eff.</span>
+      </div>
+      <div className={styles.nodeDetailFacts}>
+        {node.facts.map(f => (
+          <div key={f["@id"]} className={`${styles.nodeDetailFact} ${superseded.has(f["@id"]) ? styles.supersededMini : ""}`}>
+            <div className={styles.nodeDetailStatement}>{f.statement}</div>
+            {f.predicate && (
+              <div className={styles.nodeDetailPred}>
+                {f.predicate}: <strong>{f.object !== undefined ? String(f.object) : "—"}</strong>
               </div>
-            );
-          })}
-        </div>
-      )}
+            )}
+            {f.decay && <div className={styles.nodeDetailDecay}>decay {f.decay}</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-      {metaEntries.length > 0 && (
-        <div className={styles.sectionBlock}>
-          <div className={styles.sectionLabel}>Meta</div>
-          {metaEntries.map(([k, v]) => (
-            <div key={k}>
-              <div className={styles.metaKey}>~{k}</div>
-              <div className={styles.metaVal}>{v}</div>
-            </div>
-          ))}
+// ── Legend ────────────────────────────────────────────────────────────────────
+
+function GraphLegend() {
+  return (
+    <div className={styles.graphLegend}>
+      {[
+        { color: EDGE_COLORS.predicate,   dash: false, label: "predicate edge" },
+        { color: EDGE_COLORS.supersedes,  dash: false, label: "supersedes" },
+        { color: EDGE_COLORS.derivedFrom, dash: true,  label: "derivedFrom" },
+      ].map(({ color, dash, label }) => (
+        <div key={label} className={styles.legendItem}>
+          <svg width={28} height={10}>
+            <line x1={0} y1={5} x2={28} y2={5} stroke={color} strokeWidth={1.5}
+              strokeDasharray={dash ? "4 2" : undefined} />
+          </svg>
+          <span>{label}</span>
         </div>
-      )}
+      ))}
+      <div className={styles.legendItem}>
+        <span className={styles.legendCircle} />
+        <span>arc = effective confidence</span>
+      </div>
+      <div className={styles.legendHint}>drag nodes · click to inspect</div>
     </div>
   );
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-type ViewMode = "graph" | "editor";
+type ViewMode = "cards" | "graph";
 
 export default function ExplorerPage() {
-  const [source, setSource] = useState(SAMPLE);
-  const [graph, setGraph] = useState<GraphData>({ nodes: {}, edges: [] });
-  const [selected, setSelected] = useState<string | null>(null);
-  const [hovered, setHovered] = useState<string | null>(null);
-  const [view, setView] = useState<ViewMode>("graph");
-  const [pan, setPan] = useState<Position>({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [dragging, setDragging] = useState<string | null>(null);
-  const [isPanning, setIsPanning] = useState(false);
-  const panStart = useRef<Position | null>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [canvasSize, setCanvasSize] = useState({ w: 900, h: 560 });
+  const [searchParams, setSearchParams] = useSearchParams();
+  const domainParam = searchParams.get("domain") ?? "loan-decision";
+  const [selectedDomainId, setSelectedDomainId] = useState(domainParam);
+  const [viewMode, setViewMode] = useState<ViewMode>("cards");
+  const [selectedNode, setSelectedNode] = useState<GNode | null>(null);
 
-  // observe canvas size
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(entries => {
-      const { width, height } = entries[0].contentRect;
-      setCanvasSize({ w: width, h: height });
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
+  const domain: DomainBundle = DOMAINS.find(d => d.id === selectedDomainId) ?? DOMAINS[0];
 
-  // parse on source change
-  useEffect(() => {
-    try {
-      setGraph(parseKNDL(source));
-      setSelected(null);
-    } catch {
-      // keep previous graph on parse error
-    }
-  }, [source]);
+  const supersededIds = useCallback(() => {
+    const ids = new Set<string>();
+    for (const f of domain.facts) if (f.supersedes) ids.add(f.supersedes);
+    return ids;
+  }, [domain]);
+  const superseded = supersededIds();
 
-  const nodeList = Object.values(graph.nodes);
-  const { positions, posRef } = useForceLayout(nodeList, graph.edges, canvasSize.w, canvasSize.h);
-
-  // ── Drag nodes ──────────────────────────────────────────────────────────────
-  const onNodePointerDown = useCallback((e: React.PointerEvent, id: string) => {
-    e.stopPropagation();
-    setSelected(id);
-    setDragging(id);
-    (e.target as Element).setPointerCapture(e.pointerId);
-  }, []);
+  const { nodes: graphNodes, edges: graphEdges } = buildGraph(domain.facts);
 
   useEffect(() => {
-    if (!dragging) return;
-    const onMove = (e: MouseEvent) => {
-      const svg = svgRef.current;
-      if (!svg) return;
-      const rect = svg.getBoundingClientRect();
-      const x = (e.clientX - rect.left - pan.x) / zoom;
-      const y = (e.clientY - rect.top - pan.y) / zoom;
-      posRef.current[dragging] = { x, y };
-      setGraph(g => ({ ...g }));
-    };
-    const onUp = () => setDragging(null);
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, [dragging, pan, zoom, posRef]);
-
-  // ── Pan ─────────────────────────────────────────────────────────────────────
-  const onSvgMouseDown = useCallback((e: React.MouseEvent) => {
-    const tgt = e.target as Element;
-    if (tgt === svgRef.current || tgt.tagName === "rect" || tgt.tagName === "pattern") {
-      setIsPanning(true);
-      panStart.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
-    }
-  }, [pan]);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set("domain", selectedDomainId);
+      return next;
+    }, { replace: true });
+    setSelectedNode(null);
+  }, [selectedDomainId, setSearchParams]);
 
   useEffect(() => {
-    if (!isPanning) return;
-    const onMove = (e: MouseEvent) => {
-      if (!panStart.current) return;
-      setPan({ x: e.clientX - panStart.current.x, y: e.clientY - panStart.current.y });
-    };
-    const onUp = () => setIsPanning(false);
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, [isPanning]);
+    const d = searchParams.get("domain");
+    if (d && d !== selectedDomainId && DOMAINS.some(x => x.id === d)) setSelectedDomainId(d);
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Zoom ────────────────────────────────────────────────────────────────────
-  const onWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    setZoom(z => Math.max(0.25, Math.min(4, z - e.deltaY * 0.001)));
-  }, []);
-
-  // ── Stats ───────────────────────────────────────────────────────────────────
-  const avgConf = nodeList.length
-    ? (nodeList.reduce((s, n) => s + (parseFloat(n.meta.confidence) || 0), 0) / nodeList.length).toFixed(2)
-    : "—";
-  const typeCount = new Set(nodeList.map(n => n.typeName)).size;
-  const STAT_ITEMS: Array<[string, string | number, string]> = [
-    ["nodes",    nodeList.length,     "#4ECDC4"],
-    ["edges",    graph.edges.length,  "#F7C59F"],
-    ["types",    typeCount,           "#8338EC"],
-    ["avg conf", avgConf,             "#3A86FF"],
-  ];
-
-  const selNode = selected ? graph.nodes[selected] : null;
-  const pos = positions;
-
-  // ── Edge rendering helpers ──────────────────────────────────────────────────
-  const R = 28; // node radius
+  const avgEff = domain.facts.reduce((s, f) => s + effectiveConfidence(f), 0) / domain.facts.length;
 
   return (
     <div className={styles.page}>
       <SEO
-        title="KNDL Graph Explorer — Interactive Force-Directed Visualization"
-        description="Visualise a KNDL knowledge graph live. Edit KNDL source in the browser and watch nodes, typed edges, and confidence scores render as a force-directed graph. Zoom, pan, drag, and inspect node details."
+        title="KNDL Explorer — Browse Fact Bundles"
+        description="Explore KNDL fact bundles across 8 domains. Cards and force-directed graph view with confidence decay, supersession chains, provenance, and classification badges."
         path="/explorer"
         type="website"
-        keywords="KNDL graph explorer, knowledge graph visualization, force-directed layout, KNDL playground"
+        keywords="KNDL explorer, fact graph, confidence decay, supersession, provenance, JSON-LD facts"
         jsonLd={techArticleSchema({
-          headline: "KNDL Graph Explorer",
-          description:
-            "Interactive force-directed visualization of KNDL knowledge graphs with a live editor.",
+          headline: "KNDL Explorer",
+          description: "Interactive browser for KNDL fact bundles across 8 domains.",
           path: "/explorer",
         })}
       />
-      {/* Toolbar */}
+
       <div className={styles.toolbar}>
-        <div className={styles.toolbarTitle}>
-          <span className={styles.toolbarName}>Graph Explorer</span>
+        <div className={styles.toolbarLeft}>
+          <span className={styles.toolbarTitle}>Fact Explorer</span>
           <div className={styles.sep} />
-          <div className={styles.stats}>
-            {STAT_ITEMS.map(([label, val, color]) => (
-              <div key={label} className={styles.stat}>
-                <div className={styles.statValue} style={{ color }}>{val}</div>
-                <div className={styles.statLabel}>{label}</div>
-              </div>
+          <div className={styles.domainStats}>
+            <span className={styles.statItem}><span className={styles.statVal}>{domain.facts.length}</span><span className={styles.statLbl}>facts</span></span>
+            <span className={styles.statItem}><span className={styles.statVal}>{superseded.size}</span><span className={styles.statLbl}>superseded</span></span>
+            <span className={styles.statItem}><span className={styles.statVal}>{avgEff.toFixed(2)}</span><span className={styles.statLbl}>avg eff. conf</span></span>
+          </div>
+        </div>
+        <div className={styles.toolbarRight}>
+          {/* View toggle */}
+          <div className={styles.viewToggle}>
+            <button
+              className={`${styles.viewBtn} ${viewMode === "cards" ? styles.viewBtnActive : ""}`}
+              onClick={() => setViewMode("cards")}
+            >
+              Cards
+            </button>
+            <button
+              className={`${styles.viewBtn} ${viewMode === "graph" ? styles.viewBtnActive : ""}`}
+              onClick={() => setViewMode("graph")}
+            >
+              Graph
+            </button>
+          </div>
+          <select
+            className={styles.domainSelect}
+            value={selectedDomainId}
+            onChange={e => setSelectedDomainId(e.target.value)}
+            aria-label="Select domain"
+          >
+            {DOMAINS.map(d => (
+              <option key={d.id} value={d.id}>{d.name} ({d.facts.length} facts)</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className={styles.domainDesc}>{domain.description}</div>
+
+      {viewMode === "cards" ? (
+        <>
+          <div className={styles.grid}>
+            {domain.facts.map(fact => (
+              <FactCard key={fact["@id"]} fact={fact} isSuperseded={superseded.has(fact["@id"])} />
             ))}
           </div>
-        </div>
-        <div className={styles.viewToggle}>
-          {(["graph", "editor"] as ViewMode[]).map(v => (
-            <button
-              key={v}
-              className={`${styles.viewBtn} ${view === v ? styles.viewBtnActive : ""}`}
-              onClick={() => setView(v)}
-            >
-              {v}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Body */}
-      <div className={styles.body}>
-        {/* Graph canvas */}
-        <div
-          className={styles.canvas}
-          ref={containerRef}
-          style={{ display: view === "graph" ? "flex" : "none" }}
-        >
-            <svg
-              ref={svgRef}
-              className={styles.svg}
-              style={{ cursor: isPanning ? "grabbing" : dragging ? "grabbing" : "grab" }}
-              onMouseDown={onSvgMouseDown}
-              onWheel={onWheel}
-              data-testid="graph-canvas"
-            >
-              <defs>
-                <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
-                  <path d="M0,0 L0,6 L8,3 z" fill="#2a3348" />
-                </marker>
-                <marker id="arr-hl" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
-                  <path d="M0,0 L0,6 L8,3 z" fill="#FF6B35" />
-                </marker>
-                {nodeList.map(n => {
-                  const c = typeColor(n.typeName);
-                  return (
-                    <radialGradient key={n.id} id={`grd-${n.id}`} cx="50%" cy="50%" r="50%">
-                      <stop offset="0%" stopColor={c.bg} stopOpacity="0.25" />
-                      <stop offset="100%" stopColor={c.bg} stopOpacity="0" />
-                    </radialGradient>
-                  );
-                })}
-              </defs>
-
-              <rect width="100%" height="100%" fill="transparent" />
-
-              {/* Dot grid background */}
-              <pattern
-                id="grid"
-                width="32"
-                height="32"
-                patternUnits="userSpaceOnUse"
-                patternTransform={`translate(${pan.x % 32},${pan.y % 32})`}
-              >
-                <circle cx="16" cy="16" r="0.8" fill="#1e2533" />
-              </pattern>
-              <rect width="100%" height="100%" fill="url(#grid)" />
-
-              <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
-                {/* Selection glow */}
-                {selected && pos[selected] && (
-                  <circle
-                    cx={pos[selected].x}
-                    cy={pos[selected].y}
-                    r={54}
-                    fill={`url(#grd-${selected})`}
-                    style={{ pointerEvents: "none" }}
-                  />
+          <div className={styles.footer}>
+            <span>Confidence bar: dim = base &nbsp;|&nbsp; bright = effective (post-decay)</span>
+            <span>Grey cards are superseded by a newer fact in this bundle</span>
+          </div>
+        </>
+      ) : (
+        <div className={styles.graphPane}>
+          {graphNodes.length === 0 ? (
+            <div className={styles.graphEmpty}>
+              No entity subjects in this bundle — no graph to show.
+            </div>
+          ) : (
+            <>
+              <div className={styles.graphCanvas}>
+                <ForceGraph
+                  nodes={graphNodes}
+                  edges={graphEdges}
+                  onSelect={setSelectedNode}
+                  selected={selectedNode}
+                />
+                {selectedNode && (
+                  <NodeDetail node={selectedNode} superseded={superseded} />
                 )}
-
-                {/* Edges */}
-                {graph.edges.map((e, idx) => {
-                  const s = pos[e.source];
-                  const t = pos[e.target];
-                  if (!s || !t) return null;
-                  const isHl = hovered === e.source || hovered === e.target
-                    || selected === e.source || selected === e.target;
-                  const dx = t.x - s.x;
-                  const dy = t.y - s.y;
-                  const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                  const x1 = s.x + (dx / dist) * R;
-                  const y1 = s.y + (dy / dist) * R;
-                  const x2 = t.x - (dx / dist) * (R + 6);
-                  const y2 = t.y - (dy / dist) * (R + 6);
-                  const mx = (s.x + t.x) / 2;
-                  const my = (s.y + t.y) / 2;
-
-                  return (
-                    <g key={idx}>
-                      <line
-                        x1={x1} y1={y1} x2={x2} y2={y2}
-                        stroke={isHl ? "#FF6B35" : "#2a3348"}
-                        strokeWidth={isHl ? 2 : 1.2}
-                        markerEnd={isHl ? "url(#arr-hl)" : "url(#arr)"}
-                        style={{ transition: "stroke 0.15s" }}
-                      />
-                      {isHl && (
-                        <text
-                          x={mx} y={my - 6}
-                          textAnchor="middle"
-                          fill="#FF6B35"
-                          fontSize={9}
-                          letterSpacing="0.06em"
-                          style={{ pointerEvents: "none", fontFamily: "var(--font-mono)" }}
-                        >
-                          {e.label}
-                        </text>
-                      )}
-                    </g>
-                  );
-                })}
-
-                {/* Nodes */}
-                {nodeList.map(n => {
-                  const p = pos[n.id];
-                  if (!p) return null;
-                  const c = typeColor(n.typeName);
-                  const isSel = selected === n.id;
-                  const isHov = hovered === n.id;
-                  const conf = parseFloat(n.meta.confidence) || 0;
-                  const circum = 201; // 2πr ≈ 2π×32
-
-                  return (
-                    <g
-                      key={n.id}
-                      transform={`translate(${p.x},${p.y})`}
-                      onPointerDown={(e) => onNodePointerDown(e, n.id)}
-                      onMouseEnter={() => setHovered(n.id)}
-                      onMouseLeave={() => setHovered(null)}
-                      style={{ cursor: "pointer" }}
-                      data-testid={`node-${n.id}`}
-                    >
-                      {/* Confidence ring */}
-                      <circle r={32} fill="none" stroke="#1e2533" strokeWidth={3} />
-                      {conf > 0 && (
-                        <circle
-                          r={32}
-                          fill="none"
-                          stroke={c.bg}
-                          strokeWidth={3}
-                          strokeDasharray={`${conf * circum} ${circum}`}
-                          strokeDashoffset={50}
-                          style={{ transition: "stroke-dasharray 0.5s" }}
-                        />
-                      )}
-                      {/* Node body */}
-                      <circle
-                        r={26}
-                        fill={isSel ? c.bg : "#141b2d"}
-                        stroke={c.bg}
-                        strokeWidth={isSel || isHov ? 2.5 : 1.5}
-                        style={{ transition: "all 0.15s" }}
-                        filter={isSel ? `drop-shadow(0 0 12px ${c.bg})` : undefined}
-                      />
-                      {/* Type initials */}
-                      <text
-                        textAnchor="middle"
-                        dominantBaseline="central"
-                        fontSize={13}
-                        fontWeight={700}
-                        fill={isSel ? c.text : c.bg}
-                        style={{ pointerEvents: "none", letterSpacing: "-0.02em", fontFamily: "var(--font-mono)" }}
-                      >
-                        {n.typeName.slice(0, 2).toUpperCase()}
-                      </text>
-                      {/* Label */}
-                      <text
-                        y={42}
-                        textAnchor="middle"
-                        fill={isSel || isHov ? "#fff" : "#5a6275"}
-                        fontSize={10}
-                        letterSpacing="0.04em"
-                        style={{ pointerEvents: "none", transition: "fill 0.15s", fontFamily: "var(--font-mono)" }}
-                      >
-                        @{n.id.length > 14 ? n.id.slice(0, 14) + "…" : n.id}
-                      </text>
-                    </g>
-                  );
-                })}
-              </g>
-            </svg>
-
-            {/* Zoom controls */}
-            <div className={styles.zoomControls}>
-              {([
-                ["+", () => setZoom(z => Math.min(4, z + 0.15))],
-                ["−", () => setZoom(z => Math.max(0.25, z - 0.15))],
-                ["⊙", () => { setZoom(1); setPan({ x: 0, y: 0 }); }],
-              ] as Array<[string, () => void]>).map(([lbl, fn]) => (
-                <button key={lbl} className={styles.zoomBtn} onClick={fn}>{lbl}</button>
-              ))}
-            </div>
-
-            {/* Type legend */}
-            <div className={styles.legend}>
-              {[...new Set(nodeList.map(n => n.typeName))].map(t => {
-                const c = typeColor(t);
-                return (
-                  <div key={t} className={styles.legendItem}>
-                    <div className={styles.legendDot} style={{ background: c.bg }} />
-                    <span className={styles.legendLabel}>{t}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-        {/* Editor view */}
-        <div
-          className={styles.editor}
-          style={{ display: view === "editor" ? "flex" : "none" }}
-        >
-          <div className={styles.editorLabel}>KNDL Source</div>
-          <textarea
-            className={styles.textarea}
-            value={source}
-            onChange={e => setSource(e.target.value)}
-            spellCheck={false}
-            data-testid="kndl-editor"
-          />
-          <div className={styles.editorActions}>
-            <button className={styles.viewGraphBtn} onClick={() => setView("graph")}>
-              VIEW GRAPH →
-            </button>
-          </div>
-        </div>
-
-        {/* Detail panel */}
-        <div
-          className={styles.detail}
-          style={{ width: selNode ? 280 : 0 }}
-          data-testid="detail-panel"
-        >
-          {selNode && (
-            <DetailPanel
-              node={selNode}
-              graph={graph}
-              onClose={() => setSelected(null)}
-              onNavigate={(id) => setSelected(id)}
-            />
+              </div>
+              <GraphLegend />
+              {graphEdges.length === 0 && (
+                <div className={styles.graphHint}>
+                  No entity-reference edges found. Nodes represent subjects; facts with numeric / string objects appear as node properties only.
+                </div>
+              )}
+            </>
           )}
         </div>
-      </div>
-
-      {/* Footer hints */}
-      <div className={styles.footer}>
-        <span>CLICK node to inspect</span>
-        <span>DRAG to reposition</span>
-        <span>SCROLL to zoom</span>
-        <span>EDITOR tab to edit source</span>
-      </div>
+      )}
     </div>
   );
 }

@@ -1,0 +1,14 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:alice-email-20260426t000000z-q7r8s9t0",
+  "@type": "Fact",
+  "statement": "Alice's work email is alice@example.com",
+  "subject": "person:alice",
+  "predicate": "email",
+  "object": "alice@example.com",
+  "confidence": 0.99,
+  "source": "human://gleb",
+  "validFrom": "2026-01-01T00:00:00Z",
+  "recordedAt": "2026-04-26T00:00:00Z",
+  "classification": "PII"
+}

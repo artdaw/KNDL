@@ -2,124 +2,266 @@ import CodeBlock from "../components/CodeBlock";
 import { SEO, techArticleSchema } from "../components/SEO";
 import styles from "./McpPage.module.css";
 
-const TOOLS = [
-  { name: "kndl_parse",       desc: "Parse KNDL source text and load it into the graph" },
-  { name: "kndl_add_node",    desc: "Add a node with type, fields, and meta-annotations" },
-  { name: "kndl_add_edge",    desc: "Add a typed directed edge between nodes" },
-  { name: "kndl_query_nodes", desc: "Query by type, confidence threshold, and field filters" },
-  { name: "kndl_get_node",    desc: "Get a node with all its incoming and outgoing edges" },
-  { name: "kndl_update_node", desc: "Update a node's fields and meta-annotations" },
-  { name: "kndl_remove_node", desc: "Remove a node and all connected edges" },
-  { name: "kndl_neighborhood","desc": "Get the N-hop subgraph around a node" },
-  { name: "kndl_serialize",   desc: "Export the current graph as KNDL text" },
-  { name: "kndl_graph_stats", desc: "Get summary statistics (counts, types, avg confidence)" },
-  { name: "kndl_add_intent",  desc: "Add a reactive trigger-action rule" },
-  { name: "kndl_merge_graphs","desc": "Merge new KNDL source into the existing graph" },
-  { name: "kndl_reset",       desc: "Clear the entire graph (destructive)" },
+// ── Accurate tool list (matches server.ts TOOLS array) ───────────────────────
+
+const TOOLS_CORE = [
+  { name: "assert_fact",      desc: "Write a new immutable Fact. Returns the generated @id." },
+  { name: "query_facts",      desc: "Search by subject, predicate, as_of time, min_confidence, tenant. Returns effective_confidence after decay." },
+  { name: "contradictions",   desc: "Find facts with conflicting values for the same subject+predicate, ranked by recency and effective confidence." },
+  { name: "supersede_fact",   desc: "Assert a new Fact that supersedes an older one. Old fact preserved for as_of time-travel." },
+  { name: "as_of",            desc: "Bitemporal query: return what memory believed at a specific past timestamp." },
+  { name: "provenance_chain", desc: "Traverse derivedFrom + supersedes links to return the full audit trail of a Fact." },
 ];
 
-const INSTALL_CODE = `# Install KNDL Python library
-pip install kndl
+const TOOLS_SUBSCRIPTIONS = [
+  { name: "subscribe",          desc: "Register for notifications/resources/updated when a matching fact changes. Returns subscription id." },
+  { name: "unsubscribe",        desc: "Cancel a subscription by id." },
+  { name: "list_subscriptions", desc: "List active subscriptions and session count." },
+];
 
-# Install MCP server
-pip install kndl-mcp`;
+const TOOLS_REMOTE = [
+  { name: "sync_memory_store",  desc: "Pull facts from an Anthropic Memory Store into local storage. Requires ANTHROPIC_API_KEY." },
+  { name: "list_memory_stores", desc: "List configured remote Anthropic Memory Stores and their last-sync timestamps." },
+];
 
-const RUN_CODE = `# stdio transport — for Claude Desktop
-python -m kndl_mcp
+// ── Code blocks — verified against actual implementation ──────────────────────
 
-# Streamable HTTP transport — for remote agents
-python -m kndl_mcp --http`;
+const INSTALL_CODE = `# 1. Clone and build
+git clone https://github.com/artdaw/kndl.git
+cd kndl/packages/kndl-memory
+pnpm install
+pnpm build
 
+# Two binaries produced:
+#   dist/cli.js     → kndl  (CLI)
+#   dist/server.js  → kndl-memory-mcp  (MCP server)`;
+
+// Default storage is fs:./memory (Anthropic Memory mount).
+// For Claude Desktop without Anthropic Memory, sqlite is recommended.
 const CLAUDE_CONFIG = `{
   "mcpServers": {
-    "kndl": {
-      "command": "python",
-      "args": ["-m", "kndl_mcp"],
-      "env": {}
+    "kndl-memory": {
+      "command": "node",
+      "args": ["/path/to/kndl/packages/kndl-memory/dist/server.js"],
+      "env": {
+        "KNDL_STORAGE": "sqlite:./kndl-memory.db"
+      }
     }
   }
 }`;
 
-const USAGE_EXAMPLE = `// 1. Tell Claude to load your knowledge graph
-"Load this KNDL file into the knowledge graph:
+const ANTHROPIC_MEMORY_CONFIG = `{
+  "mcpServers": {
+    "kndl-memory": {
+      "command": "node",
+      "args": ["/path/to/kndl/packages/kndl-memory/dist/server.js"],
+      "env": {
+        "KNDL_STORAGE": "fs:/memory/facts-store"
+      }
+    }
+  }
+}`;
 
-node @room_a :: SmartRoom {
-  temp     = 22.5
-  occupied = true
-  ~confidence 0.95
-  ~source \\"sensor://room-a\\"
-}"
+// HTTP server defaults to port 8000
+const LM_STUDIO_CONFIG = `# 1. Start the HTTP server (default port 8000)
+KNDL_STORAGE=sqlite:./kndl-memory.db \\
+  node /path/to/kndl/packages/kndl-memory/dist/server.js --http
 
-// 2. Query it
-"Find all rooms where temperature > 24°C
-with confidence > 0.8"
-
-// 3. Claude uses kndl_query_nodes internally:
+# 2. Add to ~/.lmstudio/mcp.json
 {
-  type_name: "SmartRoom",
-  min_confidence: 0.8,
-  field_filters: {}
+  "mcpServers": {
+    "kndl-memory": {
+      "type": "http",
+      "url": "http://localhost:8000/mcp"
+    }
+  }
+}`;
+
+const GOOSE_CONFIG = `# Start HTTP server first (port 8000)
+KNDL_STORAGE=sqlite:./kndl-memory.db \\
+  node /path/to/kndl/packages/kndl-memory/dist/server.js --http
+
+# ~/.config/goose/config.yaml
+extensions:
+  kndl-memory:
+    type: streamable_http
+    url: http://localhost:8000/mcp`;
+
+// Storage: fs:, sqlite:, duckdb:, supabase: — no postgres support
+const STORAGE_TABLE = [
+  { url: "fs:./memory",               desc: "Filesystem — one .fact.json per fact",    when: "Anthropic Memory mount (default)" },
+  { url: "sqlite:./kndl-memory.db",   desc: "SQLite — single file, WAL mode",          when: "Claude Desktop / standalone (recommended)" },
+  { url: "duckdb:./kndl-memory.duckdb", desc: "DuckDB — columnar",                     when: "Analytical workloads" },
+  { url: "supabase:<url>?key=<anon>", desc: "Supabase — Postgres + RLS",               when: "Multi-tenant cloud" },
+];
+
+// Remote sync: Anthropic Memory Stores API (not generic endpoints)
+const REMOTE_SYNC = `# Register an Anthropic Memory Store
+kndl remote add --provider anthropic \\
+  --store-id store_abc123 --label personal
+
+# Pull facts from that store into local storage
+# (requires ANTHROPIC_API_KEY)
+kndl remote pull personal
+
+# Or trigger via MCP tool:
+# sync_memory_store({ label: "personal", direction: "pull" })
+
+# List all registered remotes
+kndl remote ls
+
+# Remove a remote
+kndl remote rm personal`;
+
+const USAGE_EXAMPLE = `# Ask Claude to remember a fact
+"Alice was promoted to staff engineer on the payments team."
+
+# Claude calls assert_fact:
+{
+  "statement": "Alice was promoted to staff engineer, payments team",
+  "subject":   "person:alice",
+  "predicate": "role",
+  "object":    "staff engineer, payments",
+  "confidence": 0.95,
+  "source":    "human://user",
+  "validFrom": "2026-04-15T00:00:00Z",
+  "decay":     "0.5/180d"
 }
 
-// 4. Update knowledge
-"Mark room A as unoccupied and decrease
-confidence to 0.6 due to sensor uncertainty"`;
+# Later — ask about Alice
+"What do you know about Alice?"
+
+# Claude calls query_facts({ subject: "person:alice" })
+# Returns all active facts ordered by effective_confidence (post-decay)`;
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function McpPage() {
   return (
     <div className={styles.page}>
       <SEO
-        title="KNDL MCP Server — Use KNDL from Claude & AI Agents"
-        description="KNDL MCP server docs: 13 Model Context Protocol tools (kndl_parse, kndl_add_node, kndl_query_nodes, kndl_neighborhood, kndl_add_intent, and more). Install with pip, connect to Claude Desktop or any MCP-compatible agent."
+        title="kndl-memory-mcp — HOW Layer for KNDL Facts"
+        description="Install and configure kndl-memory-mcp for Claude Desktop, LM Studio, and Goose. 11 MCP tools: assert_fact, query_facts, contradictions, as_of, provenance_chain, subscribe, sync_memory_store and more."
         path="/mcp"
         type="article"
-        keywords="KNDL MCP, Model Context Protocol, Claude Desktop, AI agent tools, knowledge graph tools, MCP server"
+        keywords="kndl-memory-mcp, MCP server, Claude Desktop, LM Studio, Goose, assert_fact, query_facts, agent memory, Anthropic Memory"
         jsonLd={techArticleSchema({
-          headline: "KNDL MCP Server",
-          description:
-            "Expose the KNDL knowledge graph as Model Context Protocol tools for Claude and other AI agents.",
+          headline: "kndl-memory-mcp — HOW Layer for KNDL Facts",
+          description: "11 MCP tools for confidence-aware, decay-tracked, provenance-linked agent memory.",
           path: "/mcp",
         })}
       />
       <div className={styles.container}>
 
-        {/* Header */}
         <div className={styles.header}>
-          <div className={styles.tag}>KNDL MCP Server</div>
-          <h1 className={styles.title}>Use KNDL from Claude & AI Agents</h1>
+          <div className={styles.tag}>MCP · @kndl/memory</div>
+          <h1 className={styles.title}>kndl-memory-mcp</h1>
           <p className={styles.desc}>
-            The KNDL MCP server exposes the full knowledge graph API as Model Context
-            Protocol tools. Connect it to Claude Desktop, Claude Code, or any MCP-compatible
-            agent to give your AI a confidence-aware, graph-structured memory.
+            The HOW layer. kndl-memory-mcp exposes KNDL fact memory as 11 Model Context Protocol
+            tools. Connect it to Claude Desktop, LM Studio, Goose, or any MCP-compatible agent
+            to give it a confidence-aware, decay-tracked, provenance-linked memory.
           </p>
+          <div className={styles.layerPills}>
+            <span className={styles.layerPill} data-dim>Anthropic Memory = WHERE</span>
+            <span className={styles.layerPill} data-mid>KNDL = WHAT</span>
+            <span className={styles.layerPill} data-accent>kndl-mcp = HOW</span>
+          </div>
         </div>
 
         {/* Install */}
         <section className={styles.section}>
           <h2 className={styles.h2}>Installation</h2>
           <CodeBlock code={INSTALL_CODE} label="terminal" />
+          <p className={styles.p} style={{ marginTop: "16px" }}>
+            Package: <code className={styles.ic}>@kndl/memory</code> · Binaries:{" "}
+            <code className={styles.ic}>kndl</code> (CLI) and{" "}
+            <code className={styles.ic}>kndl-memory-mcp</code> (MCP server)
+          </p>
         </section>
 
-        {/* Run */}
+        {/* Storage */}
         <section className={styles.section}>
-          <h2 className={styles.h2}>Running the Server</h2>
-          <CodeBlock code={RUN_CODE} label="terminal" />
-        </section>
-
-        {/* Claude Desktop config */}
-        <section className={styles.section}>
-          <h2 className={styles.h2}>Claude Desktop Configuration</h2>
+          <h2 className={styles.h2}>Storage backends (<code className={styles.ic}>KNDL_STORAGE</code>)</h2>
           <p className={styles.p}>
-            Add to your <code className={styles.ic}>claude_desktop_config.json</code>:
+            Set <code className={styles.ic}>KNDL_STORAGE</code> in the server's environment.
+            Default (when unset) is <code className={styles.ic}>fs:./memory</code> — filesystem,
+            one <code className={styles.ic}>.fact.json</code> per fact, compatible with Anthropic Memory mounts.
+          </p>
+          <div className={styles.storageTable}>
+            {STORAGE_TABLE.map(({ url, desc, when }) => (
+              <div key={url} className={styles.storageRow}>
+                <code className={styles.storageUrl}>{url}</code>
+                <span className={styles.storageDesc}>{desc}</span>
+                <span className={styles.storageWhen}>{when}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Claude Desktop */}
+        <section className={styles.section}>
+          <h2 className={styles.h2}>Claude Desktop — standalone (SQLite)</h2>
+          <p className={styles.p}>
+            For Claude Desktop without Anthropic Memory, use SQLite — single file, WAL mode,
+            persists across restarts:
           </p>
           <CodeBlock code={CLAUDE_CONFIG} label="claude_desktop_config.json" />
+
+          <h3 className={styles.h3}>Claude Desktop — with Anthropic Memory mount</h3>
+          <p className={styles.p}>
+            When running inside an Anthropic Managed Agent with a <code className={styles.ic}>/memory</code>{" "}
+            mount, use <code className={styles.ic}>fs:</code> so facts are actual files in the Memory filesystem:
+          </p>
+          <CodeBlock code={ANTHROPIC_MEMORY_CONFIG} label="claude_desktop_config.json (Anthropic Memory)" />
         </section>
 
-        {/* Tools */}
+        {/* LM Studio */}
         <section className={styles.section}>
-          <h2 className={styles.h2}>Available MCP Tools</h2>
+          <h2 className={styles.h2}>LM Studio</h2>
+          <p className={styles.p}>
+            Run the server in HTTP mode (default port <strong>8000</strong>), then register
+            it as an HTTP MCP extension:
+          </p>
+          <CodeBlock code={LM_STUDIO_CONFIG} label="terminal + ~/.lmstudio/mcp.json" />
+        </section>
+
+        {/* Goose */}
+        <section className={styles.section}>
+          <h2 className={styles.h2}>Goose</h2>
+          <p className={styles.p}>
+            Add a <code className={styles.ic}>streamable_http</code> extension pointing at
+            the running HTTP server:
+          </p>
+          <CodeBlock code={GOOSE_CONFIG} label="terminal + ~/.config/goose/config.yaml" />
+        </section>
+
+        {/* Tool reference */}
+        <section className={styles.section}>
+          <h2 className={styles.h2}>Tool reference — 11 tools</h2>
+
+          <h3 className={styles.h3}>Core (6)</h3>
           <div className={styles.toolGrid}>
-            {TOOLS.map((t) => (
+            {TOOLS_CORE.map((t) => (
+              <div key={t.name} className={styles.toolRow}>
+                <code className={styles.toolName}>{t.name}</code>
+                <span className={styles.toolDesc}>{t.desc}</span>
+              </div>
+            ))}
+          </div>
+
+          <h3 className={styles.h3} style={{ marginTop: "24px" }}>Subscriptions (3)</h3>
+          <div className={styles.toolGrid}>
+            {TOOLS_SUBSCRIPTIONS.map((t) => (
+              <div key={t.name} className={styles.toolRow}>
+                <code className={styles.toolName}>{t.name}</code>
+                <span className={styles.toolDesc}>{t.desc}</span>
+              </div>
+            ))}
+          </div>
+
+          <h3 className={styles.h3} style={{ marginTop: "24px" }}>Remote sync (2)</h3>
+          <div className={styles.toolGrid}>
+            {TOOLS_REMOTE.map((t) => (
               <div key={t.name} className={styles.toolRow}>
                 <code className={styles.toolName}>{t.name}</code>
                 <span className={styles.toolDesc}>{t.desc}</span>
@@ -128,29 +270,23 @@ export default function McpPage() {
           </div>
         </section>
 
+        {/* Remote sync CLI */}
+        <section className={styles.section}>
+          <h2 className={styles.h2}>Remote sync — Anthropic Memory Stores</h2>
+          <p className={styles.p}>
+            Pull facts from an Anthropic Memory Store into local storage via CLI or MCP tool.
+            Requires <code className={styles.ic}>ANTHROPIC_API_KEY</code>. Push is deferred to v2.1.
+          </p>
+          <CodeBlock code={REMOTE_SYNC} label="terminal" />
+        </section>
+
         {/* Usage example */}
         <section className={styles.section}>
           <h2 className={styles.h2}>Usage with Claude</h2>
           <p className={styles.p}>
-            Once connected, you can have natural conversations that build, query,
-            and reason over a persistent KNDL knowledge graph:
+            Once connected, natural language becomes structured KNDL facts:
           </p>
-          <CodeBlock code={USAGE_EXAMPLE} label="conversation" />
-        </section>
-
-        {/* Resources */}
-        <section className={styles.section}>
-          <h2 className={styles.h2}>MCP Resources</h2>
-          <div className={styles.resourceList}>
-            <div className={styles.resourceRow}>
-              <code className={styles.toolName}>kndl://spec/version</code>
-              <span className={styles.toolDesc}>Get the KNDL specification version</span>
-            </div>
-            <div className={styles.resourceRow}>
-              <code className={styles.toolName}>kndl://graph/summary</code>
-              <span className={styles.toolDesc}>Get a text summary of the current graph</span>
-            </div>
-          </div>
+          <CodeBlock code={USAGE_EXAMPLE} label="conversation → assert_fact → query_facts" />
         </section>
 
         {/* Architecture */}
@@ -160,22 +296,22 @@ export default function McpPage() {
             {[
               {
                 layer: "Transport",
-                options: ["stdio (Claude Desktop)", "Streamable HTTP (remote agents)"],
+                options: ["stdio (Claude Desktop)", "Streamable HTTP — port 8000 (LM Studio / Goose)"],
                 color: "var(--accent)",
               },
               {
-                layer: "Protocol",
-                options: ["MCP (Model Context Protocol)", "FastMCP framework"],
+                layer: "Runtime",
+                options: ["Node.js TypeScript", "@modelcontextprotocol/sdk v1.29"],
                 color: "var(--accent2)",
               },
               {
-                layer: "Engine",
-                options: ["KNDLGraph in-memory store", "kndl Python library"],
+                layer: "Storage",
+                options: ["fs: — filesystem .fact.json", "sqlite: — WAL SQLite", "duckdb: — columnar", "supabase: — cloud RLS"],
                 color: "var(--accent4)",
               },
               {
-                layer: "Persistence",
-                options: ["Serialize to .kndl file", "Reload on startup (planned)"],
+                layer: "Format",
+                options: ["KNDL Fact JSON-LD v2", "context/v1.jsonld", "fact.schema.json"],
                 color: "var(--accent3)",
               },
             ].map((item) => (

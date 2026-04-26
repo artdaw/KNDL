@@ -6,37 +6,36 @@
     <meta name="theme-color" content="#0b0f14" />
 
     <!-- Default SEO — per-route pages override these via <SEO> at runtime. -->
-    <title>KNDL — Knowledge Node Description Language</title>
-    <meta name="description" content="KNDL is a graph-based knowledge representation language for AI agents — typed nodes, 0.0–1.0 confidence scores, temporal decay, cryptographic provenance, and native intent/process blocks." />
-    <meta name="keywords" content="knowledge graph, AI agent memory, KNDL, confidence score, temporal decay, provenance, MCP, LLM memory, semantic data, knowledge representation" />
+    <title>KNDL — The Format Anthropic Memory Was Waiting For</title>
+    <meta name="description" content="KNDL is the JSON-LD fact format built for Anthropic Memory. Confidence, decay, provenance, bitemporal records, supersession, and contradiction resolution — all in a single .fact.json file." />
+    <meta name="keywords" content="KNDL, AI agent memory, Anthropic Memory, confidence decay, provenance, bitemporal facts, JSON-LD fact format, agent memory format, kndl-memory-mcp" />
     <meta name="author" content="Gleb Galkin" />
     <meta name="robots" content="index,follow,max-image-preview:large" />
 
     <link rel="canonical" href="https://kndl.artdaw.com/" />
 
     <!-- Open Graph -->
-    <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="KNDL" />
-    <meta property="og:url" content="https://kndl.artdaw.com/" />
-    <meta property="og:title" content="KNDL — Knowledge Node Description Language" />
-    <meta property="og:description" content="A graph-based knowledge representation language for AI agents — typed nodes, confidence scores, temporal decay, and native intent/process blocks." />
-    <meta property="og:image" content="https://kndl.artdaw.com/kndl.png" />
-    <meta property="og:image:width" content="1860" />
-    <meta property="og:image:height" content="864" />
+    <meta property="og:type"         content="website" />
+    <meta property="og:site_name"    content="KNDL" />
+    <meta property="og:url"          content="https://kndl.artdaw.com/" />
+    <meta property="og:title"        content="KNDL — The Format Anthropic Memory Was Waiting For" />
+    <meta property="og:description"  content="KNDL is the JSON-LD fact format for Anthropic Memory agents. Every fact carries confidence, decay, provenance, and a supersession chain. One file per fact. Ships an MCP server + CLI + Claude Skill." />
+    <meta property="og:image"        content="https://kndl.artdaw.com/kndl.png" />
+    <meta property="og:image:width"  content="1860" />
+    <meta property="og:image:height" content="860" />
+    <meta property="og:image:alt"    content="KNDL — confidence · decay · provenance · bitemporal · supersession" />
 
     <!-- Twitter / X -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:url" content="https://kndl.artdaw.com/" />
-    <meta name="twitter:title" content="KNDL — Knowledge Node Description Language" />
-    <meta name="twitter:description" content="A graph-based knowledge representation language for AI agents — typed nodes, confidence scores, temporal decay, and native intent/process blocks." />
-    <meta name="twitter:image" content="https://kndl.artdaw.com/kndl.png" />
+    <meta name="twitter:card"        content="summary_large_image" />
+    <meta name="twitter:url"         content="https://kndl.artdaw.com/" />
+    <meta name="twitter:title"       content="KNDL — The Format Anthropic Memory Was Waiting For" />
+    <meta name="twitter:description" content="KNDL is the JSON-LD fact format for Anthropic Memory agents. Confidence, decay, provenance, supersession — all in a single .fact.json file." />
+    <meta name="twitter:image"       content="https://kndl.artdaw.com/kndl.png" />
+    <meta name="twitter:image:alt"   content="KNDL — confidence · decay · provenance · bitemporal · supersession" />
 
     <!-- Machine-readable discovery -->
     <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
-    <link rel="alternate" type="text/markdown" href="/spec/SPECIFICATION.md" title="KNDL Specification (markdown)" />
-    <link rel="alternate" type="text/plain" href="/spec/kndl.ebnf" title="KNDL EBNF Grammar" />
     <link rel="alternate" type="text/plain" href="/llms.txt" title="LLM index (llmstxt.org)" />
-    <link rel="alternate" type="text/plain" href="/llms-full.txt" title="LLM full bundle" />
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -46,7 +45,7 @@
       rel="stylesheet"
     />
 
-    <!-- JSON-LD: the language itself, as a SoftwareSourceCode / CreativeWork. -->
+    <!-- JSON-LD: KNDL fact protocol and toolchain. -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -64,31 +63,22 @@
           "@id": "https://kndl.artdaw.com/#site",
           "url": "https://kndl.artdaw.com/",
           "name": "KNDL",
-          "description": "Graph-based knowledge representation language for AI agents.",
+          "description": "The JSON-LD fact format built for Anthropic Memory agents.",
           "inLanguage": "en",
           "publisher": { "@id": "https://kndl.artdaw.com/#org" }
         },
         {
-          "@type": "SoftwareSourceCode",
+          "@type": "SoftwareApplication",
           "@id": "https://kndl.artdaw.com/#software",
-          "name": "KNDL — Knowledge Node Description Language",
+          "name": "KNDL — Knowledge Node Data Link",
+          "applicationCategory": "DeveloperApplication",
+          "operatingSystem": "macOS, Linux, Windows",
           "codeRepository": "https://github.com/artdaw/KNDL",
-          "programmingLanguage": "KNDL",
           "url": "https://kndl.artdaw.com/",
-          "description": "A graph-based knowledge representation language for AI agents — typed nodes, confidence scores, temporal decay, cryptographic provenance, and native intent/process blocks.",
+          "description": "JSON-LD fact format and MCP server for AI agent memory. Every fact carries confidence, decay, provenance, bitemporal validity, and a supersession chain. Ships as @kndl/memory npm package with kndl CLI and kndl-memory-mcp MCP server.",
           "license": "https://opensource.org/licenses/MIT",
-          "author": { "@id": "https://kndl.artdaw.com/#org" }
-        },
-        {
-          "@type": "TechArticle",
-          "@id": "https://kndl.artdaw.com/spec/full#article",
-          "headline": "KNDL Language Specification v1.0",
-          "description": "Complete reference for the Knowledge Node Description Language version 1.0.",
-          "url": "https://kndl.artdaw.com/spec/full",
-          "dateModified": "2026-04-23",
-          "inLanguage": "en",
-          "mainEntityOfPage": "https://kndl.artdaw.com/spec/full",
-          "publisher": { "@id": "https://kndl.artdaw.com/#org" }
+          "author": { "@id": "https://kndl.artdaw.com/#org" },
+          "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
         }
       ]
     }
@@ -97,30 +87,33 @@
   <body>
     <div id="root"></div>
 
-    <!-- No-script discovery fallback for crawlers that don't run JS. -->
+    <!-- No-script fallback for crawlers that don't run JavaScript. -->
     <noscript>
-      <h1>KNDL — Knowledge Node Description Language</h1>
+      <h1>KNDL — The Format Anthropic Memory Was Waiting For</h1>
       <p>
-        KNDL is a graph-based knowledge representation language for AI agents.
-        Every assertion carries a 0.0–1.0 confidence score, bitemporal
-        validity, provenance (URI or cryptographic signature), and typed
-        relationships. Intents and processes live alongside knowledge.
+        Anthropic shipped Memory for agents — a filesystem. KNDL is the smart format
+        for files Claude writes: every fact carries confidence, decay, provenance,
+        bitemporal validity, and a supersession chain. One .fact.json file per assertion.
       </p>
+      <ul>
+        <li>Anthropic Memory = WHERE (filesystem, persistence)</li>
+        <li>KNDL = WHAT (the format of facts Claude writes)</li>
+        <li>kndl-mcp / CLI / Skill = HOW (query, decay, provenance)</li>
+      </ul>
       <p>Machine-readable resources:</p>
       <ul>
-        <li><a href="/llms.txt">/llms.txt</a> — concise index for LLMs (<a href="https://llmstxt.org">llmstxt.org</a> format)</li>
-        <li><a href="/llms-full.txt">/llms-full.txt</a> — spec + EBNF + examples concatenated</li>
-        <li><a href="/spec/SPECIFICATION.md">/spec/SPECIFICATION.md</a> — canonical language reference</li>
-        <li><a href="/spec/kndl.ebnf">/spec/kndl.ebnf</a> — authoritative grammar</li>
-        <li><a href="/examples/index.md">/examples/</a> — curated .kndl snippets</li>
+        <li><a href="/llms.txt">/llms.txt</a> — LLM index (<a href="https://llmstxt.org">llmstxt.org</a>)</li>
+        <li><a href="/context/v1.jsonld">/context/v1.jsonld</a> — JSON-LD @context</li>
+        <li><a href="/schema/fact.schema.json">/schema/fact.schema.json</a> — JSON Schema for Fact</li>
         <li><a href="/sitemap.xml">/sitemap.xml</a> — full URL index</li>
       </ul>
-      <p>Human-facing pages:
-        <a href="/spec">Spec overview</a> ·
-        <a href="/spec/full">Full spec</a> ·
-        <a href="/workflow">Agent workflow</a> ·
+      <p>Pages:
+        <a href="/protocol">Protocol</a> ·
+        <a href="/skill">Skill</a> ·
         <a href="/mcp">MCP server</a> ·
-        <a href="/explorer">Graph explorer</a>.
+        <a href="/examples">Examples</a> ·
+        <a href="/explorer">Explorer</a> ·
+        <a href="/eval">Eval</a>.
       </p>
     </noscript>
 

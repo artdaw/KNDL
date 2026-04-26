@@ -1,0 +1,14 @@
+{
+  "@context": "../context/v1.jsonld",
+  "@id": "fact:customer-9281-financialdistress-20260425T235232Z-b64190fb",
+  "@type": "Fact",
+  "statement": "Customer 9281 may have filed bankruptcy (forum rumor)",
+  "confidence": 0.3,
+  "source": "https://forum.example.com/post/12345",
+  "validFrom": "2026-04-25T00:00:00Z",
+  "recordedAt": "2026-04-25T23:52:32Z",
+  "subject": "customer:9281",
+  "predicate": "financialDistress",
+  "object": "bankruptcy-rumored",
+  "decay": "0.5/7d"
+}

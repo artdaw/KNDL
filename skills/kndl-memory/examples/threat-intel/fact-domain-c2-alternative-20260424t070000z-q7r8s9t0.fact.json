@@ -1,0 +1,13 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:domain-update-example-com-legitimate-20260424t070000z-q7r8s9t0",
+  "@type": "Fact",
+  "statement": "update.example.com is the legitimate update server for ExampleSoft products",
+  "subject": "domain:update.example.com",
+  "predicate": "indicator_type",
+  "object": "legitimate",
+  "confidence": 0.7,
+  "source": "https://vendor.examplesoft.com/domains",
+  "validFrom": "2026-04-24T07:00:00Z",
+  "recordedAt": "2026-04-24T07:00:00Z"
+}

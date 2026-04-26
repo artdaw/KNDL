@@ -1,0 +1,15 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:smith-v-acme-testimony-brown-location-20260118t110000z-i9j0k1l2",
+  "@type": "Fact",
+  "statement": "Witness Brown testified that the contract was signed at the Smith offices in New York on January 10",
+  "subject": "event:smith-v-acme-contract-signing",
+  "predicate": "location",
+  "object": "New York, Smith offices",
+  "confidence": 0.8,
+  "source": "deposition://smith-v-acme/brown-20260118",
+  "validFrom": "2026-01-10T00:00:00Z",
+  "observedAt": "2026-01-10T14:00:00Z",
+  "recordedAt": "2026-01-18T11:00:00Z",
+  "classification": "CONFIDENTIAL"
+}

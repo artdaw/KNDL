@@ -1,0 +1,18 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:bldg7-hvac-alert-20260426t091500z-k7l8m9n0",
+  "@type": "Fact",
+  "statement": "HVAC in Building 7 Room 3A is likely faulted — temperature 3.6°C above setpoint while room is occupied",
+  "subject": "hvac:bldg7-r3a",
+  "predicate": "status",
+  "object": "fault_suspected",
+  "confidence": 0.82,
+  "source": "rule://bldg7/hvac-monitor",
+  "validFrom": "2026-04-26T09:15:00Z",
+  "recordedAt": "2026-04-26T09:15:00Z",
+  "derivedFrom": [
+    "fact:bldg7-t001-temperature-20260426t090000z-e5f6a7b8",
+    "fact:bldg7-r3a-occupied-20260426t085500z-c9d0e1f2"
+  ],
+  "tags": ["alert", "maintenance"]
+}

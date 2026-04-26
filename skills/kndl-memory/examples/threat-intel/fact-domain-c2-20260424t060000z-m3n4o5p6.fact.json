@@ -1,0 +1,18 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:domain-update-example-com-c2-20260424t060000z-m3n4o5p6",
+  "@type": "Fact",
+  "statement": "update.example.com is an active Emotet C2 domain",
+  "subject": "domain:update.example.com",
+  "predicate": "indicator_type",
+  "object": "c2_emotet",
+  "confidence": 0.85,
+  "decay": "0.5/7d",
+  "source": "https://feeds.example.com/ti/emotet",
+  "validFrom": "2026-04-24T06:00:00Z",
+  "recordedAt": "2026-04-24T06:00:00Z",
+  "derivedFrom": [
+    "fact:hash-d41d8cd9-malware-20260423t080000z-i9j0k1l2"
+  ],
+  "tags": ["emotet", "c2", "domain"]
+}

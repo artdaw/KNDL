@@ -7,7 +7,7 @@
   justify-content: space-between;
   padding: 0 32px;
   height: 56px;
-  background: rgba(10, 10, 15, 0.85);
+  background: rgba(10, 10, 15, 0.92);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
 }
@@ -26,8 +26,10 @@
   color: var(--accent);
   text-decoration: none;
   letter-spacing: -1px;
+  flex-shrink: 0;
 }
 
+/* ── Desktop links ── */
 .links {
   display: flex;
   gap: 4px;
@@ -40,22 +42,76 @@
   font-weight: 400;
   color: var(--text-dim);
   text-decoration: none;
-  padding: 6px 12px;
+  padding: 6px 10px;
   border-radius: 6px;
   letter-spacing: 0.5px;
   transition: color 0.2s, background 0.2s;
+  white-space: nowrap;
 }
 
-.link:hover {
-  color: var(--text);
-  background: var(--surface2);
+.link:hover  { color: var(--text); background: var(--surface2); }
+.link.active { color: var(--accent); }
+
+/* ── Hamburger button — hidden on desktop ── */
+.burger {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 36px;
+  height: 36px;
+  padding: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
-.link.active {
-  color: var(--accent);
+.burgerBar {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: var(--text-dim);
+  border-radius: 2px;
+  transition: transform 0.2s, opacity 0.2s;
 }
 
-@media (max-width: 600px) {
-  .nav { padding: 0 20px; }
-  .link { padding: 6px 8px; }
+.burgerOpen1 { transform: translateY(7px) rotate(45deg); }
+.burgerOpen2 { opacity: 0; }
+.burgerOpen3 { transform: translateY(-7px) rotate(-45deg); }
+
+/* ── Mobile drawer ── */
+.drawer {
+  display: none;
+  position: absolute;
+  top: 56px;
+  left: 0;
+  right: 0;
+  background: rgba(10, 10, 15, 0.97);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  flex-direction: column;
+  padding: 8px 0 16px;
+  z-index: 99;
+}
+
+.drawerLink {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text-dim);
+  text-decoration: none;
+  padding: 12px 24px;
+  transition: color 0.15s, background 0.15s;
+  border-left: 2px solid transparent;
+}
+
+.drawerLink:hover    { color: var(--text); background: var(--surface2); }
+.drawerActive        { color: var(--accent); border-left-color: var(--accent); }
+
+/* ── Mobile breakpoint ── */
+@media (max-width: 680px) {
+  .nav    { padding: 0 20px; }
+  .links  { display: none; }
+  .burger { display: flex; }
+  .drawer { display: flex; }
 }

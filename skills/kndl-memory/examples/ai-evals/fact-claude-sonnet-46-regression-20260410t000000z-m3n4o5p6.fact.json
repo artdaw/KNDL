@@ -1,0 +1,14 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:model-claude-sonnet-46-mmlu-regression-20260410t000000z-m3n4o5p6",
+  "@type": "Fact",
+  "statement": "Claude Sonnet 4.6 (1M context) MMLU score is 87.6% — slight regression from 4.5, likely trade-off for extended context",
+  "subject": "model:claude-sonnet-4-6-1m",
+  "predicate": "mmlu_5shot",
+  "object": 87.6,
+  "confidence": 0.98,
+  "source": "https://anthropic.com/research/claude-4-evals",
+  "validFrom": "2026-04-10T00:00:00Z",
+  "recordedAt": "2026-04-10T00:00:00Z",
+  "tags": ["benchmark", "mmlu", "regression", "claude-sonnet"]
+}

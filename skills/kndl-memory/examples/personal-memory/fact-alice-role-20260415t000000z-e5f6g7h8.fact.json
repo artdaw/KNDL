@@ -1,0 +1,15 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:alice-role-20260415t000000z-e5f6g7h8",
+  "@type": "Fact",
+  "statement": "Alice was promoted to staff engineer, still on payments team",
+  "subject": "person:alice",
+  "predicate": "role",
+  "object": "staff engineer, payments",
+  "confidence": 0.97,
+  "decay": "0.5/180d",
+  "source": "human://gleb",
+  "validFrom": "2026-04-15T00:00:00Z",
+  "recordedAt": "2026-04-15T09:30:00Z",
+  "supersedes": "fact:alice-role-20260101t000000z-a1b2c3d4"
+}

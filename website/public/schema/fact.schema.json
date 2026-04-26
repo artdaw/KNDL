@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kndl.artdaw.com/schema/fact.schema.json",
+  "title": "KNDL Fact",
+  "description": "One immutable assertion in the KNDL memory protocol. Every fact carries confidence, decay, provenance, and bitemporal validity. Facts are stored as individual JSON-LD files and never edited — updates are made via supersession.",
+  "type": "object",
+  "required": ["@id", "@type", "statement", "confidence", "source", "validFrom", "recordedAt"],
+  "additionalProperties": true,
+  "properties": {
+    "@context": { "type": ["string", "object"], "description": "JSON-LD context. Recommended: https://kndl.artdaw.com/context/v1.jsonld" },
+    "@id":      { "type": "string", "minLength": 1, "description": "Globally unique fact identifier. Recommended pattern: fact:<subject>-<predicate>-<timestamp>-<hash8>" },
+    "@type":    { "type": "string", "description": "Usually 'Fact'. Use 'Action' for intents/rules." },
+
+    "statement":  { "type": "string", "minLength": 1, "description": "Plain-language one-sentence assertion" },
+    "subject":    { "type": "string", "description": "Entity URI (for structured triple queries, e.g. customer:9281)" },
+    "predicate":  { "type": "string", "description": "Property name (for structured triple queries, e.g. creditScore)" },
+    "object":     { "description": "Value or object URI" },
+
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1, "description": "Epistemic certainty 0.0–1.0. Reserve 1.0 for axiomatic facts only." },
+    "decay":      { "type": "string", "pattern": "^[0-9.]+/[0-9.]+(?:ns|us|ms|s|m|h|d|w|mo|y)$", "description": "Half-life decay spec: rate/window, e.g. '0.5/30d' halves confidence every 30 days." },
+
+    "source":     { "type": "string", "description": "URI of asserting entity. Use human://<name> for user input, doi:<id> for publications." },
+    "validFrom":  { "type": "string", "format": "date-time", "description": "ISO datetime — when the fact became true in the world" },
+    "validUntil": { "type": "string", "format": "date-time", "description": "ISO datetime — explicit expiry (omit for open-ended)" },
+    "observedAt": { "type": "string", "format": "date-time", "description": "ISO datetime — when an agent or sensor directly observed it (vs. heard about it)" },
+    "recordedAt": { "type": "string", "format": "date-time", "description": "ISO datetime — when it entered memory (auto-set by the store)" },
+
+    "supersedes":   { "type": "string", "description": "@id of the older fact this assertion replaces. The old fact is hidden from active queries but preserved for as-of time-travel." },
+    "derivedFrom":  { "type": "array", "items": { "type": "string" }, "description": "@ids of source facts this was inferred from" },
+    "inference":    { "type": "string", "description": "@id of the rule that produced this derived fact" },
+    "negated":      { "type": "boolean", "description": "true = this fact is known-false (positive negation under open-world assumption). Never substitute for 'unknown'." },
+
+    "classification": { "type": "string", "enum": ["PII", "PHI", "PCI", "CONFIDENTIAL", "INTERNAL", "PUBLIC"], "description": "Sensitivity label. PHI facts are filtered by default; require allowPhi:true and consent." },
+    "consent":  { "type": "string", "description": "@id of the consent scope covering PHI access" },
+    "retention": { "type": "string", "description": "ISO duration or date for scheduled deletion, e.g. P7Y" },
+    "tenant":   { "type": "string", "description": "Opaque multi-tenant isolation key" },
+    "tags":     { "type": "array", "items": { "type": "string" }, "description": "Free-form labels for search and grouping" }
+  }
+}

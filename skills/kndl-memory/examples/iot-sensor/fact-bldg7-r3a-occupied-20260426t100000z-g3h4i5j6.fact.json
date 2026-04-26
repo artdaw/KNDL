@@ -1,0 +1,16 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:bldg7-r3a-occupied-20260426t100000z-g3h4i5j6",
+  "@type": "Fact",
+  "statement": "Building 7 Room 3A is NOT occupied — room cleared after meeting",
+  "subject": "room:bldg7-r3a",
+  "predicate": "occupied",
+  "object": false,
+  "confidence": 0.95,
+  "decay": "0.5/30m",
+  "source": "pir://bldg7/r3a",
+  "validFrom": "2026-04-26T10:00:00Z",
+  "observedAt": "2026-04-26T10:00:00Z",
+  "recordedAt": "2026-04-26T10:00:01Z",
+  "supersedes": "fact:bldg7-r3a-occupied-20260426t085500z-c9d0e1f2"
+}

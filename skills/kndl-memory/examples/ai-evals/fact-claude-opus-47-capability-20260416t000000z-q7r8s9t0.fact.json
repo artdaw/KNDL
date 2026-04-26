@@ -1,0 +1,18 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:model-claude-opus-47-reasoning-capability-20260416t000000z-q7r8s9t0",
+  "@type": "Fact",
+  "statement": "Claude Opus 4.7 demonstrates expert-level reasoning — derived from MMLU 93.8% and Constitutional AI safety evaluation",
+  "subject": "model:claude-opus-4-7",
+  "predicate": "reasoning_capability",
+  "object": "expert_level",
+  "confidence": 0.91,
+  "source": "agent://eval-pipeline",
+  "validFrom": "2026-04-16T00:00:00Z",
+  "recordedAt": "2026-04-16T00:00:00Z",
+  "derivedFrom": [
+    "fact:model-claude-opus-47-mmlu-20260415t000000z-e5f6g7h8",
+    "fact:model-claude-sonnet-45-safety-eval-20260301t000000z-i9j0k1l2"
+  ],
+  "tags": ["capability", "derived", "claude-opus"]
+}

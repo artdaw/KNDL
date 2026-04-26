@@ -1,0 +1,14 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:bldg7-t001-temperature-20260426t080000z-a1b2c3d4",
+  "@type": "Fact",
+  "statement": "Sensor T001 in Building 7 Room 3A reads 22.5°C",
+  "subject": "sensor:bldg7-t001",
+  "predicate": "temperature_celsius",
+  "object": 22.5,
+  "confidence": 0.99,
+  "decay": "0.5/1h",
+  "source": "mqtt://bldg7/sensors/t001",
+  "validFrom": "2026-04-26T08:00:00Z",
+  "recordedAt": "2026-04-26T08:00:03Z"
+}

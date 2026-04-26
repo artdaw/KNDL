@@ -1,0 +1,16 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:exp042-published-result-20260501t000000z-q7r8s9t0",
+  "@type": "Fact",
+  "statement": "EXP-042 buffer pH result 7.40 ± 0.02 published in Journal of Chemical Biology, doi:10.1000/jcb.2026.042",
+  "subject": "experiment:EXP-042",
+  "predicate": "published_result_ph",
+  "object": 7.4,
+  "confidence": 0.99,
+  "source": "doi:10.1000/jcb.2026.042",
+  "validFrom": "2026-05-01T00:00:00Z",
+  "recordedAt": "2026-05-01T00:00:00Z",
+  "derivedFrom": [
+    "fact:exp042-buffer-ph-consensus-20260421t090000z-m3n4o5p6"
+  ]
+}

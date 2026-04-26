@@ -155,13 +155,14 @@ export function techArticleSchema(params: {
 export function softwareSourceCodeSchema() {
   return {
     "@context": "https://schema.org",
-    "@type": "SoftwareSourceCode",
-    name: "KNDL — Knowledge Node Description Language",
+    "@type": "SoftwareApplication",
+    name: "KNDL — Knowledge Node Data Link",
+    applicationCategory: "DeveloperApplication",
     codeRepository: "https://github.com/artdaw/KNDL",
-    programmingLanguage: "KNDL",
     url: ORIGIN,
     description:
-      "A graph-based knowledge representation language for AI agents — typed nodes, confidence scores, temporal decay, cryptographic provenance, and native intent/process blocks.",
+      "JSON-LD fact format and MCP server for AI agent memory. Every fact carries confidence, decay, provenance, bitemporal validity, and a supersession chain. The format Anthropic Memory was waiting for.",
     license: "https://opensource.org/licenses/MIT",
+    offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
   };
 }

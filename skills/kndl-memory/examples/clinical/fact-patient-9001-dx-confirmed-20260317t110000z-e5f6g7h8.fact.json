@@ -1,0 +1,17 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:patient-9001-diagnosis-confirmed-20260317t110000z-e5f6g7h8",
+  "@type": "Fact",
+  "statement": "Patient 9001 confirmed Type 2 diabetes mellitus — HbA1c 8.2%, fasting glucose 195 mg/dL",
+  "subject": "patient:9001",
+  "predicate": "diagnosis",
+  "object": "type2_diabetes",
+  "confidence": 0.97,
+  "source": "lab://city-hospital/chemistry",
+  "validFrom": "2026-03-17T11:00:00Z",
+  "observedAt": "2026-03-17T09:00:00Z",
+  "recordedAt": "2026-03-17T11:00:00Z",
+  "supersedes": "fact:patient-9001-diagnosis-initial-20260310t140000z-a1b2c3d4",
+  "classification": "PHI",
+  "consent": "consent:patient-9001-care-team-2026"
+}
