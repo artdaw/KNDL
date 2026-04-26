@@ -44,6 +44,7 @@ export interface FactInput {
   tenant?: string;
   derivedFrom?: string[];
   negated?: boolean;
+  tags?: string[];
 }
 
 export interface QueryOptions {

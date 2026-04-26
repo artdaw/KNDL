@@ -2,15 +2,18 @@
 // kndl-memory-mcp — MCP server for KNDL JSON-LD facts.
 //
 // Tools:
-//   assert_fact       — write a new fact
-//   query_facts       — read active facts with effective confidence at as_of
-//   contradictions    — find disagreeing active facts
-//   supersede_fact    — write a fact replacing an older one (preserves history)
-//   as_of             — bitemporal time-travel query
-//   provenance_chain  — walk derivedFrom + supersedes backward
-//   subscribe         — register for notifications when matching facts change
-//   unsubscribe       — cancel a subscription
-//   list_subscriptions — inspect active subscriptions
+//   assert_fact         — write a new fact
+//   query_facts         — read active facts with effective confidence at as_of
+//   contradictions      — find disagreeing active facts
+//   supersede_fact      — write a fact replacing an older one (preserves history)
+//   as_of               — bitemporal time-travel query
+//   provenance_chain    — walk derivedFrom + supersedes backward
+//   subscribe           — register for notifications when matching facts change
+//   unsubscribe         — cancel a subscription
+//   list_subscriptions  — inspect active subscriptions
+//   sync_memory_store   — pull from an Anthropic Memory Store (gated on ANTHROPIC_API_KEY)
+//   list_memory_stores  — list configured remote stores and last-sync timestamps
+//   watch_memory_store  — NOT AVAILABLE in v2.0 (pending watermark API verification)
 //
 // Resources:
 //   kndl://fact/{id}  — live snapshot; clients re-read on notifications/resources/updated
@@ -37,6 +40,9 @@ import { z } from "zod";
 
 import { makeStore } from "./stores/index.js";
 import { NotifyingStore, SubscriptionRegistry, attachFsWatcher } from "./notify.js";
+import { AnthropicMemoryClient } from "./remote/anthropic.js";
+import { pull } from "./remote/sync.js";
+import { loadRemoteConfigs, addRemote, saveRemoteConfigs } from "./remote/config.js";
 import type { FactInput } from "./types.js";
 
 // ── Store setup ──────────────────────────────────────────────────────────────
@@ -141,6 +147,12 @@ const UnsubscribeSchema = z.object({
   id: z.string().describe("Subscription id returned by subscribe"),
 });
 
+const SyncMemoryStoreSchema = z.object({
+  label:        z.string().describe("Remote label as registered with `kndl remote add`"),
+  direction:    z.enum(["pull"]).default("pull").describe("Only 'pull' supported in v2.0"),
+  since:        z.string().optional().describe("ISO datetime — pull only items created after this (if supported by the API)"),
+});
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function toFactInput(args: z.infer<typeof AssertSchema>): FactInput {
@@ -210,7 +222,9 @@ const TOOLS = [
   { name: "provenance_chain",   schema: ProvenanceSchema,    description: "Walk derivedFrom + supersedes backward to surface the full audit trail of a fact." },
   { name: "subscribe",          schema: SubscribeSchema,     description: "Register for notifications when facts matching the filter are written. Returns a subscription id. Re-read kndl://fact/{id} on notifications/resources/updated." },
   { name: "unsubscribe",        schema: UnsubscribeSchema,   description: "Cancel a subscription by id." },
-  { name: "list_subscriptions", schema: z.object({}),        description: "List active subscriptions and session count." },
+  { name: "list_subscriptions",  schema: z.object({}),             description: "List active subscriptions and session count." },
+  { name: "sync_memory_store",   schema: SyncMemoryStoreSchema,    description: "Pull facts from a configured Anthropic Memory Store into the local fact store. Requires ANTHROPIC_API_KEY. Register stores with `kndl remote add`." },
+  { name: "list_memory_stores",  schema: z.object({}),             description: "List configured remote Anthropic Memory Stores and their last-sync timestamps." },
 ] as const;
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
@@ -266,6 +280,28 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       }
       case "list_subscriptions": {
         return ok({ count: subscriptions.size, subscriptions: subscriptions.list(), active_sessions: activeSessions.size });
+      }
+      case "sync_memory_store": {
+        const apiKey = process.env.ANTHROPIC_API_KEY;
+        if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set. Set it to use remote sync.");
+        const a = SyncMemoryStoreSchema.parse(args);
+        const remotes = loadRemoteConfigs();
+        const config = remotes.find((r) => r.label === a.label);
+        if (!config) throw new Error(`Remote '${a.label}' not found. Run \`kndl remote add\` first.`);
+        const client = new AnthropicMemoryClient(apiKey);
+        const result = await pull(client, store, config);
+        // Persist updated watermark
+        const idx = remotes.findIndex((r) => r.label === a.label);
+        if (idx >= 0) remotes[idx] = config;
+        saveRemoteConfigs(remotes);
+        return ok(result);
+      }
+      case "list_memory_stores": {
+        const remotes = loadRemoteConfigs();
+        return ok({ count: remotes.length, remotes: remotes.map((r) => ({
+          label: r.label, provider: r.provider, store_id: r.store_id,
+          last_synced_at: r.last_synced_at ?? null,
+        }))});
       }
       default:
         throw new Error(`unknown tool: ${name}`);

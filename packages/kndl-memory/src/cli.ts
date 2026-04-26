@@ -20,6 +20,9 @@
 
 import type { FactInput } from "./types.js";
 import { makeStore } from "./stores/index.js";
+import { AnthropicMemoryClient } from "./remote/anthropic.js";
+import { pull } from "./remote/sync.js";
+import { loadRemoteConfigs, addRemote, removeRemote, saveRemoteConfigs } from "./remote/config.js";
 
 interface Args {
   positional: string[];
@@ -121,11 +124,14 @@ Commands:
   provenance       Walk derivedFrom + supersedes backward
   list             List fact IDs
   show             Print a fact by ID
+  remote           Manage and sync Anthropic Memory Store remotes
   help             Show this message
 
 Env:
-  KNDL_STORAGE     Storage URL, e.g. fs:./memory  sqlite:./kndl.db  duckdb:./kndl.duckdb
-  KNDL_MEMORY_DIR  Legacy alias — equivalent to KNDL_STORAGE=fs:<dir>
+  KNDL_STORAGE          Storage URL, e.g. fs:./memory  sqlite:./kndl.db
+  KNDL_MEMORY_DIR       Legacy alias — equivalent to KNDL_STORAGE=fs:<dir>
+  ANTHROPIC_API_KEY     Required for remote sync commands
+  KNDL_REMOTE_STORES    "anthropic:<store_id>:<label>" shorthand (no file needed)
 
 Run \`kndl <command> --help\` for options, or read SKILL.md.
 `;
@@ -183,6 +189,59 @@ async function main(argv: string[]): Promise<number> {
         const f = await store.show(id);
         if (!f) { process.stderr.write(`not found: ${id}\n`); return 1; }
         out(f);
+        return 0;
+      }
+      case "remote": {
+        const sub = argv.slice(1);
+        const subCmd = sub[0];
+        const { flags: rflags } = parseArgs(sub.slice(1));
+        switch (subCmd) {
+          case "add": {
+            const label    = requireFlag(s(rflags.label),    "label");
+            const storeId  = requireFlag(s(rflags["store-id"]), "store-id");
+            const provider = (s(rflags.provider) ?? "anthropic") as "anthropic";
+            addRemote({
+              label, provider, store_id: storeId,
+              default_confidence: Number(rflags["default-confidence"] ?? 0.85),
+              push: false,
+            });
+            out({ added: label, store_id: storeId, provider });
+            return 0;
+          }
+          case "pull": {
+            const label = requireFlag(s(rflags._) ?? s(sub[1]), "label");
+            const apiKey = process.env.ANTHROPIC_API_KEY;
+            if (!apiKey) fail("ANTHROPIC_API_KEY is not set");
+            const remotes = loadRemoteConfigs();
+            const config = remotes.find((r) => r.label === label);
+            if (!config) fail(`Remote '${label}' not found. Run \`kndl remote add\` first.`);
+            const client = new AnthropicMemoryClient(apiKey);
+            const store = makeStore();
+            const result = await pull(client, store, config!);
+            const idx = remotes.findIndex((r) => r.label === label);
+            if (idx >= 0) remotes[idx] = config!;
+            saveRemoteConfigs(remotes);
+            out(result);
+            return 0;
+          }
+          case "ls":
+          case "list": {
+            out(loadRemoteConfigs().map((r) => ({
+              label: r.label, provider: r.provider, store_id: r.store_id,
+              last_synced_at: r.last_synced_at ?? null,
+            })));
+            return 0;
+          }
+          case "rm":
+          case "remove": {
+            const label = requireFlag(s(rflags._) ?? s(sub[1]), "label");
+            const removed = removeRemote(label);
+            out({ removed, label });
+            return 0;
+          }
+          default:
+            fail(`unknown remote sub-command: ${subCmd ?? "(none)"}. Try: add, pull, ls, rm`);
+        }
         return 0;
       }
       default:

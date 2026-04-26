@@ -18,7 +18,7 @@
     "build": "tsup src/core.ts src/cli.ts src/server.ts --format esm --dts --clean --shims",
     "kndl": "tsx src/cli.ts",
     "mcp": "tsx src/server.ts",
-    "test": "tsx --test tests/stores.test.ts"
+    "test": "tsx --test tests/stores.test.ts tests/remote.test.ts"
   },
   "files": [
     "dist",

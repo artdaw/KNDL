@@ -121,6 +121,7 @@ export function buildFact(input: FactInput, contextRel: string, supersedesId?: s
   if (input.derivedFrom)    fact.derivedFrom    = input.derivedFrom;
   if (input.negated)        fact.negated        = true;
   if (supersedesId)         fact.supersedes     = supersedesId;
+  if (input.tags?.length)   fact.tags           = input.tags;
   return fact;
 }
 
