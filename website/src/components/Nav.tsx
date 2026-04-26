@@ -2,11 +2,12 @@ import { NavLink, useLocation } from "react-router";
 import styles from "./Nav.module.css";
 
 const LINKS = [
-  { to: "/",         label: "Home" },
-  { to: "/spec",     label: "Spec" },
-  { to: "/workflow", label: "Workflow" },
-  { to: "/explorer", label: "Explorer" },
-  { to: "/mcp",      label: "MCP" },
+  { to: "/protocol",  label: "Protocol" },
+  { to: "/skill",     label: "Skill" },
+  { to: "/examples",  label: "Examples" },
+  { to: "/explorer",  label: "Explorer" },
+  { to: "/mcp",       label: "MCP" },
+  { to: "/eval",      label: "Eval" },
 ];
 
 export default function Nav() {
@@ -17,7 +18,7 @@ export default function Nav() {
     <nav className={`${styles.nav} ${isHome ? styles.home : ""}`}>
       <NavLink to="/" className={styles.logo}>KNDL</NavLink>
       <div className={styles.links}>
-        {LINKS.filter(l => l.to !== "/").map(({ to, label }) => (
+        {LINKS.map(({ to, label }) => (
           <NavLink
             key={to}
             to={to}

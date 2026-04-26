@@ -1,559 +1,263 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { parseKNDL, typeColor, GraphData, GraphNodeData } from "../utils/kndlParser";
-import { useForceLayout, Position } from "../hooks/useForceLayout";
+import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router";
 import { SEO, techArticleSchema } from "../components/SEO";
+import { DOMAINS, type DomainBundle, type Fact } from "../data/examples";
 import styles from "./ExplorerPage.module.css";
 
-// ── Sample KNDL ───────────────────────────────────────────────────────────────
+// ── Decay helpers ─────────────────────────────────────────────────────────────
 
-const SAMPLE = `node @berlin :: Location {
-  name     = "Berlin"
-  country  = "Germany"
-  pop      = 3645000
-  ~confidence 0.99
-  ~source     "wikidata://Q64"
+function parseDecay(decay: string): { rate: number; windowSec: number } | null {
+  const m = decay.match(/^([0-9.]+)\/(\d+)(s|m|h|d)$/);
+  if (!m) return null;
+  const rate = parseFloat(m[1]);
+  const n = parseInt(m[2], 10);
+  const unit = m[3];
+  const unitSec: Record<string, number> = { s: 1, m: 60, h: 3600, d: 86400 };
+  return { rate, windowSec: n * (unitSec[unit] ?? 86400) };
 }
 
-node @temp_01 :: Temperature {
-  value    = 18.5
-  unit     = "°C"
-  location -> @berlin
-  ~confidence 0.92
-  ~source     "sensor://bldg-7/t-001"
-  ~valid      2026-04-10T14:00Z .. 2026-04-10T14:05Z
-  ~decay      0.95 / 1h
+function effectiveConfidence(fact: Fact): number {
+  if (!fact.decay) return fact.confidence;
+  const parsed = parseDecay(fact.decay);
+  if (!parsed) return fact.confidence;
+  const { rate, windowSec } = parsed;
+  const validFrom = new Date(fact.validFrom).getTime();
+  const now = Date.now();
+  const elapsedSec = (now - validFrom) / 1000;
+  if (elapsedSec <= 0) return fact.confidence;
+  return fact.confidence * Math.pow(rate, elapsedSec / windowSec);
 }
-
-node @sensor_01 :: Device {
-  model    = "Bosch BME280"
-  floor    = 3
-  location -> @berlin
-  measures -> @temp_01
-  ~confidence 0.97
-  ~source     "inventory://sensors"
-}
-
-node @research_team :: Organization {
-  name     = "Climate Data Lab"
-  city     -> @berlin
-  ~confidence 0.88
-  ~source     "internal://org-chart"
-}
-
-node @dr_mueller :: Person {
-  name     = "Dr. Lena Mueller"
-  role     = "Lead Scientist"
-  worksAt  -> @research_team
-  ~confidence 0.95
-  ~source     "agent://hr"
-}
-
-node @heat_alert :: Event {
-  type     = "TemperatureAlert"
-  severity = "moderate"
-  triggers -> @temp_01
-  ~confidence 0.80
-  ~source     "agent://monitor"
-}`;
 
 // ── Confidence bar ────────────────────────────────────────────────────────────
 
-function ConfBar({ confidence }: { confidence: string }) {
-  const pct = Math.round((parseFloat(confidence) || 0) * 100);
-  const color = pct > 80 ? "#4ECDC4" : pct > 50 ? "#F7C59F" : "#E63946";
+function ConfBar({ base, effective }: { base: number; effective: number }) {
+  const basePct = Math.round(base * 100);
+  const effPct = Math.round(effective * 100);
+  const color = effPct > 70 ? "var(--accent)" : effPct > 40 ? "var(--accent4)" : "var(--accent3)";
   return (
     <div className={styles.confBar}>
       <div className={styles.confTrack}>
-        <div className={styles.confFill} style={{ width: `${pct}%`, background: color }} />
+        <div
+          className={styles.confFillBase}
+          style={{ width: `${basePct}%` }}
+          title={`Base: ${basePct}%`}
+        />
+        <div
+          className={styles.confFillEff}
+          style={{ width: `${effPct}%`, background: color }}
+          title={`Effective: ${effPct}%`}
+        />
       </div>
-      <span className={styles.confPct} style={{ color }}>{pct}%</span>
+      <div className={styles.confLabels}>
+        <span className={styles.confBase}>{base.toFixed(2)}</span>
+        {effective !== base && (
+          <>
+            <span className={styles.confArrow}>→</span>
+            <span className={styles.confEff} style={{ color }}>{effective.toFixed(2)}</span>
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
-// ── Detail panel ──────────────────────────────────────────────────────────────
+// ── Classification badge ──────────────────────────────────────────────────────
 
-interface DetailPanelProps {
-  node: GraphNodeData;
-  graph: GraphData;
-  onClose: () => void;
-  onNavigate: (id: string) => void;
+function ClassBadge({ cls }: { cls: string }) {
+  const colorMap: Record<string, string> = {
+    PHI:          "var(--accent3)",
+    PII:          "var(--accent3)",
+    CONFIDENTIAL: "var(--accent4)",
+    INTERNAL:     "var(--accent2)",
+    PUBLIC:       "var(--accent)",
+  };
+  return (
+    <span className={styles.classBadge} style={{ color: colorMap[cls] ?? "var(--text-dim)", borderColor: colorMap[cls] ?? "var(--border)" }}>
+      {cls}
+    </span>
+  );
 }
 
-function DetailPanel({ node, graph, onClose, onNavigate }: DetailPanelProps) {
-  const c = typeColor(node.typeName);
-  const metaEntries = Object.entries(node.meta).filter(([k]) => k !== "confidence");
+// ── Fact card ─────────────────────────────────────────────────────────────────
+
+function FactCard({
+  fact,
+  isSuperseded,
+}: {
+  fact: Fact;
+  isSuperseded: boolean;
+}) {
+  const eff = effectiveConfidence(fact);
+  const shortId = fact["@id"].replace(/^fact:/, "").slice(-20);
+  const shortSource = fact.source.replace(/^https?:\/\//, "").slice(0, 48);
 
   return (
-    <div className={styles.detailContent}>
-      <div className={styles.detailHeader}>
-        <div>
-          <div
-            className={styles.detailTypeBadge}
-            style={{ background: c.bg, color: c.text }}
-          >
-            {node.typeName}
-          </div>
-          <div className={styles.detailId}>@{node.id}</div>
+    <div className={`${styles.factCard} ${isSuperseded ? styles.superseded : ""}`}>
+      {isSuperseded && (
+        <div className={styles.supersededBanner}>superseded</div>
+      )}
+      {fact.negated && (
+        <div className={styles.negatedBanner}>negated</div>
+      )}
+
+      <p className={styles.statement}>{fact.statement}</p>
+
+      {(fact.subject || fact.predicate || fact.object !== undefined) && (
+        <div className={styles.spo}>
+          {fact.subject && <span className={styles.spoSubject}>{fact.subject}</span>}
+          {fact.predicate && <span className={styles.spoPredicate}>{fact.predicate}</span>}
+          {fact.object !== undefined && (
+            <span className={styles.spoObject}>{String(fact.object)}</span>
+          )}
         </div>
-        <button className={styles.closeBtn} onClick={onClose} aria-label="Close">×</button>
+      )}
+
+      <ConfBar base={fact.confidence} effective={eff} />
+
+      <div className={styles.meta}>
+        <div className={styles.metaRow}>
+          <span className={styles.metaLabel}>source</span>
+          <span className={styles.metaValue} title={fact.source}>{shortSource}</span>
+        </div>
+        <div className={styles.metaRow}>
+          <span className={styles.metaLabel}>validFrom</span>
+          <span className={styles.metaValue}>{fact.validFrom.slice(0, 10)}</span>
+        </div>
+        {fact.decay && (
+          <div className={styles.metaRow}>
+            <span className={styles.metaLabel}>decay</span>
+            <span className={styles.metaValue} style={{ color: "var(--accent4)" }}>{fact.decay}</span>
+          </div>
+        )}
       </div>
 
-      {node.meta.confidence && (
-        <div className={styles.sectionBlock}>
-          <div className={styles.sectionLabel}>Confidence</div>
-          <ConfBar confidence={node.meta.confidence} />
+      <div className={styles.cardFooter}>
+        <div className={styles.badgeRow}>
+          {fact.classification && <ClassBadge cls={fact.classification} />}
+          {fact.supersedes && (
+            <span className={styles.linkBadge} title={fact.supersedes}>supersedes ↑</span>
+          )}
+          {fact.derivedFrom && fact.derivedFrom.length > 0 && (
+            <span className={styles.linkBadge} title={fact.derivedFrom.join(", ")}>
+              derived from {fact.derivedFrom.length}
+            </span>
+          )}
         </div>
-      )}
+        {fact.tags && fact.tags.length > 0 && (
+          <div className={styles.tags}>
+            {fact.tags.map(t => <span key={t} className={styles.tag}>{t}</span>)}
+          </div>
+        )}
+      </div>
 
-      {Object.keys(node.fields).length > 0 && (
-        <div className={styles.sectionBlock}>
-          <div className={styles.sectionLabel}>Fields</div>
-          {Object.entries(node.fields).map(([k, v]) => (
-            <div key={k} className={styles.fieldRow}>
-              <span className={styles.fieldKey}>{k}</span>
-              <span className={styles.fieldVal}>
-                {typeof v === "number" ? v.toLocaleString() : v}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {node.edgesRaw.length > 0 && (
-        <div className={styles.sectionBlock}>
-          <div className={styles.sectionLabel}>Edges</div>
-          {node.edgesRaw.map((e, i) => {
-            const target = graph.nodes[e.target];
-            const tc = typeColor(target?.typeName ?? "Unknown");
-            return (
-              <div key={i} className={styles.edgeRow} onClick={() => onNavigate(e.target)}>
-                <span className={styles.edgeLabel}>{e.label}</span>
-                <span className={styles.edgeArrow}>→</span>
-                <span style={{ fontSize: 10, color: tc.bg }}>@{e.target}</span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {metaEntries.length > 0 && (
-        <div className={styles.sectionBlock}>
-          <div className={styles.sectionLabel}>Meta</div>
-          {metaEntries.map(([k, v]) => (
-            <div key={k}>
-              <div className={styles.metaKey}>~{k}</div>
-              <div className={styles.metaVal}>{v}</div>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className={styles.factId} title={fact["@id"]}>…{shortId}</div>
     </div>
   );
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-type ViewMode = "graph" | "editor";
-
 export default function ExplorerPage() {
-  const [source, setSource] = useState(SAMPLE);
-  const [graph, setGraph] = useState<GraphData>({ nodes: {}, edges: [] });
-  const [selected, setSelected] = useState<string | null>(null);
-  const [hovered, setHovered] = useState<string | null>(null);
-  const [view, setView] = useState<ViewMode>("graph");
-  const [pan, setPan] = useState<Position>({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [dragging, setDragging] = useState<string | null>(null);
-  const [isPanning, setIsPanning] = useState(false);
-  const panStart = useRef<Position | null>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [canvasSize, setCanvasSize] = useState({ w: 900, h: 560 });
+  const [searchParams, setSearchParams] = useSearchParams();
+  const domainParam = searchParams.get("domain") ?? "loan-decision";
 
-  // observe canvas size
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(entries => {
-      const { width, height } = entries[0].contentRect;
-      setCanvasSize({ w: width, h: height });
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
+  const [selectedDomainId, setSelectedDomainId] = useState(domainParam);
 
-  // parse on source change
-  useEffect(() => {
-    try {
-      setGraph(parseKNDL(source));
-      setSelected(null);
-    } catch {
-      // keep previous graph on parse error
+  const domain: DomainBundle =
+    DOMAINS.find(d => d.id === selectedDomainId) ?? DOMAINS[0];
+
+  // Build superseded fact ID set
+  const supersededIds = useCallback(() => {
+    const ids = new Set<string>();
+    for (const f of domain.facts) {
+      if (f.supersedes) ids.add(f.supersedes);
     }
-  }, [source]);
+    return ids;
+  }, [domain]);
 
-  const nodeList = Object.values(graph.nodes);
-  const { positions, posRef } = useForceLayout(nodeList, graph.edges, canvasSize.w, canvasSize.h);
-
-  // ── Drag nodes ──────────────────────────────────────────────────────────────
-  const onNodePointerDown = useCallback((e: React.PointerEvent, id: string) => {
-    e.stopPropagation();
-    setSelected(id);
-    setDragging(id);
-    (e.target as Element).setPointerCapture(e.pointerId);
-  }, []);
+  const superseded = supersededIds();
 
   useEffect(() => {
-    if (!dragging) return;
-    const onMove = (e: MouseEvent) => {
-      const svg = svgRef.current;
-      if (!svg) return;
-      const rect = svg.getBoundingClientRect();
-      const x = (e.clientX - rect.left - pan.x) / zoom;
-      const y = (e.clientY - rect.top - pan.y) / zoom;
-      posRef.current[dragging] = { x, y };
-      setGraph(g => ({ ...g }));
-    };
-    const onUp = () => setDragging(null);
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, [dragging, pan, zoom, posRef]);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set("domain", selectedDomainId);
+      return next;
+    }, { replace: true });
+  }, [selectedDomainId, setSearchParams]);
 
-  // ── Pan ─────────────────────────────────────────────────────────────────────
-  const onSvgMouseDown = useCallback((e: React.MouseEvent) => {
-    const tgt = e.target as Element;
-    if (tgt === svgRef.current || tgt.tagName === "rect" || tgt.tagName === "pattern") {
-      setIsPanning(true);
-      panStart.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
+  // Sync URL → state if user pastes link
+  useEffect(() => {
+    const d = searchParams.get("domain");
+    if (d && d !== selectedDomainId && DOMAINS.some(x => x.id === d)) {
+      setSelectedDomainId(d);
     }
-  }, [pan]);
-
-  useEffect(() => {
-    if (!isPanning) return;
-    const onMove = (e: MouseEvent) => {
-      if (!panStart.current) return;
-      setPan({ x: e.clientX - panStart.current.x, y: e.clientY - panStart.current.y });
-    };
-    const onUp = () => setIsPanning(false);
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, [isPanning]);
-
-  // ── Zoom ────────────────────────────────────────────────────────────────────
-  const onWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    setZoom(z => Math.max(0.25, Math.min(4, z - e.deltaY * 0.001)));
-  }, []);
-
-  // ── Stats ───────────────────────────────────────────────────────────────────
-  const avgConf = nodeList.length
-    ? (nodeList.reduce((s, n) => s + (parseFloat(n.meta.confidence) || 0), 0) / nodeList.length).toFixed(2)
-    : "—";
-  const typeCount = new Set(nodeList.map(n => n.typeName)).size;
-  const STAT_ITEMS: Array<[string, string | number, string]> = [
-    ["nodes",    nodeList.length,     "#4ECDC4"],
-    ["edges",    graph.edges.length,  "#F7C59F"],
-    ["types",    typeCount,           "#8338EC"],
-    ["avg conf", avgConf,             "#3A86FF"],
-  ];
-
-  const selNode = selected ? graph.nodes[selected] : null;
-  const pos = positions;
-
-  // ── Edge rendering helpers ──────────────────────────────────────────────────
-  const R = 28; // node radius
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className={styles.page}>
       <SEO
-        title="KNDL Graph Explorer — Interactive Force-Directed Visualization"
-        description="Visualise a KNDL knowledge graph live. Edit KNDL source in the browser and watch nodes, typed edges, and confidence scores render as a force-directed graph. Zoom, pan, drag, and inspect node details."
+        title="KNDL Explorer — Browse Fact Bundles"
+        description="Explore KNDL fact bundles across 8 domains. Visualise confidence, effective decay, supersession chains, provenance, and classification badges in an interactive card view."
         path="/explorer"
         type="website"
-        keywords="KNDL graph explorer, knowledge graph visualization, force-directed layout, KNDL playground"
+        keywords="KNDL explorer, fact browser, confidence decay, supersession, provenance, JSON-LD facts"
         jsonLd={techArticleSchema({
-          headline: "KNDL Graph Explorer",
-          description:
-            "Interactive force-directed visualization of KNDL knowledge graphs with a live editor.",
+          headline: "KNDL Explorer",
+          description: "Interactive browser for KNDL fact bundles across 8 domains.",
           path: "/explorer",
         })}
       />
-      {/* Toolbar */}
+
       <div className={styles.toolbar}>
-        <div className={styles.toolbarTitle}>
-          <span className={styles.toolbarName}>Graph Explorer</span>
+        <div className={styles.toolbarLeft}>
+          <span className={styles.toolbarTitle}>Fact Explorer</span>
           <div className={styles.sep} />
-          <div className={styles.stats}>
-            {STAT_ITEMS.map(([label, val, color]) => (
-              <div key={label} className={styles.stat}>
-                <div className={styles.statValue} style={{ color }}>{val}</div>
-                <div className={styles.statLabel}>{label}</div>
-              </div>
-            ))}
+          <div className={styles.domainStats}>
+            <span className={styles.statItem}>
+              <span className={styles.statVal}>{domain.facts.length}</span>
+              <span className={styles.statLbl}>facts</span>
+            </span>
+            <span className={styles.statItem}>
+              <span className={styles.statVal}>{superseded.size}</span>
+              <span className={styles.statLbl}>superseded</span>
+            </span>
+            <span className={styles.statItem}>
+              <span className={styles.statVal}>
+                {(domain.facts.reduce((s, f) => s + effectiveConfidence(f), 0) / domain.facts.length).toFixed(2)}
+              </span>
+              <span className={styles.statLbl}>avg eff. conf</span>
+            </span>
           </div>
         </div>
-        <div className={styles.viewToggle}>
-          {(["graph", "editor"] as ViewMode[]).map(v => (
-            <button
-              key={v}
-              className={`${styles.viewBtn} ${view === v ? styles.viewBtnActive : ""}`}
-              onClick={() => setView(v)}
-            >
-              {v}
-            </button>
+        <select
+          className={styles.domainSelect}
+          value={selectedDomainId}
+          onChange={e => setSelectedDomainId(e.target.value)}
+          aria-label="Select domain"
+        >
+          {DOMAINS.map(d => (
+            <option key={d.id} value={d.id}>{d.name} ({d.facts.length} facts)</option>
           ))}
-        </div>
+        </select>
       </div>
 
-      {/* Body */}
-      <div className={styles.body}>
-        {/* Graph canvas */}
-        <div
-          className={styles.canvas}
-          ref={containerRef}
-          style={{ display: view === "graph" ? "flex" : "none" }}
-        >
-            <svg
-              ref={svgRef}
-              className={styles.svg}
-              style={{ cursor: isPanning ? "grabbing" : dragging ? "grabbing" : "grab" }}
-              onMouseDown={onSvgMouseDown}
-              onWheel={onWheel}
-              data-testid="graph-canvas"
-            >
-              <defs>
-                <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
-                  <path d="M0,0 L0,6 L8,3 z" fill="#2a3348" />
-                </marker>
-                <marker id="arr-hl" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
-                  <path d="M0,0 L0,6 L8,3 z" fill="#FF6B35" />
-                </marker>
-                {nodeList.map(n => {
-                  const c = typeColor(n.typeName);
-                  return (
-                    <radialGradient key={n.id} id={`grd-${n.id}`} cx="50%" cy="50%" r="50%">
-                      <stop offset="0%" stopColor={c.bg} stopOpacity="0.25" />
-                      <stop offset="100%" stopColor={c.bg} stopOpacity="0" />
-                    </radialGradient>
-                  );
-                })}
-              </defs>
+      <div className={styles.domainDesc}>
+        {domain.description}
+      </div>
 
-              <rect width="100%" height="100%" fill="transparent" />
-
-              {/* Dot grid background */}
-              <pattern
-                id="grid"
-                width="32"
-                height="32"
-                patternUnits="userSpaceOnUse"
-                patternTransform={`translate(${pan.x % 32},${pan.y % 32})`}
-              >
-                <circle cx="16" cy="16" r="0.8" fill="#1e2533" />
-              </pattern>
-              <rect width="100%" height="100%" fill="url(#grid)" />
-
-              <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
-                {/* Selection glow */}
-                {selected && pos[selected] && (
-                  <circle
-                    cx={pos[selected].x}
-                    cy={pos[selected].y}
-                    r={54}
-                    fill={`url(#grd-${selected})`}
-                    style={{ pointerEvents: "none" }}
-                  />
-                )}
-
-                {/* Edges */}
-                {graph.edges.map((e, idx) => {
-                  const s = pos[e.source];
-                  const t = pos[e.target];
-                  if (!s || !t) return null;
-                  const isHl = hovered === e.source || hovered === e.target
-                    || selected === e.source || selected === e.target;
-                  const dx = t.x - s.x;
-                  const dy = t.y - s.y;
-                  const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                  const x1 = s.x + (dx / dist) * R;
-                  const y1 = s.y + (dy / dist) * R;
-                  const x2 = t.x - (dx / dist) * (R + 6);
-                  const y2 = t.y - (dy / dist) * (R + 6);
-                  const mx = (s.x + t.x) / 2;
-                  const my = (s.y + t.y) / 2;
-
-                  return (
-                    <g key={idx}>
-                      <line
-                        x1={x1} y1={y1} x2={x2} y2={y2}
-                        stroke={isHl ? "#FF6B35" : "#2a3348"}
-                        strokeWidth={isHl ? 2 : 1.2}
-                        markerEnd={isHl ? "url(#arr-hl)" : "url(#arr)"}
-                        style={{ transition: "stroke 0.15s" }}
-                      />
-                      {isHl && (
-                        <text
-                          x={mx} y={my - 6}
-                          textAnchor="middle"
-                          fill="#FF6B35"
-                          fontSize={9}
-                          letterSpacing="0.06em"
-                          style={{ pointerEvents: "none", fontFamily: "var(--font-mono)" }}
-                        >
-                          {e.label}
-                        </text>
-                      )}
-                    </g>
-                  );
-                })}
-
-                {/* Nodes */}
-                {nodeList.map(n => {
-                  const p = pos[n.id];
-                  if (!p) return null;
-                  const c = typeColor(n.typeName);
-                  const isSel = selected === n.id;
-                  const isHov = hovered === n.id;
-                  const conf = parseFloat(n.meta.confidence) || 0;
-                  const circum = 201; // 2πr ≈ 2π×32
-
-                  return (
-                    <g
-                      key={n.id}
-                      transform={`translate(${p.x},${p.y})`}
-                      onPointerDown={(e) => onNodePointerDown(e, n.id)}
-                      onMouseEnter={() => setHovered(n.id)}
-                      onMouseLeave={() => setHovered(null)}
-                      style={{ cursor: "pointer" }}
-                      data-testid={`node-${n.id}`}
-                    >
-                      {/* Confidence ring */}
-                      <circle r={32} fill="none" stroke="#1e2533" strokeWidth={3} />
-                      {conf > 0 && (
-                        <circle
-                          r={32}
-                          fill="none"
-                          stroke={c.bg}
-                          strokeWidth={3}
-                          strokeDasharray={`${conf * circum} ${circum}`}
-                          strokeDashoffset={50}
-                          style={{ transition: "stroke-dasharray 0.5s" }}
-                        />
-                      )}
-                      {/* Node body */}
-                      <circle
-                        r={26}
-                        fill={isSel ? c.bg : "#141b2d"}
-                        stroke={c.bg}
-                        strokeWidth={isSel || isHov ? 2.5 : 1.5}
-                        style={{ transition: "all 0.15s" }}
-                        filter={isSel ? `drop-shadow(0 0 12px ${c.bg})` : undefined}
-                      />
-                      {/* Type initials */}
-                      <text
-                        textAnchor="middle"
-                        dominantBaseline="central"
-                        fontSize={13}
-                        fontWeight={700}
-                        fill={isSel ? c.text : c.bg}
-                        style={{ pointerEvents: "none", letterSpacing: "-0.02em", fontFamily: "var(--font-mono)" }}
-                      >
-                        {n.typeName.slice(0, 2).toUpperCase()}
-                      </text>
-                      {/* Label */}
-                      <text
-                        y={42}
-                        textAnchor="middle"
-                        fill={isSel || isHov ? "#fff" : "#5a6275"}
-                        fontSize={10}
-                        letterSpacing="0.04em"
-                        style={{ pointerEvents: "none", transition: "fill 0.15s", fontFamily: "var(--font-mono)" }}
-                      >
-                        @{n.id.length > 14 ? n.id.slice(0, 14) + "…" : n.id}
-                      </text>
-                    </g>
-                  );
-                })}
-              </g>
-            </svg>
-
-            {/* Zoom controls */}
-            <div className={styles.zoomControls}>
-              {([
-                ["+", () => setZoom(z => Math.min(4, z + 0.15))],
-                ["−", () => setZoom(z => Math.max(0.25, z - 0.15))],
-                ["⊙", () => { setZoom(1); setPan({ x: 0, y: 0 }); }],
-              ] as Array<[string, () => void]>).map(([lbl, fn]) => (
-                <button key={lbl} className={styles.zoomBtn} onClick={fn}>{lbl}</button>
-              ))}
-            </div>
-
-            {/* Type legend */}
-            <div className={styles.legend}>
-              {[...new Set(nodeList.map(n => n.typeName))].map(t => {
-                const c = typeColor(t);
-                return (
-                  <div key={t} className={styles.legendItem}>
-                    <div className={styles.legendDot} style={{ background: c.bg }} />
-                    <span className={styles.legendLabel}>{t}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-        {/* Editor view */}
-        <div
-          className={styles.editor}
-          style={{ display: view === "editor" ? "flex" : "none" }}
-        >
-          <div className={styles.editorLabel}>KNDL Source</div>
-          <textarea
-            className={styles.textarea}
-            value={source}
-            onChange={e => setSource(e.target.value)}
-            spellCheck={false}
-            data-testid="kndl-editor"
+      <div className={styles.grid}>
+        {domain.facts.map(fact => (
+          <FactCard
+            key={fact["@id"]}
+            fact={fact}
+            isSuperseded={superseded.has(fact["@id"])}
           />
-          <div className={styles.editorActions}>
-            <button className={styles.viewGraphBtn} onClick={() => setView("graph")}>
-              VIEW GRAPH →
-            </button>
-          </div>
-        </div>
-
-        {/* Detail panel */}
-        <div
-          className={styles.detail}
-          style={{ width: selNode ? 280 : 0 }}
-          data-testid="detail-panel"
-        >
-          {selNode && (
-            <DetailPanel
-              node={selNode}
-              graph={graph}
-              onClose={() => setSelected(null)}
-              onNavigate={(id) => setSelected(id)}
-            />
-          )}
-        </div>
+        ))}
       </div>
 
-      {/* Footer hints */}
       <div className={styles.footer}>
-        <span>CLICK node to inspect</span>
-        <span>DRAG to reposition</span>
-        <span>SCROLL to zoom</span>
-        <span>EDITOR tab to edit source</span>
+        <span>Confidence bar: dim = base &nbsp;|&nbsp; bright = effective (post-decay)</span>
+        <span>Grey cards are superseded by a newer fact in this bundle</span>
       </div>
     </div>
   );

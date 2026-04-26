@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Post-build prerender for GitHub Pages SEO.
 //
-// Vite builds a single dist/index.html. Direct hits on /spec, /workflow, etc.
+// Vite builds a single dist/index.html. Direct hits on /protocol, /skill, etc.
 // would otherwise return the 404 fallback (with HTTP 404 status). We stamp
 // out one HTML shell per route so each path is served with status 200 and
 // the correct <title>, <meta>, <link rel="canonical">, Open Graph, Twitter,
@@ -45,84 +45,93 @@ function techArticle({ headline, description, path, dateModified }) {
 
 const ROUTES = [
   {
-    path: "/spec",
-    outDir: "spec",
-    title: "KNDL Language Specification — types, meta-annotations, domain profiles",
+    path: "/protocol",
+    outDir: "protocol",
+    title: "KNDL Protocol — Fact Schema Reference",
     description:
-      "KNDL language reference: primitive types (Quantity, Money, Vector), meta-annotations (~confidence, ~valid, ~recorded, ~negated, ~uncertainty), query language with multi-hop paths, processes, and eight domain profiles (IoT, FinTech, Healthcare, Logistics, Robotics, Smart Factory, Networking, eCommerce).",
+      "Field-by-field reference for the KNDL Fact JSON-LD shape. All fields, types, constraints, the decay formula, and JSON Schema link.",
     type: "article",
     keywords:
-      "KNDL specification, knowledge graph language, AI agent memory, confidence score, temporal decay, provenance, EBNF grammar",
+      "KNDL fact schema, JSON-LD fact, confidence decay, bitemporal facts, provenance, fact format",
     jsonLd: techArticle({
-      headline: "KNDL Language Specification",
-      description:
-        "Reference for the Knowledge Node Description Language — types, meta-annotations, queries, processes, and domain profiles.",
-      path: "/spec",
+      headline: "KNDL Protocol — Fact Schema Reference",
+      description: "Field-by-field reference for the KNDL Fact JSON-LD shape.",
+      path: "/protocol",
     }),
   },
   {
-    path: "/spec/full",
-    outDir: "spec/full",
-    title: "KNDL Specification v1.0 — Full Reference",
+    path: "/skill",
+    outDir: "skill",
+    title: "KNDL Skill — Agent Memory Reasoning Guide",
     description:
-      "Full KNDL v1.0 specification: lexical structure, type system (Quantity, Money, Vector, Frame, Code, Localized), core constructs, query language with multi-hop paths, processes, uncertainty model, serialization (text + binary), and conformance levels. Raw markdown available at /spec/SPECIFICATION.md.",
+      "How AI agents should use KNDL facts: workflow steps, trust thresholds, decay-aware reasoning, contradiction resolution, and provenance citation.",
     type: "article",
     keywords:
-      "KNDL spec v1.0, EBNF grammar, knowledge graph, agent memory, semantic data, confidence, provenance",
-    dateModified: "2026-04-23",
+      "KNDL skill, agent memory, confidence-aware reasoning, fact decay, provenance chain, contradiction detection",
     jsonLd: techArticle({
-      headline: "KNDL Language Specification v1.0",
-      description: "Complete reference for the Knowledge Node Description Language version 1.0.",
-      path: "/spec/full",
-      dateModified: "2026-04-23",
+      headline: "KNDL Skill — Agent Memory Reasoning Guide",
+      description: "How AI agents should use KNDL facts with trust thresholds, decay, and provenance.",
+      path: "/skill",
     }),
   },
   {
-    path: "/workflow",
-    outDir: "workflow",
-    title: "KNDL Agent Workflow — 6-Stage Pipeline (Ingest → Communicate)",
+    path: "/examples",
+    outDir: "examples",
+    title: "KNDL Examples — 8 Domain Bundles",
     description:
-      "Walk through how an AI agent actually uses KNDL: Ingest raw input, Produce confidence-scored nodes, Merge into the knowledge graph, Reason with probabilistic queries, Act via intents, Communicate grounded responses. Per-stage insights and integration architecture.",
+      "Eight real-world KNDL fact bundles: loan decision, IoT sensors, personal memory, threat intelligence, clinical records, legal eDiscovery, scientific lab, and AI evals.",
     type: "article",
     keywords:
-      "AI agent workflow, KNDL pipeline, knowledge graph reasoning, intent-action pattern, agent memory",
+      "KNDL examples, fact bundles, loan decision, IoT sensor, clinical records, threat intel, AI evals",
     jsonLd: techArticle({
-      headline: "KNDL Agent Workflow — 6-Stage Pipeline",
-      description:
-        "How an AI agent uses KNDL as a cognitive substrate across Ingest, Produce, Merge, Reason, Act, and Communicate stages.",
-      path: "/workflow",
-    }),
-  },
-  {
-    path: "/mcp",
-    outDir: "mcp",
-    title: "KNDL MCP Server — Use KNDL from Claude & AI Agents",
-    description:
-      "KNDL MCP server docs: 13 Model Context Protocol tools (kndl_parse, kndl_add_node, kndl_query_nodes, kndl_neighborhood, kndl_add_intent, and more). Install with pip, connect to Claude Desktop or any MCP-compatible agent.",
-    type: "article",
-    keywords:
-      "KNDL MCP, Model Context Protocol, Claude Desktop, AI agent tools, knowledge graph tools, MCP server",
-    jsonLd: techArticle({
-      headline: "KNDL MCP Server",
-      description:
-        "Expose the KNDL knowledge graph as Model Context Protocol tools for Claude and other AI agents.",
-      path: "/mcp",
+      headline: "KNDL Examples — 8 Domain Bundles",
+      description: "Eight real-world KNDL fact bundles across different domains.",
+      path: "/examples",
     }),
   },
   {
     path: "/explorer",
     outDir: "explorer",
-    title: "KNDL Graph Explorer — Interactive Force-Directed Visualization",
+    title: "KNDL Explorer — Browse Fact Bundles",
     description:
-      "Visualise a KNDL knowledge graph live. Edit KNDL source in the browser and watch nodes, typed edges, and confidence scores render as a force-directed graph. Zoom, pan, drag, and inspect node details.",
+      "Explore KNDL fact bundles across 8 domains. Visualise confidence, effective decay, supersession chains, provenance, and classification badges in an interactive card view.",
     type: "website",
     keywords:
-      "KNDL graph explorer, knowledge graph visualization, force-directed layout, KNDL playground",
+      "KNDL explorer, fact browser, confidence decay, supersession, provenance, JSON-LD facts",
     jsonLd: techArticle({
-      headline: "KNDL Graph Explorer",
-      description:
-        "Interactive force-directed visualization of KNDL knowledge graphs with a live editor.",
+      headline: "KNDL Explorer",
+      description: "Interactive browser for KNDL fact bundles across 8 domains.",
       path: "/explorer",
+    }),
+  },
+  {
+    path: "/mcp",
+    outDir: "mcp",
+    title: "kndl-memory-mcp — HOW Layer for KNDL Facts",
+    description:
+      "Install and configure the kndl-memory-mcp server for Claude Desktop, LM Studio, and Goose. Tool reference for assert_fact, query_facts, contradictions, provenance_chain, and remote sync.",
+    type: "article",
+    keywords:
+      "kndl-memory-mcp, MCP server, Claude Desktop, LM Studio, Goose, assert_fact, query_facts, agent memory tools",
+    jsonLd: techArticle({
+      headline: "kndl-memory-mcp — HOW Layer for KNDL Facts",
+      description: "Install and configure the kndl-memory-mcp server. Tool and remote sync reference.",
+      path: "/mcp",
+    }),
+  },
+  {
+    path: "/eval",
+    outDir: "eval",
+    title: "KNDL Eval Scoreboard",
+    description:
+      "Evaluation results for KNDL memory skill. Run the eval suite to generate results showing pass rate, per-archetype breakdown, and per-question verdicts.",
+    type: "article",
+    keywords:
+      "KNDL eval, memory skill evaluation, agent benchmark, fact recall, confidence accuracy",
+    jsonLd: techArticle({
+      headline: "KNDL Eval Scoreboard",
+      description: "Evaluation results for the KNDL memory skill.",
+      path: "/eval",
     }),
   },
 ];

@@ -1,13 +1,14 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { createBrowserRouter, RouterProvider } from "react-router";
+import { createBrowserRouter, RouterProvider, Navigate } from "react-router";
 import App from "./App";
 import LandingPage from "./pages/LandingPage";
-import SpecPage from "./pages/SpecPage";
-import SpecFullPage from "./pages/SpecFullPage";
-import WorkflowPage from "./pages/WorkflowPage";
-import McpPage from "./pages/McpPage";
+import ProtocolPage from "./pages/ProtocolPage";
+import SkillPage from "./pages/SkillPage";
+import ExamplesPage from "./pages/ExamplesPage";
 import ExplorerPage from "./pages/ExplorerPage";
+import McpPage from "./pages/McpPage";
+import EvalPage from "./pages/EvalPage";
 import "./styles/tokens.css";
 
 // GitHub Pages SPA fallback: 404.html stashes the intended path in
@@ -27,11 +28,16 @@ const router = createBrowserRouter([
     element: <App />,
     children: [
       { index: true, element: <LandingPage /> },
-      { path: "spec", element: <SpecPage /> },
-      { path: "spec/full", element: <SpecFullPage /> },
-      { path: "workflow", element: <WorkflowPage /> },
-      { path: "mcp", element: <McpPage /> },
-      { path: "explorer", element: <ExplorerPage /> },
+      { path: "protocol",  element: <ProtocolPage /> },
+      { path: "skill",     element: <SkillPage /> },
+      { path: "examples",  element: <ExamplesPage /> },
+      { path: "explorer",  element: <ExplorerPage /> },
+      { path: "mcp",       element: <McpPage /> },
+      { path: "eval",      element: <EvalPage /> },
+      // Redirects from v1 routes
+      { path: "spec",      element: <Navigate to="/protocol" replace /> },
+      { path: "spec/full", element: <Navigate to="/protocol" replace /> },
+      { path: "workflow",  element: <Navigate to="/skill" replace /> },
     ],
   },
 ]);
