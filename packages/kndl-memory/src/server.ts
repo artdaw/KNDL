@@ -16,10 +16,9 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
-import { FactStore } from "./core.js";
+import { makeStore } from "./stores/index.js";
 
-const MEMORY_DIR = process.env.KNDL_MEMORY_DIR ?? "./memory";
-const store = new FactStore(MEMORY_DIR);
+const store = makeStore();
 
 // ───────── zod schemas ─────────
 

@@ -14,11 +14,12 @@
 //   kndl list [--subject ...]
 //   kndl show --id <id>
 //
-// Env: KNDL_MEMORY_DIR (default ./memory)
+// Env:
+//   KNDL_STORAGE     Storage URL (default fs:./memory). See stores/index.ts for formats.
+//   KNDL_MEMORY_DIR  Legacy alias for fs:<dir> (overridden by KNDL_STORAGE).
 
-import { FactStore, type FactInput } from "./core.js";
-
-const MEMORY_DIR = process.env.KNDL_MEMORY_DIR ?? "./memory";
+import type { FactInput } from "./types.js";
+import { makeStore } from "./stores/index.js";
 
 interface Args {
   positional: string[];
@@ -35,7 +36,6 @@ function parseArgs(argv: string[]): Args {
       if (next === undefined || next.startsWith("--")) {
         out.flags[key] = true;
       } else {
-        // collect contiguous non-flag values into an array if more than one
         const collected: string[] = [];
         while (i + 1 < argv.length && !argv[i + 1].startsWith("--")) {
           collected.push(argv[++i]);
@@ -71,10 +71,8 @@ function arr(v: unknown): string[] | undefined {
   return undefined;
 }
 
-function require_(v: string | undefined, name: string): string {
-  if (v === undefined) {
-    fail(`missing required --${name}`);
-  }
+function requireFlag(v: string | undefined, name: string): string {
+  if (v === undefined) fail(`missing required --${name}`);
   return v;
 }
 
@@ -95,21 +93,21 @@ function buildInput(flags: Record<string, unknown>): FactInput {
     try { object = JSON.parse(object); } catch { /* leave as string */ }
   }
   return {
-    statement: require_(s(flags.statement), "statement"),
-    confidence: conf,
-    source: require_(s(flags.source), "source"),
-    subject: s(flags.subject),
-    predicate: s(flags.predicate),
+    statement:      requireFlag(s(flags.statement), "statement"),
+    confidence:     conf,
+    source:         requireFlag(s(flags.source), "source"),
+    subject:        s(flags.subject),
+    predicate:      s(flags.predicate),
     object,
-    decay: s(flags.decay),
-    validFrom: s(flags["valid-from"]),
-    validUntil: s(flags["valid-until"]),
-    observedAt: s(flags["observed-at"]),
+    decay:          s(flags.decay),
+    validFrom:      s(flags["valid-from"]),
+    validUntil:     s(flags["valid-until"]),
+    observedAt:     s(flags["observed-at"]),
     classification: s(flags.classification),
-    consent: s(flags.consent),
-    tenant: s(flags.tenant),
-    derivedFrom: arr(flags["derived-from"]),
-    negated: b(flags.negated),
+    consent:        s(flags.consent),
+    tenant:         s(flags.tenant),
+    derivedFrom:    arr(flags["derived-from"]),
+    negated:        b(flags.negated),
   };
 }
 
@@ -126,12 +124,13 @@ Commands:
   help             Show this message
 
 Env:
-  KNDL_MEMORY_DIR  Memory root directory (default ./memory)
+  KNDL_STORAGE     Storage URL, e.g. fs:./memory  sqlite:./kndl.db  duckdb:./kndl.duckdb
+  KNDL_MEMORY_DIR  Legacy alias — equivalent to KNDL_STORAGE=fs:<dir>
 
-Run \`kndl <command> --help\` for command-specific options, or read the SKILL.md.
+Run \`kndl <command> --help\` for options, or read SKILL.md.
 `;
 
-function main(argv: string[]): number {
+async function main(argv: string[]): Promise<number> {
   const cmd = argv[0];
   const { flags } = parseArgs(argv.slice(1));
 
@@ -140,54 +139,49 @@ function main(argv: string[]): number {
     return 0;
   }
 
-  const store = new FactStore(MEMORY_DIR);
+  const store = makeStore();
 
   try {
     switch (cmd) {
       case "add": {
-        const r = store.assertFact(buildInput(flags));
-        out({ id: r.id, path: r.path });
+        const r = await store.assertFact(buildInput(flags));
+        out({ id: r.id });
         return 0;
       }
       case "supersede": {
-        const oldId = require_(s(flags["old-id"]), "old-id");
-        const r = store.supersedeFact(oldId, buildInput(flags));
-        out({ id: r.id, supersedes: r.supersedes, path: r.path });
+        const oldId = requireFlag(s(flags["old-id"]), "old-id");
+        const r = await store.supersedeFact(oldId, buildInput(flags));
+        out({ id: r.id, supersedes: r.supersedes });
         return 0;
       }
       case "query": {
-        const r = store.query({
-          subject: s(flags.subject),
-          predicate: s(flags.predicate),
-          asOf: s(flags["as-of"]),
+        out(await store.query({
+          subject:       s(flags.subject),
+          predicate:     s(flags.predicate),
+          asOf:          s(flags["as-of"]),
           minConfidence: n(flags["min-confidence"]),
-          tenant: s(flags.tenant),
-          allowPhi: b(flags["allow-phi"]),
-        });
-        out(r);
+          tenant:        s(flags.tenant),
+          allowPhi:      b(flags["allow-phi"]),
+        }));
         return 0;
       }
       case "contradictions": {
-        out(store.contradictions({ subject: s(flags.subject), predicate: s(flags.predicate) }));
+        out(await store.contradictions({ subject: s(flags.subject), predicate: s(flags.predicate) }));
         return 0;
       }
       case "provenance": {
-        const id = require_(s(flags.id), "id");
-        const maxDepth = n(flags["max-depth"]);
-        out(store.provenanceChain(id, maxDepth));
+        const id = requireFlag(s(flags.id), "id");
+        out(await store.provenanceChain(id, n(flags["max-depth"])));
         return 0;
       }
       case "list": {
-        out(store.list(s(flags.subject)));
+        out(await store.list(s(flags.subject)));
         return 0;
       }
       case "show": {
-        const id = require_(s(flags.id), "id");
-        const f = store.show(id);
-        if (!f) {
-          process.stderr.write(`not found: ${id}\n`);
-          return 1;
-        }
+        const id = requireFlag(s(flags.id), "id");
+        const f = await store.show(id);
+        if (!f) { process.stderr.write(`not found: ${id}\n`); return 1; }
         out(f);
         return 0;
       }
@@ -199,4 +193,7 @@ function main(argv: string[]): number {
   }
 }
 
-process.exit(main(process.argv.slice(2)));
+main(process.argv.slice(2)).then(process.exit).catch((e) => {
+  process.stderr.write(`fatal: ${(e as Error).message}\n`);
+  process.exit(1);
+});
