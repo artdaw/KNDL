@@ -9,7 +9,9 @@
 [![CI](https://github.com/artdaw/KNDL/actions/workflows/kndl-workflow.yml/badge.svg)](https://github.com/artdaw/KNDL/actions/workflows/kndl-workflow.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-00e5a0.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-3178C6.svg)](packages/kndl-memory)
-[![Docs](https://img.shields.io/badge/Docs-kndl.artdaw.com-00e5a0.svg)](https://kndl.artdaw.com)
+[![Website](https://img.shields.io/badge/Website-kndl.artdaw.com-00e5a0?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTEyIDJhMTAgMTAgMCAxIDAgMCAyMEExMCAxMCAwIDAgMCAxMiAyek04IDEyYTQgNCAwIDEgMSA4IDAgNCA0IDAgMCAxLTggMHoiLz48L3N2Zz4=)](https://kndl.artdaw.com)
+
+### **[→ kndl.artdaw.com](https://kndl.artdaw.com)** — live docs, protocol reference, interactive examples, explorer
 
 </div>
 

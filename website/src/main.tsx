@@ -38,6 +38,12 @@ const router = createBrowserRouter([
       { path: "spec",      element: <Navigate to="/protocol" replace /> },
       { path: "spec/full", element: <Navigate to="/protocol" replace /> },
       { path: "workflow",  element: <Navigate to="/skill" replace /> },
+      // Schema file aliases — redirect to the canonical static file so the
+      // browser fetches the raw JSON rather than showing a router error.
+      // (Static files in public/ take precedence once deployed; these
+      // redirects are a fallback for the GitHub Pages SPA 404 intercept.)
+      { path: "schema/kndl-memory.schema.json", element: <Navigate to="/schema/fact.schema.json" replace /> },
+      { path: "schema/kndl-context.jsonld",     element: <Navigate to="/context/v1.jsonld" replace /> },
     ],
   },
 ]);
