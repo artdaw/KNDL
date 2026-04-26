@@ -13,6 +13,8 @@
 
 ### **[→ kndl.artdaw.com](https://kndl.artdaw.com)** — live docs, protocol reference, interactive examples, explorer
 
+### [→ watch about KNDL on YouTube](https://youtu.be/-TIbS4SalO4?si=LN2iD1oKhX78Tvas)
+
 </div>
 
 ---
