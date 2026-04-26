@@ -204,12 +204,16 @@ function err(e: unknown) {
   return { isError: true, content: [{ type: "text" as const, text: `error: ${(e as Error).message}` }] };
 }
 
-// ── Server setup ──────────────────────────────────────────────────────────────
+// ── Server factory ────────────────────────────────────────────────────────────
+// The MCP SDK requires one Server instance per transport connection.
+// makeServer() creates a fresh instance with all handlers wired up.
+// Stdio mode calls it once; HTTP mode calls it for every new session.
 
-const server = new Server(
-  { name: "kndl-memory", version: "2.0.0-alpha.3" },
-  { capabilities: { tools: {}, resources: {} } },
-);
+function makeServer(): Server {
+  const srv = new Server(
+    { name: "kndl-memory", version: "2.0.0-alpha.3" },
+    { capabilities: { tools: {}, resources: {} } },
+  );
 
 // ── Tools ─────────────────────────────────────────────────────────────────────
 
@@ -227,15 +231,15 @@ const TOOLS = [
   { name: "list_memory_stores",  schema: z.object({}),             description: "List configured remote Anthropic Memory Stores and their last-sync timestamps." },
 ] as const;
 
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: TOOLS.map((t) => ({
-    name: t.name,
-    description: t.description,
-    inputSchema: zodToJson(t.schema),
-  })),
-}));
+  srv.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: TOOLS.map((t) => ({
+      name: t.name,
+      description: t.description,
+      inputSchema: zodToJson(t.schema),
+    })),
+  }));
 
-server.setRequestHandler(CallToolRequestSchema, async (req) => {
+  srv.setRequestHandler(CallToolRequestSchema, async (req) => {
   const { name, arguments: args } = req.params;
   try {
     switch (name) {
@@ -309,11 +313,11 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
   } catch (e) {
     return err(e);
   }
-});
+  });
 
 // ── Resources ─────────────────────────────────────────────────────────────────
 
-server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({
+  srv.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({
   resourceTemplates: [
     {
       uriTemplate: "kndl://fact/{id}",
@@ -324,26 +328,29 @@ server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({
   ],
 }));
 
-server.setRequestHandler(ReadResourceRequestSchema, async (req) => {
-  const uri = req.params.uri;
-  if (uri.startsWith("kndl://fact/")) {
-    const id = decodeURIComponent(uri.slice("kndl://fact/".length));
-    const fact = await store.show(id);
-    if (!fact) {
-      return { contents: [{ uri, mimeType: "application/json", text: JSON.stringify({ error: "not found", id }) }] };
+  srv.setRequestHandler(ReadResourceRequestSchema, async (req) => {
+    const uri = req.params.uri;
+    if (uri.startsWith("kndl://fact/")) {
+      const id = decodeURIComponent(uri.slice("kndl://fact/".length));
+      const fact = await store.show(id);
+      if (!fact) {
+        return { contents: [{ uri, mimeType: "application/json", text: JSON.stringify({ error: "not found", id }) }] };
+      }
+      const result = await store.query({ subject: fact.subject });
+      const live = result.facts.find((f) => f["@id"] === id);
+      return {
+        contents: [{
+          uri,
+          mimeType: "application/json",
+          text: JSON.stringify(live ?? fact, null, 2),
+        }],
+      };
     }
-    const result = await store.query({ subject: fact.subject });
-    const live = result.facts.find((f) => f["@id"] === id);
-    return {
-      contents: [{
-        uri,
-        mimeType: "application/json",
-        text: JSON.stringify(live ?? fact, null, 2),
-      }],
-    };
-  }
-  throw new Error(`unknown resource: ${uri}`);
-});
+    throw new Error(`unknown resource: ${uri}`);
+  });
+
+  return srv;
+}
 
 // ── Entry point ───────────────────────────────────────────────────────────────
 
@@ -365,8 +372,9 @@ if (isHttp) {
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
     if (req.method === "POST" && !sessionId) {
-      // Use let + definite assignment so the closure can capture `transport`
-      // without TypeScript treating it as a circular initializer.
+      // Fresh Server instance per connection — the SDK does not allow a single
+      // Server to connect to more than one transport simultaneously.
+      const sessionServer = makeServer();
       let transport!: InstanceType<typeof StreamableHTTPServerTransport>;
       transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => randomUUID(),
@@ -374,10 +382,10 @@ if (isHttp) {
       });
       transport.onclose = () => {
         if (transport.sessionId) transports.delete(transport.sessionId);
-        activeSessions.delete(server);
+        activeSessions.delete(sessionServer);
       };
-      await server.connect(transport);
-      activeSessions.add(server);
+      await sessionServer.connect(transport);
+      activeSessions.add(sessionServer);
       await transport.handleRequest(req, res, req.body);
     } else if (sessionId && transports.has(sessionId)) {
       await transports.get(sessionId)!.handleRequest(req, res, req.body);
@@ -390,8 +398,9 @@ if (isHttp) {
     process.stderr.write(`[kndl-memory] HTTP MCP server on http://localhost:${PORT}/mcp\n`);
   });
 } else {
+  const stdioServer = makeServer();
   const transport = new StdioServerTransport();
-  await server.connect(transport);
-  activeSessions.add(server);
+  await stdioServer.connect(transport);
+  activeSessions.add(stdioServer);
   process.stderr.write(`[kndl-memory] stdio MCP server ready\n`);
 }
