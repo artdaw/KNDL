@@ -1,0 +1,41 @@
+{
+  "name": "@kndl/memory",
+  "version": "2.0.0-alpha.1",
+  "description": "Confidence-, time-, and provenance-aware memory for AI agents. JSON-LD fact store with decay, supersession, and bitemporal queries. Ships an MCP server (kndl-memory-mcp) and a CLI (kndl) for use from Claude Skills.",
+  "type": "module",
+  "bin": {
+    "kndl": "./dist/cli.js",
+    "kndl-memory-mcp": "./dist/server.js"
+  },
+  "main": "./dist/core.js",
+  "types": "./dist/core.d.ts",
+  "exports": {
+    ".": "./dist/core.js",
+    "./cli": "./dist/cli.js",
+    "./server": "./dist/server.js"
+  },
+  "scripts": {
+    "build": "tsup src/core.ts src/cli.ts src/server.ts --format esm --dts --clean --shims",
+    "kndl": "tsx src/cli.ts",
+    "mcp": "tsx src/server.ts",
+    "test": "tsx --test src/*.test.ts || tsx scripts/smoke.ts"
+  },
+  "files": [
+    "dist",
+    "context"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

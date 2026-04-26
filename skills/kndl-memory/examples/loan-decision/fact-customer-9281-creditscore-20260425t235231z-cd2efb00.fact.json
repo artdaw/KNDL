@@ -1,0 +1,14 @@
+{
+  "@context": "../context/v1.jsonld",
+  "@id": "fact:customer-9281-creditscore-20260425T235231Z-cd2efb00",
+  "@type": "Fact",
+  "statement": "Customer 9281 credit score is 720",
+  "confidence": 0.95,
+  "source": "https://api.experian.com/9281",
+  "validFrom": "2026-04-23T10:00:00Z",
+  "recordedAt": "2026-04-25T23:52:31Z",
+  "subject": "customer:9281",
+  "predicate": "creditScore",
+  "object": 720,
+  "decay": "0.5/30d"
+}

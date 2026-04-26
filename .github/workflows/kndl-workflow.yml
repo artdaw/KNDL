@@ -10,32 +10,19 @@ permissions:
   contents: read
 
 jobs:
-  python:
-    name: Python library
+  node-test:
+    name: kndl-memory (Node)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v4
+      - uses: actions/setup-node@v4
         with:
-          version: "latest"
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: packages/kndl-memory/package-lock.json
       - name: Install dependencies
-        run: cd packages/python && uv sync --all-extras
-      - name: Lint
-        run: cd packages/python && uv run ruff check src tests && uv run mypy src
+        run: cd packages/kndl-memory && npm install
+      - name: Build
+        run: cd packages/kndl-memory && npm run build
       - name: Test
-        run: cd packages/python && uv run pytest -v --tb=short
-
-  mcp-server:
-    name: MCP server
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v4
-        with:
-          version: "latest"
-      - name: Install dependencies
-        run: cd packages/mcp-server && uv sync --all-extras
-      - name: Lint
-        run: cd packages/mcp-server && uv run ruff check src tests && uv run mypy src
-      - name: Test
-        run: cd packages/mcp-server && uv run pytest -v --tb=short
+        run: cd packages/kndl-memory && npm test

@@ -1,0 +1,14 @@
+{
+  "@context": "../context/v1.jsonld",
+  "@id": "fact:customer-9281-creditscore-20260425T235248Z-3bf684bd",
+  "@type": "Fact",
+  "statement": "Customer 9281 credit score is 680",
+  "confidence": 0.7,
+  "source": "https://schufa.de/9281",
+  "validFrom": "2026-04-22T00:00:00Z",
+  "recordedAt": "2026-04-25T23:52:48Z",
+  "subject": "customer:9281",
+  "predicate": "creditScore",
+  "object": 680,
+  "decay": "0.5/30d"
+}

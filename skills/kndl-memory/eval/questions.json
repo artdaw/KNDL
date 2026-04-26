@@ -1,0 +1,65 @@
+{
+  "scenario": "credit_decision",
+  "today": "2026-04-26T12:00:00Z",
+  "fixtures": "examples/loan-decision.example.jsonld",
+  "instructions_for_eval": "Run each question twice: once with the JSON dump pasted into the system prompt, once with the kndl-memory MCP server connected. Score binary right/wrong. KNDL should win on at least 5/8 small + 2/3 at scale.",
+  "questions": [
+    {
+      "id": "q1-decay-employment",
+      "archetype": "decayed_confidence",
+      "prompt": "Is customer 9281 currently employed at ACME GmbH? How confident are you?",
+      "correct_behavior": "Refuse to assert current employment. The fact is 633 days old with 0.5/180d decay; effective confidence ~0.08. Recommend re-verification.",
+      "vanilla_failure_mode": "Reads original confidence 0.9 and says 'yes, employed at ACME' or hedges only weakly."
+    },
+    {
+      "id": "q2-decay-credit",
+      "archetype": "decayed_confidence",
+      "prompt": "Should we trust the credit score reading for customer 9281 today?",
+      "correct_behavior": "Yes — 3 days old, decay 0.5/30d, effective ~0.88. Still very fresh.",
+      "vanilla_failure_mode": "May either over-trust or fail to differentiate from older facts."
+    },
+    {
+      "id": "q3-supersession",
+      "archetype": "supersession",
+      "prompt": "What is customer 9281's current credit score?",
+      "setup_note": "Run after supersede_fact: original 720 superseded by 740.",
+      "correct_behavior": "740. Cite the new fact's id, mention the older 720 was superseded today.",
+      "vanilla_failure_mode": "Returns 720 (or both, confused about which is current)."
+    },
+    {
+      "id": "q4-as-of",
+      "archetype": "as_of",
+      "prompt": "On 2026-04-22, what did we believe customer 9281's credit score was?",
+      "correct_behavior": "720 — the 740 fact had not been recorded yet.",
+      "vanilla_failure_mode": "Returns the latest value (740) regardless of as-of date."
+    },
+    {
+      "id": "q5-contradiction",
+      "archetype": "contradiction",
+      "prompt": "There are two credit score readings — Experian 720 and SCHUFA 680. Which should we trust?",
+      "correct_behavior": "Apply ranking: not-negated, newer recorded, higher effective confidence. Surface the conflict explicitly. Prefer Experian 720 (eff ~0.88) over SCHUFA 680 (eff ~0.63), but flag.",
+      "vanilla_failure_mode": "Picks one arbitrarily or averages them, no provenance distinction."
+    },
+    {
+      "id": "q6-provenance",
+      "archetype": "provenance",
+      "prompt": "Where does our information about customer 9281's default come from? Who is the original source?",
+      "correct_behavior": "Walk provenance: SCHUFA, recorded 6 days ago, effective ~0.97. Cite source URI exactly.",
+      "vanilla_failure_mode": "Hand-waves about 'records' without citing exact URI; may invent sources."
+    },
+    {
+      "id": "q7-loan-decision",
+      "archetype": "composite",
+      "prompt": "Customer 9281 is requesting a 50,000 EUR loan. Summarize their financial profile and recommend approve / decline / escalate. Cite which facts you used.",
+      "correct_behavior": "Use credit (fresh, 0.88), default (fresh, 0.97), discount income (stale 0.46), DO NOT rely on employment (decayed to 0.08). Recommend ESCALATE due to recent default + need for fresh employment+income verification.",
+      "vanilla_failure_mode": "Treats 633-day-old employment as current, may decline outright on the default without context, or approve without flagging stale data."
+    },
+    {
+      "id": "q8-rumor-handling",
+      "archetype": "low_confidence",
+      "prompt": "I heard customer 9281 might be filing for bankruptcy. Should we escalate?",
+      "correct_behavior": "The rumor exists in memory at confidence 0.3 / effective ~0.26 from a forum source. Mention it as low-confidence, do not state as fact, recommend verification before action.",
+      "vanilla_failure_mode": "Either ignores the rumor entirely, or treats it as credible because the system 'knows about it'."
+    }
+  ]
+}

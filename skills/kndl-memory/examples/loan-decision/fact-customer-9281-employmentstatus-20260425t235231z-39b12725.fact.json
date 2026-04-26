@@ -1,0 +1,14 @@
+{
+  "@context": "../context/v1.jsonld",
+  "@id": "fact:customer-9281-employmentstatus-20260425T235231Z-39b12725",
+  "@type": "Fact",
+  "statement": "Customer 9281 is employed at ACME GmbH",
+  "confidence": 0.9,
+  "source": "human://self-reported",
+  "validFrom": "2024-08-01T00:00:00Z",
+  "recordedAt": "2026-04-25T23:52:31Z",
+  "subject": "customer:9281",
+  "predicate": "employmentStatus",
+  "object": "employed",
+  "decay": "0.5/180d"
+}

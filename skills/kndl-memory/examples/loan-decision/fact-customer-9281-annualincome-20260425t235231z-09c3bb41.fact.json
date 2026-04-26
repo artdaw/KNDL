@@ -1,0 +1,14 @@
+{
+  "@context": "../context/v1.jsonld",
+  "@id": "fact:customer-9281-annualincome-20260425T235231Z-09c3bb41",
+  "@type": "Fact",
+  "statement": "Customer 9281 annual income is 85000 EUR",
+  "confidence": 0.85,
+  "source": "human://self-reported",
+  "validFrom": "2025-11-15T00:00:00Z",
+  "recordedAt": "2026-04-25T23:52:31Z",
+  "subject": "customer:9281",
+  "predicate": "annualIncome",
+  "object": "85000 EUR",
+  "decay": "0.5/180d"
+}
