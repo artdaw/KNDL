@@ -120,6 +120,74 @@ export default function SkillPage() {
           </div>
         </section>
 
+        {/* Download + CLI install */}
+        <section className={styles.section}>
+          <h2 className={styles.h2}>Download &amp; Install</h2>
+
+          {/* Step 1 — CLI */}
+          <div className={styles.installStep}>
+            <div className={styles.installStepNum}>1</div>
+            <div className={styles.installStepBody}>
+              <div className={styles.installStepTitle}>Install the <code className={styles.ic}>kndl</code> CLI</div>
+              <p className={styles.installStepDesc}>
+                The Skill relies on the <code className={styles.ic}>kndl</code> binary to read and write
+                facts. Build it from source and link it globally so the agent can call it from any directory.
+              </p>
+              <pre className={styles.installCode}>{`git clone https://github.com/artdaw/kndl
+cd kndl/packages/kndl-memory
+pnpm install && pnpm build
+npm link          # makes \`kndl\` available globally
+
+# Verify
+kndl help`}</pre>
+              <p className={styles.installStepNote}>
+                Set <code className={styles.ic}>KNDL_STORAGE</code> to tell the CLI where facts live:{" "}
+                <code className={styles.ic}>fs:/memory</code> for an Anthropic Memory mount, or{" "}
+                <code className={styles.ic}>sqlite:./kndl-memory.db</code> for Claude Desktop.
+              </p>
+            </div>
+          </div>
+
+          {/* Step 2 — Skill files */}
+          <div className={styles.installStep}>
+            <div className={styles.installStepNum}>2</div>
+            <div className={styles.installStepBody}>
+              <div className={styles.installStepTitle}>Drop the Skill bundle into your memory store</div>
+              <p className={styles.installStepDesc}>
+                Download both files and place them in your agent's skills directory.
+                The context file is also served at{" "}
+                <code className={styles.ic}>https://kndl.artdaw.com/context/v1.jsonld</code>{" "}
+                so you can reference it by URL instead of vendoring locally.
+              </p>
+              <div className={styles.downloadCard}>
+                <div className={styles.downloadInfo}>
+                  <div className={styles.downloadTree}>
+                    <span className={styles.treeDir}>/memory/skills/</span>
+                    <span className={styles.treeFile}>├── SKILL.md</span>
+                    <span className={styles.treeDir}>└── context/</span>
+                    <span className={styles.treeFile}>&nbsp;&nbsp;&nbsp;&nbsp;└── v1.jsonld</span>
+                  </div>
+                </div>
+                <div className={styles.downloadButtons}>
+                  <a href="/skill/SKILL.md" download="SKILL.md" className={styles.downloadBtn}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                    </svg>
+                    SKILL.md
+                  </a>
+                  <a href="/context/v1.jsonld" download="v1.jsonld" className={styles.downloadBtn}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                    </svg>
+                    context/v1.jsonld
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </section>
+
         {/* Workflow steps */}
         <section className={styles.section}>
           <h2 className={styles.h2}>Workflow Steps</h2>

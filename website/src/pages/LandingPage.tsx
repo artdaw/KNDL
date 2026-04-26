@@ -60,12 +60,48 @@ const PILLARS = [
 ];
 
 const USE_CASES = [
-  { id: "loan-decision",    title: "Loan Decision",          desc: "Multi-bureau credit scores with decay and supersession" },
-  { id: "iot-sensor",       title: "IoT Sensors",            desc: "Sensor readings with rapid half-life and fault derivation" },
-  { id: "personal-memory",  title: "Personal Memory",        desc: "Contact facts with PII gates and role updates" },
-  { id: "threat-intel",     title: "Threat Intelligence",    desc: "IOC feeds with retractions and false-positive resolution" },
-  { id: "clinical",         title: "Clinical Records",       desc: "PHI facts with consent gates and diagnostic supersession" },
-  { id: "ai-evals",         title: "AI Evals",               desc: "Benchmark scores with version supersession and regression tracking" },
+  {
+    id: "loan-decision",
+    title: "Loan Decision",
+    tag: "7 facts · supersession · contradiction",
+    desc: "Multi-bureau credit scores with decay and supersession. Stale income facts automatically down-weighted.",
+    icon: "M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 10v11M12 10v11M16 10v11",
+  },
+  {
+    id: "iot-sensor",
+    title: "IoT Sensors",
+    tag: "6 facts · decay · derivedFrom",
+    desc: "Sensor readings with rapid half-life decay and HVAC fault derived from temperature + occupancy.",
+    icon: "M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18",
+  },
+  {
+    id: "personal-memory",
+    title: "Personal Memory",
+    tag: "5 facts · PII · supersession",
+    desc: "Contact facts with PII classification gates. Role updates supersede previous entries.",
+    icon: "M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z",
+  },
+  {
+    id: "threat-intel",
+    title: "Threat Intelligence",
+    tag: "5 facts · negation · contradiction",
+    desc: "IOC feeds with fast decay. False-positive retractions via negated:true. Conflicting classifications surfaced.",
+    icon: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
+  },
+  {
+    id: "clinical",
+    title: "Clinical Records",
+    tag: "5 facts · PHI · derivedFrom",
+    desc: "PHI facts with consent gates. Preliminary diagnosis superseded by lab-confirmed. Prescription derived from diagnosis chain.",
+    icon: "M22 12h-4l-3 9L9 3l-3 9H2",
+  },
+  {
+    id: "ai-evals",
+    title: "AI Evals",
+    tag: "5 facts · supersession · regression",
+    desc: "Benchmark scores with version supersession. v1.5 regression detected as contradiction. Capability claim derived from multiple evals.",
+    icon: "M18 20V10M12 20V4M6 20v-6",
+  },
 ];
 
 export default function LandingPage() {
@@ -189,9 +225,19 @@ export default function LandingPage() {
           <div className={styles.useCaseGrid}>
             {USE_CASES.map((u) => (
               <Link key={u.id} to={`/explorer?domain=${u.id}`} className={styles.useCaseCard}>
-                <div className={styles.useCaseTitle}>{u.title}</div>
+                <div className={styles.useCaseTop}>
+                  <svg className={styles.useCaseIcon} viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+                    aria-hidden="true">
+                    <path d={u.icon} />
+                  </svg>
+                  <div className={styles.useCaseMeta}>
+                    <div className={styles.useCaseTitle}>{u.title}</div>
+                    <div className={styles.useCaseTag}>{u.tag}</div>
+                  </div>
+                </div>
                 <div className={styles.useCaseDesc}>{u.desc}</div>
-                <span className={styles.useCaseArrow}>→</span>
+                <div className={styles.useCaseHint}>Explore in graph →</div>
               </Link>
             ))}
           </div>
@@ -200,16 +246,61 @@ export default function LandingPage() {
         {/* CTA row */}
         <section className={styles.ctaRow}>
           {[
-            { to: "/protocol", label: "Protocol",  desc: "Fact schema reference" },
-            { to: "/skill",    label: "Skill",      desc: "Agent reasoning guide" },
-            { to: "/mcp",      label: "MCP",        desc: "Server + tool reference" },
-            { to: "/examples", label: "Examples",   desc: "8 domain fact bundles" },
-            { to: "/eval",     label: "Eval",       desc: "Scoreboard" },
-          ].map(({ to, label, desc }) => (
+            {
+              to: "/protocol",
+              icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+              label: "Protocol",
+              sub: "Fact schema reference",
+              desc: "21-field reference, decay formula, JSON Schema",
+              color: "var(--accent)",
+            },
+            {
+              to: "/skill",
+              icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253",
+              label: "Skill",
+              sub: "Agent reasoning guide",
+              desc: "6 workflow steps, trust thresholds, contradiction rules",
+              color: "var(--accent2)",
+            },
+            {
+              to: "/mcp",
+              icon: "M5 12h14M12 5l7 7-7 7",
+              label: "MCP",
+              sub: "Server + tool reference",
+              desc: "11 tools · fs / sqlite / duckdb / supabase storage · Claude Desktop, Goose, LM Studio",
+              color: "var(--accent4)",
+            },
+            {
+              to: "/examples",
+              icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10",
+              label: "Examples",
+              sub: "8 domain fact bundles",
+              desc: "Loan, IoT, clinical, legal, threat-intel, AI evals + more",
+              color: "var(--accent3)",
+            },
+            {
+              to: "/eval",
+              icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
+              label: "Eval",
+              sub: "Scoreboard",
+              desc: "33 questions, KNDL vs vanilla, ≥70% required to ship",
+              color: "var(--accent)",
+            },
+          ].map(({ to, icon, label, sub, desc, color }) => (
             <Link key={to} to={to} className={styles.ctaCard}>
-              <div className={styles.ctaLabel}>{label}</div>
+              <div className={styles.ctaTop}>
+                <svg className={styles.ctaIcon} viewBox="0 0 24 24" fill="none"
+                  stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+                  aria-hidden="true">
+                  <path d={icon} />
+                </svg>
+                <div>
+                  <div className={styles.ctaLabel} style={{ color }}>{label}</div>
+                  <div className={styles.ctaSub}>{sub}</div>
+                </div>
+              </div>
               <div className={styles.ctaDesc}>{desc}</div>
-              <span className={styles.ctaArrow}>→</span>
+              <div className={styles.ctaArrow} style={{ color }}>Go →</div>
             </Link>
           ))}
         </section>

@@ -25,8 +25,11 @@ kndl-test: ## Run @kndl/memory tests (stores + remote, 36 tests)
 kndl-lint: ## Type-check @kndl/memory
 	cd packages/kndl-memory && npx tsc --noEmit
 
-kndl-eval: ## Run eval scoreboard (requires ANTHROPIC_API_KEY)
-	cd packages/kndl-memory && npx tsx eval/runner.ts
+kndl-eval: ## Run eval and publish results to website/public/eval/results.json
+	cd packages/kndl-memory && npx tsx eval/runner.ts \
+	  --out ../../website/public/eval/results.json
+
+publish-eval: kndl-eval web-build ## Run eval, publish results, build website
 
 # ── MCP server ────────────────────────────────────────────────────────────────
 mcp-run: ## Start kndl-memory-mcp (stdio, default storage)

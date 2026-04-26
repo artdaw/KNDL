@@ -1,0 +1,430 @@
+{
+  "run_at": "2026-04-26T11:51:49.049Z",
+  "model": "claude-sonnet-4-6",
+  "total": 32,
+  "passed": 27,
+  "failed": 5,
+  "pass_rate": 84.4,
+  "threshold": 70,
+  "verdict": "PASS",
+  "by_archetype": {
+    "decayed_confidence": {
+      "total": 7,
+      "passed": 6
+    },
+    "supersession": {
+      "total": 6,
+      "passed": 6
+    },
+    "as_of": {
+      "total": 3,
+      "passed": 2
+    },
+    "contradiction": {
+      "total": 4,
+      "passed": 1
+    },
+    "provenance": {
+      "total": 4,
+      "passed": 4
+    },
+    "composite": {
+      "total": 1,
+      "passed": 1
+    },
+    "derivedFrom": {
+      "total": 4,
+      "passed": 4
+    },
+    "negation": {
+      "total": 3,
+      "passed": 3
+    }
+  },
+  "questions": [
+    {
+      "scenario_id": "loan-decision",
+      "question_id": "ld-q1",
+      "archetype": "decayed_confidence",
+      "prompt": "Is customer 9281 currently employed at ACME GmbH? How confident are you?",
+      "correct_behavior": "Refuse to assert current employment. The fact is 633 days old with 0.5/180d decay; effective confidence ~0.08. State that the fact is stale and recommend re-verification.",
+      "vanilla_answer": "## Employment Status: Customer 9281\n\n**Finding:** Customer 9281 is reported as employed at ACME GmbH.\n\n---\n\n### Confidence Assessment\n\n**Starting confidence:** 0.90 (source: self-reported)\n\n**Decay calculation:**\n- Decay rate: 0.5 per 180 days\n- Time elapsed since `validFrom` (2024-08-01): approximately **633 days** (as of 2026-04-26)\n- Decay factor: 0.5^(633/180) = 0.5^3.517 ≈ **0.088**\n- **Adjusted confidence: 0.90 × 0.088 ≈ ~0.079**\n\n---\n\n### Summary\n\n| Factor | Detail |\n|---|---|\n| Raw confidence | 0.90 |\n| Source quality | ⚠️ Self-reported (not independently verified) |\n| Data age | ~633 days old — **significantly decayed** |\n| Adjusted confidence | **~0.08 (very low)** |\n\n---\n\n### Interpretation\n\nDespite the original assertion being moderately confident, the data is **nearly two years old** and was **self-reported** — it has decayed dramatically. I have **very low confidence (~8%)** that this employment status is still current.\n\n> ⚠️ **Recommendation:** Employment status should be **re-verified** before relying on it for any credit decision. A current payslip, employer confirmation, or third-party verification would be strongly advisable.",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly calculates the decayed confidence (~0.08), explicitly flags the data as stale (~633 days old), refuses to assert current employment with high confidence, and recommends re-verification.",
+      "eval_date": "2026-04-26T12:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "loan-decision",
+      "question_id": "ld-q2",
+      "archetype": "decayed_confidence",
+      "prompt": "Should we trust the credit score reading for customer 9281 today?",
+      "correct_behavior": "Yes — 3 days old, decay 0.5/30d, effective confidence ~0.88. Still fresh and actionable.",
+      "vanilla_answer": "## Credit Score Trust Assessment for Customer 9281\n\nHere is a breakdown of all three credit score facts and how much weight to give each today (2026-04-26):\n\n---\n\n### Fact 1 — Experian: Score 720\n| Attribute | Value |\n|---|---|\n| **Source** | Experian API (authoritative, machine-sourced) |\n| **Valid From** | 2026-04-23 |\n| **Base Confidence** | 0.95 |\n| **Status** | ⚠️ **Superseded** by Fact 3 |\n| **Effective Trust** | **Discard** — explicitly replaced |\n\n---\n\n### Fact 2 — SCHUFA: Score 680\n| Attribute | Value |\n|---|---|\n| **Source** | SCHUFA API (authoritative, machine-sourced) |\n| **Valid From** | 2026-04-22 |\n| **Base Confidence** | 0.70 |\n| **Decay** | 0.5 per 30 days; ~4 days elapsed → minimal decay (~**0.696** effective) |\n| **Status** | Active, not superseded |\n| **Effective Trust** | **Moderate** |\n\n---\n\n### Fact 3 — Experian: Score 740\n| Attribute | Value |\n|---|---|\n| **Source** | Experian API (authoritative, machine-sourced) |\n| **Valid From** | 2026-04-26 |\n| **Base Confidence** | 0.96 |\n| **Decay** | ~0 days elapsed → negligible decay (~**0.96** effective) |\n| **Status** | ✅ Active; **supersedes** Fact 1 |\n| **Effective Trust** | **High** |\n\n---\n\n## Summary & Recommendation\n\n| Reading | Effective Trust | Use? |\n|---|---|---|\n| Experian 720 | N/A (superseded) | ❌ No |\n| SCHUFA 680 | ~0.696 | ⚠️ Secondary reference |\n| Experian 740 | ~0.96 | ✅ **Primary** |\n\n**Yes, you can trust the Experian score of 740 with high confidence (~0.96).** It is the most recent, from a reputable API source, issued today, and it explicitly supersedes the prior Experian reading.\n\nThe SCHUFA score of 680 (moderate confidence) is a secondary data",
+      "vanilla_pass": false,
+      "judge_reasoning": "The AI answer introduces multiple facts (three credit scores from different sources) that don't appear in the original question's context, fabricating a complex multi-fact scenario rather than addressing the simple case described in the correct behavior: one credit score reading that is 3 days old with 0.5/30d decay yielding ~0.88 effective confidence.",
+      "eval_date": "2026-04-26T12:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "loan-decision",
+      "question_id": "ld-q3",
+      "archetype": "supersession",
+      "prompt": "What is customer 9281's current credit score?",
+      "correct_behavior": "740 — cite the new fact @id, note the older 720 was superseded.",
+      "vanilla_answer": "## Customer 9281 — Current Credit Score\n\n**The best current figure is 740**, based on the following analysis:\n\n### Active Facts\n\n| Fact | Score | Source | Valid From | Confidence |\n|------|-------|--------|-----------|------------|\n| ~~720~~ (superseded) | ~~720~~ | Experian | 2026-04-23 | ~~0.95~~ |\n| **740** | **740** | Experian | 2026-04-26 | **0.96** |\n| 680 | 680 | Schufa | 2026-04-22 | 0.70 |\n\n### Key Points\n\n1. **740 (Experian)** is the **most current and authoritative value**. It explicitly supersedes the earlier 720 reading, has the highest confidence (0.96), and became valid today (2026-04-26). With only ~0 days elapsed against a 30-day half-life, decay is negligible — effective confidence remains ~**0.96**.\n\n2. **680 (Schufa)** is a secondary, independent bureau reading from 2026-04-22, with lower confidence (0.70). It is not superseded, but it conflicts with Experian. The discrepancy between bureaus is worth noting.\n\n3. **720 (Experian)** has been formally superseded by the 740 entry and should **not** be used.\n\n### Recommendation\n> ✅ **Use 740** as the operative credit score, sourced from Experian (high confidence, very recent). The Schufa score of 680 represents a meaningful divergence (~60 points) that may warrant investigation before finalizing any credit decision.",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly identifies 740 as the current credit score, explicitly notes that the earlier 720 was superseded, and cites the relevant source details, fully meeting the correct behavior criteria.",
+      "eval_date": "2026-04-26T12:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "loan-decision",
+      "question_id": "ld-q4",
+      "archetype": "as_of",
+      "prompt": "On 2026-04-22, what did we believe customer 9281's credit score was?",
+      "correct_behavior": "720 — the 740 fact had not been recorded yet (recordedAt after 2026-04-22).",
+      "vanilla_answer": "## Customer 9281 Credit Score Assessment as of 2026-04-22\n\nOn that date, two credit score facts were available. Let me evaluate each:\n\n---\n\n### Fact 1: Experian Score of 720\n- **Source:** Experian API (high-quality, bureau source)\n- **Valid From:** 2026-04-23 — ⚠️ **This fact was not yet valid on 2026-04-22**, so it would NOT have been considered.\n\n---\n\n### Fact 2: SCHUFA Score of 680\n- **Source:** SCHUFA (https://schufa.de/9281)\n- **Valid From:** 2026-04-22 ✅ (just became valid on that date)\n- **Base Confidence:** 0.70\n- **Decay:** 0.5 per 30 days — only **0 days** had elapsed since validFrom, so essentially **no decay** had occurred.\n- **Effective Confidence:** ~**0.70**\n\n---\n\n### Conclusion\n\nOn **2026-04-22**, the only valid credit score belief was:\n\n> **680**, sourced from SCHUFA, with a confidence of **~0.70**.\n\nThe Experian score of 720 (and the later superseding score of 740) were not yet valid at that point in time.",
+      "vanilla_pass": false,
+      "judge_reasoning": "The answer returns 680 (from SCHUFA) rather than the correct answer of 720, misidentifying which fact was valid on 2026-04-22 by incorrectly marking the 720/Experian fact as not yet valid when it should have been the correct answer.",
+      "eval_date": "2026-04-26T12:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "loan-decision",
+      "question_id": "ld-q5",
+      "archetype": "contradiction",
+      "prompt": "There are two credit score readings — Experian 720 and SCHUFA 680. Which should we trust?",
+      "correct_behavior": "Apply ranking: not-negated, newer recordedAt, higher effective confidence. Prefer Experian 720 (eff ~0.88) over SCHUFA 680 (eff ~0.63). Flag the conflict explicitly.",
+      "vanilla_answer": "## Credit Score Reconciliation for Customer 9281\n\nThis is actually a **three-way comparison** now — there are two Experian readings and one SCHUFA reading. Here's a full breakdown:\n\n---\n\n### All Credit Score Facts\n\n| Fact | Score | Source | Valid From | Confidence | Status |\n|------|-------|--------|------------|------------|--------|\n| `cd2efb00` | 720 | Experian | 2026-04-23 | 0.95 | **Superseded** |\n| `3bf684bd` | 680 | SCHUFA | 2026-04-22 | 0.70 | Active |\n| `b6c88774` | 740 | Experian | 2026-04-26 | 0.96 | **Active & Supersedes 720** |\n\n---\n\n### Recommendation: **Trust Experian 740 (b6c88774) most**\n\n**Reasons:**\n\n1. **The 720 reading is superseded.** Fact `b6c88774` explicitly supersedes `cd2efb00`, so the 720 figure is stale and should be retired from consideration.\n\n2. **Experian 740 has the highest confidence (0.96)** and the most recent validity date (2026-04-26), making it the freshest and most authoritative single reading.\n\n3. **SCHUFA 680 is still valid** but carries a lower confidence (0.70) and is 4 days older. It shouldn't be ignored entirely — the divergence (~60 points) warrants attention.\n\n---\n\n### Why the Gap Matters\n\nThe 60-point spread between SCHUFA (680) and Experian (740) is notable:\n- SCHUFA's lower score **may reflect the confirmed default event** (€12,500 with bank-abc, recorded 2026-04-20) more aggressively in its methodology.\n- Experian may weight recent positive behavior differently.\n- **Do not simply average** the two scores — they use different models.\n\n---\n\n### Bottom Line\n\n> **Primary signal: Experian 740 (confidence 0.96)**\n> **Secondary signal: SCHUFA 680 (confidence 0.70) — treat as a risk flag, not a score override**\n\nGiven the confirmed default event on record, I'd recommend treating the SCHUFA reading as a **corroborating risk indicator** even if you anchor on the higher Experian score for formal credit scoring purposes.",
+      "vanilla_pass": false,
+      "judge_reasoning": "The answer introduces a fabricated third credit score (Experian 740) not present in the question, making it impossible to evaluate the actual two-way comparison between Experian 720 and SCHUFA 680 as asked.",
+      "eval_date": "2026-04-26T12:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "loan-decision",
+      "question_id": "ld-q6",
+      "archetype": "provenance",
+      "prompt": "Where does our information about customer 9281's default event come from?",
+      "correct_behavior": "Source is SCHUFA, recorded 6 days ago, effective ~0.97. Cite the source URI exactly.",
+      "vanilla_answer": "## Source of Default Event Information\n\nThe information about Customer 9281's default event — specifically that they **defaulted on 12,500 EUR with bank-abc** — comes from:\n\n**SCHUFA** (`https://schufa.de/9281`)\n\n### Key Details About This Fact:\n| Attribute | Value |\n|-----------|-------|\n| **Source** | SCHUFA (schufa.de) |\n| **Confidence** | 0.98 (very high) |\n| **Valid From** | 2026-04-20 |\n| **Recorded At** | 2026-04-25 |\n| **Decay Rate** | 0.5 per 365 days (slow decay, appropriate for a serious credit event) |\n\n### Assessment:\nThis is one of the **most reliable facts** on file for this customer. SCHUFA is a formal credit bureau (a well-known German credit reporting agency), the confidence score is very high at 98%, and the fact is only ~6 days old with minimal decay applied. It should be treated as a significant and credible negative credit indicator.",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly identifies SCHUFA as the source, cites the exact URI (https://schufa.de/9281), notes the ~6-day-old recording, and gives a confidence/effectiveness value (0.98 is close to the expected ~0.97).",
+      "eval_date": "2026-04-26T12:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "loan-decision",
+      "question_id": "ld-q7",
+      "archetype": "composite",
+      "prompt": "Customer 9281 is requesting a 50,000 EUR loan. Summarize their financial profile and recommend approve / decline / escalate. Cite which facts you used.",
+      "correct_behavior": "Use credit (fresh, 0.88), default (fresh, 0.97), discount income (stale 0.46), DO NOT rely on employment (decayed 0.08). Recommend ESCALATE due to recent default + need for fresh employment and income verification.",
+      "vanilla_answer": "# Credit Assessment: Customer 9281 — 50,000 EUR Loan Request\n**Evaluation Date:** 2026-04-26\n\n---\n\n## Financial Profile Summary\n\n### 1. Credit Score\nThe most authoritative and current credit score comes from **two sources**:\n\n| Fact | Score | Source | Confidence (raw) | Age | Effective Confidence |\n|---|---|---|---|---|---|\n| `creditscore-...3bf684bd` | 680 | Schufa | 0.70 | 4 days | ~0.67 |\n| `creditscore-...b6c88774` | **740** | Experian | 0.96 | 0 days | **~0.96** *(supersedes earlier Experian 720 score)* |\n\n> **Best estimate: ~740**, weighted toward the high-confidence, most recent Experian reading. The Schufa score of 680 introduces some divergence (~60-point gap) worth noting.\n\n---\n\n### 2. Annual Income\n- **85,000 EUR/year** — self-reported (confidence 0.85, ~160 days old)\n- Decay: `0.5/180d` → effective confidence ≈ **0.77** at evaluation date\n- ⚠️ *Self-reported only; no third-party verification on file.*\n- Debt-to-income ratio if loan approved: 50,000 / 85,000 = **~59%** — elevated.\n\n---\n\n### 3. Employment\n- **Employed at ACME GmbH** since ~August 2024 (~20 months tenure)\n- Source: self-reported (confidence 0.90, ~600 days old)\n- Decay: `0.5/180d` → effective confidence ≈ **0.65**\n- ⚠️ *Self-reported; not independently verified. Confidence has decayed meaningfully.*\n\n---\n\n### 4. ⚠️ Default Event — HIGH CONCERN\n- Customer **defaulted on 12,500 EUR** with bank-abc\n- Recorded by **Schufa** (confidence **0.98**), valid from 2026-04-20 — only **6 days ago**\n- Decay: `0.5/365d` → effective confidence ≈ **0.98** (negligible decay)\n- This is a **very recent, high-confidence adverse event** from a credible bureau source.\n\n---\n\n### 5. ⚠️ Bankruptcy Rum",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly identifies the high-confidence credit score and fresh default as key facts, flags the decayed employment and income data with appropriate warnings, and the truncated text was clearly heading toward an ESCALATE recommendation based on the recent default and need for fresh verification.",
+      "eval_date": "2026-04-26T12:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "loan-decision",
+      "question_id": "ld-q8",
+      "archetype": "decayed_confidence",
+      "prompt": "I heard customer 9281 might be filing for bankruptcy. Should we escalate?",
+      "correct_behavior": "The rumor is in memory at confidence ~0.26 (after decay) from a forum source. Mention it as low-confidence, do not state as fact, recommend verification before action.",
+      "vanilla_answer": "## Bankruptcy Concern — Customer 9281\n\n**Short answer: Treat this with caution, but do not escalate based on the bankruptcy rumor alone.**\n\n---\n\n### What We Know About the Bankruptcy Claim\n\nThe only fact supporting this is:\n\n| Attribute | Detail |\n|---|---|\n| **Source** | `forum.example.com/post/12345` (public forum) |\n| **Confidence at recording** | 0.30 (low) |\n| **Recorded** | 2026-04-25 — 1 day ago |\n| **Decay rate** | 0.5 per 7 days |\n| **Current effective confidence** | ~**0.29**¹ |\n\n> ¹ Decay is minimal after 1 day, but the baseline confidence is already very low.\n\n⚠️ **This is an unverified forum rumor.** It carries no institutional provenance and should not independently trigger an escalation.\n\n---\n\n### However — There Is a Confirmed Risk Factor Worth Noting\n\nThere **is** a verified, high-confidence negative event on file:\n\n- **Default of €12,500 with bank-abc** (recorded via Schufa, confidence **0.98**, valid from 2026-04-20)\n\nThis is a **real, recent, and credible** adverse event that should already be factored into any credit assessment.\n\n---\n\n### Credit Score Context\n\nThe most current credit score (Experian, valid from 2026-04-26, confidence **0.96**) is **740**, which is moderate-to-good — but this must be weighed against the confirmed default event.\n\n---\n\n### Recommendation\n\n| Action | Rationale |\n|---|---|\n| ❌ Do **not** escalate based on the bankruptcy rumor | Source is unreliable; confidence too low |\n| ✅ **Do** flag the confirmed €12,500 default | High-confidence, authoritative source |\n| ✅ Consider requesting **verified documentation** | Self-reported income/employment need corroboration |\n| ✅ Monitor for corroborating official filings | If a court or registry confirms bankruptcy, escalate immediately |\n\n**Bottom line:** The rumor does not meet the evidentiary threshold for escalation. The confirmed default does warrant heightened scrutiny independently.",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly identifies the bankruptcy claim as a low-confidence forum rumor (~0.29 effective confidence after decay), explicitly states it should not be treated as fact or trigger escalation alone, and recommends verification before action.",
+      "eval_date": "2026-04-26T12:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "iot-sensor",
+      "question_id": "iot-q1",
+      "archetype": "decayed_confidence",
+      "prompt": "Is Room 3A in Building 7 currently occupied?",
+      "correct_behavior": "The 08:55 occupancy reading has decayed with 0.5/30m — by 10:30 effective confidence is near zero. The 10:00 'not occupied' reading is also decaying. Neither should be stated as current fact without a fresh sensor read.",
+      "vanilla_answer": "## Room 3A Occupancy Status\n\n**No — Room 3A is currently unoccupied.**\n\n### Most Recent Fact\nThe latest occupancy reading (recorded at **10:00:00Z today**, ~30 minutes ago) indicates:\n\n> *\"Building 7 Room 3A is NOT occupied — room cleared after meeting\"*\n\n- **Source:** PIR sensor `pir://bldg7/r3a`\n- **Confidence at recording:** 0.95\n- **Supersedes:** The earlier \"occupied\" fact from 08:55Z\n\n### Confidence Decay Consideration\nThis fact has a decay rate of **0.5 per 30 minutes**. With ~30 minutes elapsed since the observation (current time: 10:30Z), the effective confidence has decayed approximately to:\n\n> **0.95 × 0.5 ≈ ~0.48**\n\nThis means there is **moderate-to-low confidence** the room is *still* unoccupied right now — PIR sensors detect motion, so if someone has re-entered quietly or the sensor hasn't triggered, the status may not be current.\n\n### Summary\n| Factor | Detail |\n|---|---|\n| Last status | ❌ Unoccupied |\n| Observed at | 10:00:00Z |\n| Original confidence | 0.95 |\n| Decayed confidence (~10:30Z) | ~0.48 |\n| Recommendation | A fresh sensor reading would be advisable to confirm current status. |",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly identifies the 10:00 reading as the most recent, applies the 0.5/30m decay to reduce confidence to ~0.48, and explicitly recommends a fresh sensor reading rather than stating the unoccupied status as definitive current fact.",
+      "eval_date": "2026-04-26T10:30:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "iot-sensor",
+      "question_id": "iot-q2",
+      "archetype": "supersession",
+      "prompt": "What is the latest temperature reading from sensor T001?",
+      "correct_behavior": "26.1°C at 09:00 — this supersedes the 22.5°C reading from 08:00. Cite the 09:00 fact.",
+      "vanilla_answer": "## Latest Temperature Reading — Sensor T001 (Building 7, Room 3A)\n\n**Current Reading:** **26.1°C**\n*(rising, possible HVAC fault)*\n\n| Detail | Value |\n|---|---|\n| **Sensor** | T001 — Building 7, Room 3A |\n| **Recorded at** | 2026-04-26T09:00:00Z |\n| **Source** | `mqtt://bldg7/sensors/t001` |\n| **Base Confidence** | 0.99 |\n| **Decay Rate** | 0.5 per hour |\n\n### ⚠️ Confidence Adjustment for Decay\n\nAs of now (**10:30 UTC**), this reading is **~1.5 hours old**. With a decay rate of 0.5 per hour, the effective confidence has degraded:\n\n> **Adjusted confidence ≈ 0.99 × 0.5^1.5 ≈ ~0.35**\n\nThis means the reading is **significantly stale** — the actual current temperature could differ from 26.1°C. A **fresh sensor reading is advisable**, especially given the active HVAC fault alert associated with this sensor.\n\n### Context\n- This reading **supersedes** the earlier 08:00 UTC reading of **22.5°C**, representing a **+3.6°C rise** over one hour.\n- This temperature delta is what triggered the **HVAC fault alert** for Room 3A (confidence: 0.82).",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly identifies 26.1°C at 09:00 as the latest reading, explicitly notes it supersedes the earlier 22.5°C reading from 08:00, and provides appropriate context about the temperature change.",
+      "eval_date": "2026-04-26T10:30:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "iot-sensor",
+      "question_id": "iot-q3",
+      "archetype": "provenance",
+      "prompt": "What triggered the HVAC fault alert for Room 3A, and how confident are we?",
+      "correct_behavior": "Derived from two facts: temperature 26.1°C (conf 0.99) and occupancy 0.88 (decayed further). Inference confidence 0.82. Cite both derivedFrom source @ids.",
+      "vanilla_answer": "## HVAC Fault Alert — Building 7, Room 3A\n\n### What Triggered It\n\nThe alert was generated by the **HVAC monitoring rule engine** (`rule://bldg7/hvac-monitor`) at **09:15 UTC** today, based on two contributing facts:\n\n| Contributing Fact | Detail | Confidence |\n|---|---|---|\n| **Temperature reading** (Sensor T001) | Room 3A reading **26.1°C** — rising, flagged as a possible fault | 0.99 |\n| **Occupancy status** | Room 3A was **occupied** (PIR sensor confirmed at 08:55 UTC) | 0.88 |\n\nThe rule logic inferred a fault because the temperature was **3.6°C above setpoint** while the room was occupied — a condition where the HVAC system should have been actively cooling/conditioning but apparently was not performing adequately.\n\n---\n\n### Confidence Assessment\n\n- **Alert confidence: 0.82** — classified as *\"fault suspected\"*, not confirmed.\n- This is appropriately lower than the raw sensor inputs (0.99 and 0.88), reflecting uncertainty inherent in a **derived/inferred conclusion**.\n\n---\n\n### ⚠️ Important Context Update\n\nThe occupancy fact that contributed to the alert has since been **superseded**: Room 3A was reported **unoccupied as of 10:00 UTC** (confidence 0.95). This means:\n\n- The *original fault trigger conditions* (occupied + overtemperature) **no longer both hold**.\n- However, the **temperature anomaly itself** has not been resolved by any newer sensor reading in the available facts — the last T001 reading still shows **26.1°C** from 09:00 UTC, though that reading is now ~1.5 hours old and subject to decay.\n\n**Recommendation:** The HVAC fault alert remains worth investigating for maintenance purposes, as the root cause (HVAC underperformance) may still be active even though the room is now empty.",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly traces the alert back to both contributing source facts (temperature 26.1°C at conf 0.99 and occupancy at conf 0.88), explains the derived inference confidence of 0.82, and notes the decayed/superseded nature of the occupancy fact, satisfying the derivedFrom chain requirement.",
+      "eval_date": "2026-04-26T10:30:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "iot-sensor",
+      "question_id": "iot-q4",
+      "archetype": "decayed_confidence",
+      "prompt": "What was the energy consumption in Building 7 this morning?",
+      "correct_behavior": "47.2 kWh recorded at 09:01. Decay is 0.5/24h — after ~1.5 hours, effective confidence ~0.96. Still valid but note it decays over the day.",
+      "vanilla_answer": "## Building 7 Energy Consumption — This Morning\n\nBased on the meter data recorded at **09:01 UTC this morning (2026-04-26)**:\n\n| Metric | Value |\n|---|---|\n| **Period covered** | 09:00–10:00 UTC |\n| **Consumption** | **47.2 kWh** |\n| **Source** | Main meter (`meter://bldg7/main`) |\n| **Confidence** | 0.99 (very high) |\n\n### Notes on data currency:\n- This reading covers the **09:00 hour only** — it is the single hourly figure available in the current facts.\n- Current evaluation time is **10:30 UTC**, meaning this reading is now ~1.5 hours old. Given the decay rate of **0.5 per 24 hours**, confidence remains essentially intact (~0.987), so the figure is still highly reliable as a historical record for that hour.\n- **No earlier hourly readings** (e.g., 07:00, 08:00) are present in the available data, so a broader \"morning total\" cannot be calculated from these facts alone.\n\n> ⚠️ If you need a full morning summary (e.g., 06:00–10:00), additional meter data would be required.",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly reports 47.2 kWh while explicitly acknowledging the temporal decay rate (0.5/24h), calculating the approximate confidence after ~1.5 hours, and noting the figure's reliability is still high but time-dependent.",
+      "eval_date": "2026-04-26T10:30:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "personal-memory",
+      "question_id": "pm-q1",
+      "archetype": "supersession",
+      "prompt": "What is Alice's current role?",
+      "correct_behavior": "Staff engineer on the payments team — this supersedes the senior engineer fact from January. Cite the April 15 update.",
+      "vanilla_answer": "Based on the memory facts, **Alice is currently a Staff Engineer on the payments team**.\n\nThis is supported by the fact recorded on **2026-04-15** (fact: `alice-role-20260415t000000z-e5f6g7h8`), which notes she was promoted to Staff Engineer and supersedes the earlier record of her being a Senior Engineer. The confidence on this fact is high at **0.97**, and it was sourced directly from a human (`gleb`), making it reliable.",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly identifies Alice's current role as Staff Engineer on the payments team, cites the April 15 update, and explicitly notes that it supersedes the earlier Senior Engineer record.",
+      "eval_date": "2026-04-26T12:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "personal-memory",
+      "question_id": "pm-q2",
+      "archetype": "as_of",
+      "prompt": "What was Alice's role at the start of 2026?",
+      "correct_behavior": "Senior engineer on payments — the staff engineer promotion happened April 15, after this date.",
+      "vanilla_answer": "Based on the memory facts, at the start of 2026 (January 1, 2026), Alice was a **Senior Engineer on the Payments team**.\n\nThis is sourced from `fact:alice-role-20260101t000000z-a1b2c3d4`, recorded on January 1, 2026, with a high confidence of **0.95**, provided by human source `gleb`.\n\n> Note: This role has since been superseded — Alice was promoted to **Staff Engineer** (still on the Payments team) effective April 15, 2026.",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly identifies Alice's role at the start of 2026 as Senior Engineer on Payments, and even helpfully notes that the Staff Engineer promotion came later (April 15, 2026), demonstrating proper temporal reasoning.",
+      "eval_date": "2026-04-26T12:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "personal-memory",
+      "question_id": "pm-q3",
+      "archetype": "derivedFrom",
+      "prompt": "Does Alice prefer async communication or meetings?",
+      "correct_behavior": "Async (confidence 0.78). This is a derived/inferred fact — cite the source fact it was derived from and flag it as inference, not direct statement.",
+      "vanilla_answer": "Based on the memory facts, **Alice prefers async communication over meetings**.\n\nA few notes on this inference:\n\n- **Confidence**: 0.78 — moderate confidence, as this was **inferred by the assistant** from multiple interactions rather than directly stated by a human source.\n- **Derivation**: It was derived partly from observations related to her role (originally as a senior engineer on the payments team).\n- **No decay** is specified for this fact, so it hasn't degraded over time.\n\nSo while the preference for async is reasonably well-supported, it's worth keeping in mind it's an inferred pattern rather than an explicit statement from Alice or her manager.",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly identifies async as the preference, states the 0.78 confidence level, explicitly flags it as an inference rather than a direct statement, and cites the source of the derivation.",
+      "eval_date": "2026-04-26T12:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "threat-intel",
+      "question_id": "ti-q1",
+      "archetype": "negation",
+      "prompt": "Should we block traffic to 192.0.2.1 as a C2 server?",
+      "correct_behavior": "No — the C2 classification was retracted as a false positive. The fact is negated (negated:true) and superseded. 192.0.2.1 belongs to a CDN. Do not block.",
+      "vanilla_answer": "## Recommendation: **Do Not Block** 192.0.2.1 as a C2 Server\n\n### Current Intelligence Status\n\nThe original C2 classification for **192.0.2.1** has been **retracted**. Here is the full picture:\n\n---\n\n### Fact Timeline\n\n| Time | Fact | Confidence |\n|------|------|------------|\n| 2026-04-24T12:00Z | 192.0.2.1 classified as **Cobalt Strike C2** | 0.90 (initial) |\n| 2026-04-25T09:00Z | Classification **retracted** — IP is a **CDN edge node** | 0.95 |\n\n---\n\n### Key Factors\n\n1. **Supersession / Retraction:** The newer fact (`fact:ip-192-0-2-1-false-positive-20260425t090000z-e5f6g7h8`) explicitly **supersedes** the original C2 classification and is flagged `\"negated\": true`. It was recorded at **09:00Z today** (2026-04-25), well after the original alert.\n\n2. **Higher Confidence on Retraction:** The false-positive determination carries a confidence of **0.95**, which is *higher* than the original C2 classification (0.90), further supporting the retraction.\n\n3. **Decay on Original Fact:** The original C2 fact had an aggressive decay rate of **0.5 per 24 hours**. Even before the retraction, its effective confidence would have already dropped significantly (~0.45 after ~24 hours). The retraction makes this moot, but decay compounds the case against blocking.\n\n4. **Source:** The retraction comes from an abuse/whitelist source (`abuse.example.com/whitelist`), indicating active vetting.\n\n---\n\n### Recommendation\n\n> ❌ **Do not block 192.0.2.1.** If a block rule is already in place based on the original alert, **it should be removed immediately.** Blocking a CDN edge node risks disrupting legitimate traffic at scale.\n\n**Suggested actions:**\n- Remove any firewall/EDR block rules for this IP.\n- Document the false positive in your internal TI platform.\n- Review any alerts triggered by this IP during the 2026-04-24 window for potential false positive triage.",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly identifies the retraction/negation of the C2 classification, recognizes 192.0.2.1 as a CDN node, and firmly recommends not blocking the IP.",
+      "eval_date": "2026-04-25T12:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "threat-intel",
+      "question_id": "ti-q2",
+      "archetype": "contradiction",
+      "prompt": "Is update.example.com malicious or legitimate?",
+      "correct_behavior": "Contradiction — one fact says Emotet C2 (0.85 decayed), another says legitimate CDN update server (0.7). Surface both, note the conflict, recommend manual investigation before blocking.",
+      "vanilla_answer": "## Assessment: `update.example.com` — Conflicting Classifications\n\nThere are **two directly contradictory facts** about this domain, requiring careful analysis.\n\n---\n\n### Fact 1 — Emotet C2 Indicator\n| Attribute | Value |\n|---|---|\n| **Statement** | Active C2 domain for Emotet |\n| **Original Confidence** | 0.85 |\n| **Decay Rate** | 0.5 per 7 days |\n| **Valid From** | 2026-04-24T06:00:00Z |\n| **Age** | ~1 day 6 hours |\n| **Source** | Threat intelligence feed |\n\n**Decay calculation:** ~1.25 days elapsed out of a 7-day half-life.\nDecayed confidence ≈ 0.85 × 0.5^(1.25/7) ≈ **~0.82**\n\nThis fact is also **derived from** a high-confidence (0.98) confirmed Emotet loader hash (`d41d8cd98f00b204e9800998ecf8427e`), which strengthens its provenance.\n\n---\n\n### Fact 2 — Legitimate Update Server\n| Attribute | Value |\n|---|---|\n| **Statement** | Legitimate update server for ExampleSoft products |\n| **Confidence** | 0.70 |\n| **Valid From** | 2026-04-24T07:00:00Z |\n| **Source** | Vendor domain registry |\n| **No decay specified** | Confidence remains at 0.70 |\n\n---\n\n### Analysis\n\n| Factor | Favors Malicious | Favors Legitimate |\n|---|---|---|\n| Adjusted confidence | **~0.82** | 0.70 |\n| Provenance | Derived from confirmed malware hash | Vendor self-reported |\n| Timing | Recorded 1 hour earlier | Recorded 1 hour later |\n\nThe **malicious classification has higher adjusted confidence** and stronger provenance. A plausible interpretation is that threat actors may be **spoofing or compromising** the legitimate ExampleSoft update domain — a known Emotet tactic (supply chain / typosquatting / domain hijacking).\n\n---\n\n### ⚠️ Verdict: **Treat as MALICIOUS — with caution**\n\n> **Block or sandbox traffic to `update.example.com`** pending further investigation. The C2 classification is better supported, but the legitimate use claim means you should **verify whether ExampleS",
+      "vanilla_pass": false,
+      "judge_reasoning": "The answer surfaces both facts and notes the conflict, but then resolves the contradiction by recommending a definitive block action rather than recommending manual investigation before blocking, which violates the correct behavior of treating the conflict as unresolved.",
+      "eval_date": "2026-04-25T12:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "threat-intel",
+      "question_id": "ti-q3",
+      "archetype": "decayed_confidence",
+      "prompt": "Is the 192.0.2.1 C2 indicator still fresh enough to act on?",
+      "correct_behavior": "Irrelevant — the indicator was retracted. Even if not, 0.5/24h decay on a 24h-old IOC would reduce confidence to ~0.45, borderline. The retraction makes it moot.",
+      "vanilla_answer": "## Assessment: 192.0.2.1 C2 Indicator\n\n**Short answer: No — do not act on this indicator. It has been formally retracted.**\n\n---\n\n### Timeline of Facts\n\n| Time | Event |\n|------|-------|\n| 2026-04-24T11:45Z | IP observed as active Cobalt Strike C2 |\n| 2026-04-24T12:00Z | Indicator recorded (confidence: 0.90) |\n| 2026-04-25T09:00Z | **Retraction recorded** — classified as false positive |\n| 2026-04-25T12:00Z | *(now)* |\n\n---\n\n### Why Not to Act\n\n1. **Formal Retraction (supersedes + negated: true)**\n A subsequent fact (`fact:ip-192-0-2-1-false-positive-...`) explicitly **supersedes** the original C2 indicator with `negated: true`. The IP has been identified as a **CDN edge node**, not a C2 server. This retraction carries a **confidence of 0.95**, higher than the original 0.90.\n\n2. **Decay Would Also Have Degraded the Original**\n Even setting aside the retraction, the original indicator had an aggressive decay rate of **0.5 per 24 hours**. After ~24 hours (from 2026-04-24T12:00Z to now, 2026-04-25T12:00Z), the effective confidence would have decayed to approximately:\n > 0.90 × 0.5 = **~0.45** — well below a reliable action threshold.\n\n3. **Source Quality**\n The retraction comes from an abuse/whitelist source (`abuse.example.com/whitelist`), which is a recognized authoritative signal for false positive adjudication.\n\n---\n\n### Recommendation\n\n- ✅ **Remove 192.0.2.1 from block lists** if it was added based on the original indicator.\n- ✅ **Update any downstream SIEM/SOAR rules** that reference this IP as a C2.\n- ⚠️ **Review any detections or alerts** triggered against this IP in the 2026-04-24T12:00Z to 2026-04-25T09:00Z window — they may be false positives.",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly identifies the retraction as the primary reason not to act, also accurately calculates the ~0.45 decayed confidence, and explains that the retraction supersedes age-based considerations entirely.",
+      "eval_date": "2026-04-25T12:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "threat-intel",
+      "question_id": "ti-q4",
+      "archetype": "provenance",
+      "prompt": "What is the chain of evidence linking the Emotet malware hash to the C2 domain?",
+      "correct_behavior": "derivedFrom chain: C2 domain fact derived from malware hash fact (which is from the Emotet malware report). Cite both @ids and sources. Aggregate confidence ~0.83.",
+      "vanilla_answer": "## Chain of Evidence: Emotet Hash → C2 Domain\n\n### Direct Derivation Link\n\nThe facts contain an **explicit provenance relationship** between these two indicators:\n\n```\nfact:domain-update-example-com-c2-20260424t060000z\n    └── derivedFrom → fact:hash-d41d8cd9-malware-20260423t080000z-i9j0k1l2\n```\n\nThis means the C2 domain classification was **directly derived from** analysis of the malware hash.\n\n---\n\n### Step-by-Step Chain\n\n| Step | Indicator | Finding | Confidence | Recorded |\n|------|-----------|---------|------------|---------|\n| **1** | `SHA256: d41d8cd9...` | Known Emotet loader | **0.98** | 2026-04-23T08:00Z |\n| **2** | `update.example.com` | Active Emotet C2 domain *(derived from Step 1)* | **0.85** | 2026-04-24T06:00Z |\n\n- **Time gap:** ~22 hours between hash identification and C2 domain attribution — consistent with downstream analysis following initial malware detection.\n- **Sources:** Two independent feeds (`malware.example.com` → `feeds.example.com/ti/emotet`).\n\n---\n\n### Confidence Assessment\n\nThe **compound confidence** of the full chain is approximately:\n\n> **0.98 × 0.85 ≈ 0.83**\n\nThis represents a reasonably high-confidence attribution, though the domain classification should also be interpreted in light of a **conflicting fact** (confidence 0.70) asserting that `update.example.com` is a *legitimate* ExampleSoft update server — recorded one hour after the C2 classification. This conflict is **unresolved** in the available facts and warrants further investigation before acting on the C2 indicator.\n\n---\n\n### ⚠️ Recommendation\n\nBlock/monitor decisions on `update.example.com` should be treated with caution given the unresolved conflict between the C2 classification (0.85) and the legitimate-use claim (0.70). Verify whether ExampleSoft's infrastructure may have been **compromised** or whether this is a **domain spoofing** scenario.",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly traces the derivedFrom link between the C2 domain fact and the malware hash fact, cites both @ids, references the sources, and calculates the aggregated confidence as approximately 0.83 (0.98 × 0.85).",
+      "eval_date": "2026-04-25T12:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "clinical",
+      "question_id": "cl-q1",
+      "archetype": "supersession",
+      "prompt": "What is patient 9001's confirmed diagnosis?",
+      "correct_behavior": "Type 2 diabetes mellitus (confirmed March 17, confidence 0.97) — this supersedes the preliminary 'suspected' assessment from March 10. Cite the confirmed fact.",
+      "vanilla_answer": "## Patient 9001 — Confirmed Diagnosis\n\n**Diagnosis:** Type 2 Diabetes Mellitus\n\n**Supporting Laboratory Evidence (confirmed 2026-03-17):**\n- **HbA1c:** 8.2% *(elevated — indicates poor glycemic control over the past ~3 months)*\n- **Fasting Glucose:** 195 mg/dL *(elevated)*\n\n**Key Metadata:**\n| Field | Details |\n|---|---|\n| **Confidence** | 0.97 (high) |\n| **Source** | City Hospital Chemistry Lab |\n| **Confirmed** | 2026-03-17 at 11:00 UTC |\n| **Supersedes** | Preliminary suspected diagnosis from 2026-03-10 (confidence 0.70, Dr. Chen) |\n\n---\n\n**Notes:**\n- This confirmed diagnosis **supersedes** the earlier preliminary clinical assessment of *suspected* Type 2 diabetes, upgrading it to a confirmed finding based on objective lab results.\n- The HbA1c fact carries a decay rate of **0.5 per 90 days**, meaning its reliability as a current measure of glycemic control will naturally decrease over time. As of today (2026-04-17), approximately 31 days have passed since the test, so it remains reasonably current but a follow-up test will be needed for ongoing monitoring.",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly identifies the confirmed Type 2 Diabetes Mellitus diagnosis from March 17 with 0.97 confidence, explicitly notes that it supersedes the preliminary suspected diagnosis from March 10, and presents the confirmed fact as the authoritative finding.",
+      "eval_date": "2026-04-17T14:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "clinical",
+      "question_id": "cl-q2",
+      "archetype": "negation",
+      "prompt": "Does patient 9001 have a penicillin allergy?",
+      "correct_behavior": "No — this is a KNOWN ABSENCE (negated:true), explicitly stated by the patient. Do not treat it as 'unknown' or 'no information'. Cite the negated fact.",
+      "vanilla_answer": "## Penicillin Allergy Status — Patient 9001\n\n**No, Patient 9001 does not have a penicillin allergy.**\n\n### Details:\n- **Finding:** Patient explicitly **denied** any known penicillin allergy\n- **Source:** Dr. Chen (clinician://dr-chen)\n- **Recorded:** March 10, 2026, during initial clinical assessment\n- **Confidence:** 0.90\n\n### Provenance Notes:\n- This is a **negated fact** — meaning the absence of penicillin allergy was **actively and explicitly confirmed** by the patient, not simply an absence of documentation.\n- No subsequent fact supersedes or contradicts this record.\n- No decay function is specified for this fact, so its confidence remains at **0.90** as of today (2026-04-17).\n\n> ⚠️ **Clinical note:** While confidence is high (0.90), allergy history should always be re-verified directly with the patient prior to prescribing penicillin-class antibiotics, consistent with standard care protocols.",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly identifies the negated fact (explicit patient denial of penicillin allergy), cites the source, and distinguishes between a known absence and mere lack of documentation.",
+      "eval_date": "2026-04-17T14:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "clinical",
+      "question_id": "cl-q3",
+      "archetype": "decayed_confidence",
+      "prompt": "Is the HbA1c reading from March 17 still clinically valid today?",
+      "correct_behavior": "HbA1c reflects 3-month average glycemia; with 0.5/90d decay, after ~40 days effective confidence ~0.74. Still in the 'usable with hedge' range but approaching the 'recommend re-test' threshold.",
+      "vanilla_answer": "## HbA1c Validity Assessment — Patient 9001\n\n### The Reading\n- **Value:** 8.2%\n- **Observed:** 2026-03-17T09:00:00Z\n- **Source:** City Hospital Chemistry Lab (confidence: 0.99)\n\n---\n\n### Decay Analysis\n\nThe fact carries a decay parameter of **0.5 / 90 days**, meaning confidence halves every 90 days.\n\n**Time elapsed** from observation to today (2026-04-17):\n> ~31 days\n\nUsing exponential decay:\n\n$$C_{current} = 0.99 \\times 0.5^{(31/90)} \\approx 0.99 \\times 0.79 \\approx \\mathbf{0.78}$$\n\nSo current effective confidence is approximately **~0.78** (down from 0.99).\n\n---\n\n### Clinical Interpretation\n\n| Factor | Assessment |\n|---|---|\n| **Elapsed time** | 31 of 90 days — roughly **one-third** of the decay half-life |\n| **Adjusted confidence** | ~0.78 — still moderately high |\n| **Clinical relevance** | ⚠️ Partially valid, with caveats |\n\n### Key Considerations\n\n1. **HbA1c reflects ~3-month average glucose**, so the March 17 reading inherently looks *backward* to approximately December 2025–March 2026. It does **not** yet reflect the impact of the Metformin prescription started on March 17.\n2. **Metformin has been active for ~31 days** — therapeutic effects on HbA1c typically take **8–12 weeks** to fully manifest, so a new HbA1c measurement would not yet meaningfully differ.\n3. The reading remains **the best available data point** for glycemic control, but confidence is declining as time passes.\n\n---\n\n### Summary\n\nThe March 17 HbA1c of **8.2%** remains **clinically useful and the most current data available**, but its confidence has decayed to approximately **~0.78**. A **repeat HbA1c in roughly 2–3 months** (around June 2026) would be appropriate to assess treatment response to Metformin.",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly applies temporal decay to the HbA1c reading (arriving at ~0.78 confidence), contextualizes the 3-month averaging nature of the test, and appropriately hedges its validity while recommending a future retest—hitting all key points of the correct behavior.",
+      "eval_date": "2026-04-17T14:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "clinical",
+      "question_id": "cl-q4",
+      "archetype": "derivedFrom",
+      "prompt": "Why was Metformin prescribed for patient 9001?",
+      "correct_behavior": "Derived from two facts: confirmed T2 diabetes diagnosis AND HbA1c 8.2% (both PHI). Cite both @ids in the derivedFrom chain. Confidence 0.99 from prescribing clinician.",
+      "vanilla_answer": "## Metformin Prescription — Patient 9001\n\nBased on the structured memory facts, Metformin 500mg twice daily was prescribed for Patient 9001 on **March 17, 2026** by **Dr. Chen** for the following documented reasons:\n\n### Direct Clinical Basis\nThe prescription was explicitly **derived from two upstream facts**:\n\n1. **Confirmed Type 2 Diabetes Mellitus diagnosis** *(confidence: 0.97)*\n   - Confirmed via laboratory results on March 17, 2026\n   - This superseded an earlier preliminary suspicion from March 10, 2026\n\n2. **Elevated HbA1c of 8.2%** *(confidence: 0.99)*\n   - Observed March 17, 2026 via City Hospital Chemistry Lab\n   - Clinically interpreted as indicating **poor glycemic control** over the preceding ~3 months\n   - Fasting glucose was also elevated at **195 mg/dL**\n\n### Summary\nMetformin was prescribed because Patient 9001 received a **confirmed T2DM diagnosis** supported by objectively poor glycemic markers (HbA1c 8.2%, fasting glucose 195 mg/dL), warranting pharmacological intervention for blood sugar management.\n\n---\n**Provenance note:** The prescription fact carries a confidence of **0.99**, sourced directly from the prescribing clinician (Dr. Chen), with a retention period of **7 years**. The HbA1c fact does carry a decay rate (0.5/90 days), but the prescription itself remains a durable historical record.",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly identifies both required facts (confirmed T2DM diagnosis AND HbA1c 8.2%), explicitly states the derivedFrom chain linking both upstream facts to the prescription, and cites the 0.99 confidence from the prescribing clinician (Dr. Chen).",
+      "eval_date": "2026-04-17T14:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "legal-ediscovery",
+      "question_id": "le-q1",
+      "archetype": "supersession",
+      "prompt": "Where was the Smith-ACME contract signed?",
+      "correct_behavior": "Per Johnson's amended testimony (Feb 3): remotely via DocuSign. This supersedes the original testimony citing Chicago ACME HQ. Cite the amendment @id.",
+      "vanilla_answer": "## Contract Signing Location — Smith v. ACME\n\nBased on the available facts, this question has **conflicting testimony** but is substantially clarified by documentary evidence. Here is a breakdown:\n\n---\n\n### 📋 Evidence Summary\n\n| Source | Location Claimed | Confidence | Status |\n|--------|-----------------|------------|--------|\n| Johnson (original deposition, Jan 15) | Chicago, ACME HQ | 0.85 | ⚠️ **Superseded** |\n| Brown (deposition, Jan 18) | New York, Smith offices | 0.80 | Active |\n| **Johnson (amended testimony, Feb 3)** | **Remote via DocuSign** | **0.90** | ✅ **Current** |\n| **DocuSign audit log (authenticated)** | **Remote — NY & Chicago IPs** | **0.97** | ✅ **Highest authority** |\n\n---\n\n### ⚖️ Assessment\n\nThe **most reliable and current evidence** indicates the contract was **signed remotely via DocuSign** on January 10, 2026. Specifically:\n\n- **Johnson's amended testimony** (superseding his original claim of \"ACME HQ in Chicago\") now confirms DocuSign was used — confidence **0.90**.\n- The **authenticated DocuSign audit log** (CON-2026-0110) corroborates this, showing signatures originating from **New York and Chicago IP addresses** — confidence **0.97**.\n\nThis means **both parties signed remotely from their respective locations** (Smith from New York, ACME from Chicago), rather than at a single physical location.\n\n> ⚠️ **Note:** Brown's testimony claiming the Smith offices in New York remains active but is likely a partial or mistaken account — it may reflect Smith's *signing location* specifically, which is consistent with the DocuSign log's New York IP.\n\n---\n\n### ✅ Conclusion\n\n**The contract was signed remotely via DocuSign**, with signatures traced to New York and Chicago. There was **no single physical signing location**. Johnson's original testimony (ACME HQ) has been formally superseded.\n\n*All facts classified CONFIDENTIAL — handle accordingly.*",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly identifies Johnson's amended testimony (Feb 3) as superseding the original Chicago ACME HQ claim, confirms the signing was remote via DocuSign, and explicitly notes the original testimony is superseded.",
+      "eval_date": "2026-02-10T12:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "legal-ediscovery",
+      "question_id": "le-q2",
+      "archetype": "as_of",
+      "prompt": "What did witness Johnson originally testify on January 15?",
+      "correct_behavior": "That the contract was signed at ACME HQ in Chicago — this is what was in the record before the February 3 amendment.",
+      "vanilla_answer": "Based on the memory facts, **Witness Johnson originally testified on January 15, 2026** (recorded at `2026-01-15T14:00:00Z`) that:\n\n> *\"The contract was signed at ACME HQ in Chicago on January 10.\"*\n\n- **Source:** `deposition://smith-v-acme/johnson-20260115`\n- **Original confidence:** 0.85\n- **Classification:** CONFIDENTIAL\n\n---\n\n**⚠️ Important caveat:** This testimony has since been **superseded** by Johnson's **amended testimony** (recorded `2026-02-03`), in which Johnson changed the location to **remote via DocuSign**, not at ACME HQ. The original January 15 testimony should therefore be treated as **retracted/amended** and carries significantly reduced evidentiary weight in the current proceedings.",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly identifies the original January 15 testimony as stating the contract was signed at ACME HQ in Chicago, while appropriately noting (but not confusing it with) the later amended testimony.",
+      "eval_date": "2026-02-10T12:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "legal-ediscovery",
+      "question_id": "le-q3",
+      "archetype": "contradiction",
+      "prompt": "Witnesses Johnson and Brown gave different locations for the contract signing. How do we resolve this?",
+      "correct_behavior": "Contradiction: Johnson says Chicago/DocuSign (amended, higher confidence), Brown says New York Smith offices (0.8, uncontested). Rank: Johnson's amended testimony is newer and higher effective confidence. Surface both. Do not resolve without additional evidence.",
+      "vanilla_answer": "## Resolving the Conflicting Testimony on Contract Signing Location\n\nThis is actually a well-documented conflict in the case record, and the facts provide a clear path to resolution. Here's the structured analysis:\n\n---\n\n### The Conflict at a Glance\n\n| Source | Claimed Location | Confidence | Status |\n|--------|-----------------|------------|--------|\n| Johnson (original, Jan 15) | Chicago, ACME HQ | 0.85 | **Superseded** |\n| Brown (Jan 18) | New York, Smith offices | 0.80 | Active |\n| Johnson (amended, Feb 3) | Remote via DocuSign | 0.90 | **Current/Controlling** |\n\n---\n\n### Key Resolution Factors\n\n#### 1. Johnson's Amended Testimony Takes Precedence Over His Original\nJohnson's original Chicago testimony (`fact:...a1b2c3d4`) has been **formally superseded** by his amended deposition of February 3, 2026 (`fact:...e5f6g7h8`). The original should carry **no independent evidentiary weight** on this point.\n\n#### 2. The DocuSign Audit Log Is the Strongest Evidence\nThe authenticated DocuSign audit log (confidence: **0.97** — the highest in the record) actually **reconciles** both Brown and Johnson's amended accounts:\n- It confirms the contract *was* signed via DocuSign remotely...\n- ...with signatures originating from **New York and Chicago IPs** on January 10.\n\nThis means **both witnesses may be partially correct**: Brown observed signing activity at the Smith New York office, while Johnson may have witnessed or participated in signing from Chicago — all conducted remotely through DocuSign.\n\n#### 3. The Apparent Contradiction Is Likely a Framing Issue\nThe conflict may stem from witnesses describing *where they personally observed signing activity* rather than a single physical location — which is entirely consistent with a DocuSign workflow.\n\n---\n\n### Recommended Position\n\n> The contract was executed remotely via DocuSign on January 10, 2026, with parties signing from New York and Chicago respectively. There is no single physical signing location.\n\nThis is supported by:\n- ✅ Highest-confidence evidence (DocuSign log, 0.97)\n- ✅ Johnson's amended testimony (0.90, superseding his prior account)\n- ✅ Partial corroboration from Brown (New York IP aligns with Smith offices)\n\n---\n\n### ⚠️ Caveats to Note\n- Brown's testimony has **not been amended or reconciled** with the DocuSign finding",
+      "vanilla_pass": false,
+      "judge_reasoning": "The answer goes beyond what the evidence supports by definitively resolving the contradiction using a fabricated DocuSign audit log (0.97 confidence) that was not mentioned in the question or correct behavior, effectively inventing corroborating evidence rather than surfacing both accounts and withholding resolution pending additional evidence.",
+      "eval_date": "2026-02-10T12:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "scientific-lab",
+      "question_id": "sl-q1",
+      "archetype": "negation",
+      "prompt": "One pH reading was 6.9. Should we include it in our analysis?",
+      "correct_behavior": "No — this reading has been explicitly retracted (negated:true) due to confirmed electrode contamination. Treat as known-invalid, not merely absent.",
+      "vanilla_answer": "## Regarding the pH 6.9 Reading in EXP-042\n\n**No, you should not include it in your analysis.** Here's why:\n\n### What the Records Show\n\nThe pH 6.9 reading was formally **retracted** by Dr. Patel. The fact record for this measurement is explicitly marked:\n\n- **`negated: true`** — the reading has been invalidated\n- **Confidence: 0.10** — extremely low, reflecting its rejected status\n- **Cause: Electrode contamination confirmed** — a concrete, documented instrumental reason for the anomalous reading\n\n### Why This Is the Right Call\n\n| Factor | Detail |\n|---|---|\n| **Root cause identified** | Electrode contamination was *confirmed*, not just suspected |\n| **Not a true outlier** | It represents an instrument artifact, not a real sample measurement |\n| **Consensus established without it** | The valid n=2 readings (7.41 and 7.38) form a sound, consistent consensus |\n| **Published result reflects this** | The final value of **7.40 ± 0.02** — published in the *Journal of Chemical Biology* — already excludes this reading |\n\n### Bottom Line\n\nIncluding the 6.9 reading would **introduce known-bad data** from a contaminated electrode into your analysis, artificially skewing results downward. The retraction is scientifically justified and well-documented. The consensus value of **7.40 ± 0.02** (based on the two valid runs) is the appropriate figure to use.",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly identifies the 6.9 reading as retracted with negated:true due to confirmed electrode contamination and explicitly states it should not be included in the analysis.",
+      "eval_date": "2026-05-02T10:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "scientific-lab",
+      "question_id": "sl-q2",
+      "archetype": "derivedFrom",
+      "prompt": "What is the consensus buffer pH for EXP-042?",
+      "correct_behavior": "7.40 ± 0.02 (n=2, from runs 1 and 2 at 7.41 and 7.38). The consensus fact cites both measurements in derivedFrom. The retracted 6.9 was excluded. This was subsequently published (DOI: 10.1000/jcb.2026.042).",
+      "vanilla_answer": "## EXP-042 Consensus Buffer pH\n\nBased on the memory facts, the consensus buffer pH for **EXP-042 is **7.40 ± 0.02**.\n\n### Supporting Details\n\n| Attribute | Value |\n|---|---|\n| **Consensus pH** | 7.40 ± 0.02 |\n| **Confidence** | 0.93 (high) |\n| **Sample size** | n = 2 valid runs |\n| **Established by** | Dr. Patel (2026-04-21) |\n| **Published** | *Journal of Chemical Biology*, [doi:10.1000/jcb.2026.042](https://doi.org/10.1000/jcb.2026.042) (2026-05-01) |\n\n### Underlying Measurements\n\n| Run | pH Reading | Confidence | Notes |\n|---|---|---|---|\n| Run 1 | 7.41 | 0.95 | Electrode calibrated |\n| Run 2 | 7.38 | 0.95 | Slight drift, within tolerance |\n| Intermediate | ~~6.9~~ | 0.10 | **Retracted** — electrode contamination confirmed |\n\n### Notes\n- The intermediate reading of **6.9 was retracted** and correctly excluded from the consensus due to confirmed electrode contamination.\n- The consensus value has since been **peer-reviewed and published**, further corroborating its reliability (confidence: 0.99 for the published result).",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly identifies the consensus pH as 7.40 ± 0.02 from n=2 runs (7.41 and 7.38), explicitly excludes the retracted 6.9 reading with the reason, and cites the published DOI.",
+      "eval_date": "2026-05-02T10:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "scientific-lab",
+      "question_id": "sl-q3",
+      "archetype": "provenance",
+      "prompt": "Has the EXP-042 pH result been peer-reviewed and published?",
+      "correct_behavior": "Yes — published in Journal of Chemical Biology, doi:10.1000/jcb.2026.042, with confidence 0.99. Provenance chain: published result ← consensus ← run 1 + run 2.",
+      "vanilla_answer": "## EXP-042 Publication Status\n\n**Yes — the result has been published in a peer-reviewed journal.**\n\n### Publication Details\n\n| Field | Details |\n|-------|---------|\n| **Published Value** | 7.40 ± 0.02 |\n| **Journal** | Journal of Chemical Biology |\n| **DOI** | `doi:10.1000/jcb.2026.042` |\n| **Publication Date** | 2026-05-01 |\n| **Confidence** | **0.99** (highest in the fact chain) |\n\n---\n\n### Provenance Chain\n\nThe published result traces cleanly through the following fact chain:\n\n1. **Run 1** (pH 7.41, confidence 0.95) — calibrated electrode ✅\n2. **Run 2** (pH 7.38, confidence 0.95) — within tolerance ✅\n3. **Consensus** (pH 7.40 ± 0.02, confidence 0.93) — derived from runs 1 & 2, with the contaminated outlier (pH 6.9) **formally retracted** and excluded ✅\n4. **Published result** — directly derived from the consensus fact ✅\n\n---\n\n### Notes\n\n- The retracted outlier reading of **6.9** (electrode contamination confirmed) was **excluded** from all downstream analysis and the final publication — this is appropriate and well-documented.\n- As of today (2026-05-02), the publication is **one day old** — no corrections or retractions are recorded in the available facts.\n\n**Bottom line:** The result is published, high-confidence, and has a clean, traceable provenance record.",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly confirms publication in the Journal of Chemical Biology with the correct DOI, states confidence 0.99, and explicitly traces the provenance chain from run 1 + run 2 → consensus → published result.",
+      "eval_date": "2026-05-02T10:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "ai-evals",
+      "question_id": "ae-q1",
+      "archetype": "supersession",
+      "prompt": "What is the best MMLU score among Claude 4 models?",
+      "correct_behavior": "Claude Opus 4.7 at 93.8% (April 15) — this is the highest score in the bundle. Sonnet 4.5 scored 89.2% earlier. Sonnet 4.6 (1M context) shows a regression to 87.6%. Opus 4.7 is the current top performer.",
+      "vanilla_answer": "Based on the memory facts, here is the MMLU benchmark comparison among Claude 4 models:\n\n| Model | MMLU (5-shot) | Confidence | Recorded |\n|---|---|---|---|\n| **Claude Opus 4.7** | **93.8%** | 0.99 | 2026-04-15 |\n| Claude Sonnet 4.5 | 89.2% | 0.99 | 2026-03-01 |\n| Claude Sonnet 4.6 (1M ctx) | 87.6% | 0.98 | 2026-04-10 |\n\n**Claude Opus 4.7 holds the best MMLU score at 93.8%** (5-shot), sourced from Anthropic's Claude 4 evals research page with high confidence (0.99).\n\nNotably, Claude Sonnet 4.6's score (87.6%) represents a slight regression from Sonnet 4.5 (89.2%), which the evaluation notes is likely a trade-off for its extended 1M context window.\n\n> ⚠️ *Decay note:* The MMLU facts carry a decay rate of `0.5/365d`. As of today (2026-04-20), the Opus 4.7 score is only ~5 days old, so decay impact is negligible. All scores remain highly reliable.*",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly identifies Claude Opus 4.7's 93.8% as the best MMLU score among Claude 4 models, includes all three models with their scores, and notes the Sonnet 4.6 regression—hitting all key points from the correct behavior.",
+      "eval_date": "2026-04-20T00:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "ai-evals",
+      "question_id": "ae-q2",
+      "archetype": "contradiction",
+      "prompt": "Is Claude Sonnet 4.6 better or worse than Sonnet 4.5 on MMLU?",
+      "correct_behavior": "Worse — Sonnet 4.6 (1M context) scored 87.6% vs Sonnet 4.5's 89.2%. The 4.6 fact is labeled 'regression' and notes the trade-off for extended context. These are distinct model versions, not a supersession.",
+      "vanilla_answer": "Based on the memory facts, **Claude Sonnet 4.6 is worse than Sonnet 4.5 on MMLU**:\n\n| Model | MMLU (5-shot) | Confidence |\n|-------|--------------|------------|\n| Claude Sonnet 4.5 | 89.2% | 0.99 |\n| Claude Sonnet 4.6 (1M context) | 87.6% | 0.98 |\n\n**Difference:** Sonnet 4.6 scores **1.6 percentage points lower** — a slight regression.\n\nHowever, the evaluation data notes this is likely a **deliberate trade-off**: Sonnet 4.6 features a **1M token extended context window**, and the MMLU dip is characterized as a probable cost of supporting that significantly larger context capacity, not a general capability decline.\n\nBoth scores are sourced from `anthropic.com/research/claude-4-evals` with very high confidence, so the regression finding is well-supported.",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly identifies Sonnet 4.6 as worse than 4.5 on MMLU, provides the exact scores (87.6% vs 89.2%), explains the 1.6pp regression, and notes it's a trade-off for extended context rather than treating 4.6 as a general supersession of 4.5.",
+      "eval_date": "2026-04-20T00:00:00Z",
+      "model": "claude-sonnet-4-6"
+    },
+    {
+      "scenario_id": "ai-evals",
+      "question_id": "ae-q3",
+      "archetype": "derivedFrom",
+      "prompt": "Is Claude Opus 4.7 considered expert-level reasoning capability?",
+      "correct_behavior": "Yes, confidence 0.91 — but this is a DERIVED fact (from MMLU 93.8% and the Constitutional AI safety eval on Sonnet 4.5). Cite derivedFrom. Note it's an inference, not a direct measurement. The safety eval source is Sonnet 4.5, not Opus 4.7 — flag this cross-model discrepancy.",
+      "vanilla_answer": "Yes, based on the memory facts available, **Claude Opus 4.7 is considered to have expert-level reasoning capability**.\n\nHere are the relevant details:\n\n- **Statement**: Claude Opus 4.7 demonstrates expert-level reasoning\n- **Confidence**: 0.91 (high)\n- **Basis**: This is a *derived fact*, supported by two underlying sources:\n  1. **MMLU 5-shot score of 93.8%** (confidence: 0.99) — recorded 2026-04-15\n  2. **Constitutional AI safety evaluation** (from Claude Sonnet 4.5's passing result at threshold 0.92, confidence: 0.97)\n- **Valid from**: 2026-04-16 — which is current as of today (2026-04-20)\n- **Source**: Anthropic eval pipeline (`agent://eval-pipeline`)\n\nThe 93.8% MMLU score is notably strong and improves upon Claude Sonnet 4.5's 89.2%, which supports the expert-level classification. The overall confidence of **0.91** reflects that this is a derived conclusion rather than a direct measurement, but it remains well-supported by its source facts.",
+      "vanilla_pass": true,
+      "judge_reasoning": "The answer correctly identifies expert-level reasoning as a derived fact with 0.91 confidence, cites both derivation sources (MMLU 93.8% and Constitutional AI safety eval), and explicitly flags the cross-model discrepancy that the safety evaluation was conducted on Claude Sonnet 4.5 rather than Opus 4.7.",
+      "eval_date": "2026-04-20T00:00:00Z",
+      "model": "claude-sonnet-4-6"
+    }
+  ]
+}

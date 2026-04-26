@@ -51,7 +51,7 @@ function DomainCard({ domain }: { domain: DomainBundle }) {
   const { minConf, maxConf, hasPHI, hasPII, hasSupersession, hasDerivedFrom } = domainStats(domain);
 
   return (
-    <div className={styles.card}>
+    <Link to={`/explorer?domain=${domain.id}`} className={styles.card}>
       <div className={styles.cardTop}>
         <DomainIcon id={domain.id} />
         <div className={styles.cardMeta}>
@@ -72,10 +72,8 @@ function DomainCard({ domain }: { domain: DomainBundle }) {
           {hasDerivedFrom && <span className={styles.badge} data-type="derived">derivedFrom</span>}
         </div>
       </div>
-      <Link to={`/explorer?domain=${domain.id}`} className={styles.exploreLink}>
-        Explore <span aria-hidden>→</span>
-      </Link>
-    </div>
+      <div className={styles.exploreHint}>Explore →</div>
+    </Link>
   );
 }
 

@@ -1,0 +1,15 @@
+{
+  "@context": "../../context/v1.jsonld",
+  "@id": "fact:model-claude-sonnet-45-safety-eval-20260301t000000z-i9j0k1l2",
+  "@type": "Fact",
+  "statement": "Claude Sonnet 4.5 passes Anthropic Constitutional AI safety evaluation at threshold 0.92",
+  "subject": "model:claude-sonnet-4-5",
+  "predicate": "safety_eval_constitutional",
+  "object": "pass",
+  "confidence": 0.97,
+  "source": "https://anthropic.com/safety-evals/claude-4",
+  "validFrom": "2026-03-01T00:00:00Z",
+  "recordedAt": "2026-03-05T00:00:00Z",
+  "classification": "INTERNAL",
+  "tags": ["safety", "constitutional-ai", "claude-sonnet"]
+}

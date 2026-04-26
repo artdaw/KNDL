@@ -176,11 +176,19 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const args    = process.argv.slice(2);
-  const scenarioFilter = args[args.indexOf("--scenario") + 1] ?? null;
-  const outPath = args[args.indexOf("--out") + 1]
-    ?? join(EVAL_DIR, "results.json");
-  const model   = args[args.indexOf("--model") + 1] ?? "claude-opus-4-5-20251001";
+  const args = process.argv.slice(2);
+
+  // Safe flag parsing: indexOf returns -1 when absent; -1+1=0 reads the wrong value.
+  function flag(name: string): string | null {
+    const i = args.indexOf(name);
+    return i !== -1 && i + 1 < args.length ? args[i + 1] : null;
+  }
+
+  const scenarioFilter = flag("--scenario");
+  const outPath        = flag("--out") ?? join(EVAL_DIR, "results.json");
+  // Default to claude-sonnet-4-6 — cost-effective for eval workloads.
+  // Override with --model claude-opus-4-7 for highest accuracy.
+  const model          = flag("--model") ?? "claude-sonnet-4-6";
 
   const suite   = JSON.parse(readFileSync(SUITE_PATH, "utf8")) as EvalSuite;
   const client  = new Anthropic({ apiKey });

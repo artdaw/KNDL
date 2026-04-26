@@ -18,7 +18,7 @@
 import { EventEmitter } from "node:events";
 import { randomUUID } from "node:crypto";
 import type { FactStore, FactInput, QueryOptions, QueryResult,
-  ContradictionsResult, ProvenanceResult, AssertResult, SupersedeResult, Fact } from "./types.js";
+  ContradictionsResult, ProvenanceResult, AssertResult, SupersedeResult, Fact } from "./types";
 
 // ── Change event ──────────────────────────────────────────────────────────────
 

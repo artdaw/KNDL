@@ -38,12 +38,12 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
-import { makeStore } from "./stores/index.js";
-import { NotifyingStore, SubscriptionRegistry, attachFsWatcher } from "./notify.js";
-import { AnthropicMemoryClient } from "./remote/anthropic.js";
-import { pull } from "./remote/sync.js";
-import { loadRemoteConfigs, addRemote, saveRemoteConfigs } from "./remote/config.js";
-import type { FactInput } from "./types.js";
+import { makeStore } from "./stores/index";
+import { NotifyingStore, SubscriptionRegistry, attachFsWatcher } from "./notify";
+import { AnthropicMemoryClient } from "./remote/anthropic";
+import { pull } from "./remote/sync";
+import { loadRemoteConfigs, addRemote, saveRemoteConfigs } from "./remote/config";
+import type { FactInput } from "./types";
 
 // ── Store setup ──────────────────────────────────────────────────────────────
 
@@ -52,7 +52,7 @@ const store = new NotifyingStore(innerStore);
 const subscriptions = new SubscriptionRegistry();
 
 // Attach cross-process FS watcher if the underlying store is FsFactStore
-import("./stores/fs.js").then(({ FsFactStore }) => {
+import("./stores/fs").then(({ FsFactStore }) => {
   if (innerStore instanceof FsFactStore) {
     attachFsWatcher(innerStore.factsDir, (ev) => {
       store.emitter.emit("change", ev);

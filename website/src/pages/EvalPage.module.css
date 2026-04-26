@@ -334,3 +334,98 @@
   .title { font-size: 24px; }
   .overallRow { gap: 20px; }
 }
+
+/* ── Loading / error states ── */
+.loadingCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 24px;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+.loadingSpinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.errorCard {
+  background: rgba(255, 107, 157, 0.06);
+  border: 1px solid rgba(255, 107, 157, 0.2);
+  border-radius: 8px;
+  padding: 20px 24px;
+  color: var(--accent3);
+  font-size: 14px;
+}
+
+/* ── NOT_RUN — note text ── */
+.notRunNote {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.6;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Summary grid (results view) ── */
+.summaryGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.summaryCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  min-width: 180px;
+  flex: 1;
+}
+
+.summaryLabel {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+
+.summaryBig {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.summaryThresholdNote {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 6px;
+}
+
+/* ── Pass bar threshold marker ── */
+.passBarThreshold {
+  position: absolute;
+  left: 70%;
+  top: 0;
+  bottom: 0;
+  width: 1.5px;
+  background: var(--text-dim);
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.passBarWrap { position: relative; }
+.passBarTrack { position: relative; }

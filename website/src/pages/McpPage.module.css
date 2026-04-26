@@ -83,6 +83,66 @@
   border-bottom: 1px solid var(--border);
 }
 
+.h3 {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
+
+/* ── Storage table ── */
+.storageTable {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.storageRow {
+  display: grid;
+  grid-template-columns: 240px 1fr auto;
+  gap: 16px;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.storageRow:last-child { border-bottom: none; }
+.storageRow:hover { background: var(--surface2); }
+
+.storageUrl {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent2);
+  white-space: nowrap;
+}
+
+.storageDesc {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.storageWhen {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 2px 10px;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .storageRow { grid-template-columns: 1fr; }
+  .storageWhen { display: none; }
+}
+
 .p {
   font-size: 16px;
   color: var(--text);

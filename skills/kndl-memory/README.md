@@ -143,8 +143,10 @@ do via MCP, with identical output.
 
 ## The eval
 
-Run `kndl-memory/eval/questions.json` against (a) Claude with the JSON facts
-pasted in the system prompt, and (b) Claude with the MCP server connected.
+Run `kndl-memory/eval/questions.json` against 
+(a) Claude with the JSON facts
+pasted in the system prompt, and 
+(b) Claude with the MCP server connected.
 Score each question binary right/wrong.
 
 KNDL should clearly win on:

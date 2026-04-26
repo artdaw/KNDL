@@ -1,71 +1,109 @@
+import { useState, useEffect } from "react";
 import { SEO, techArticleSchema } from "../components/SEO";
 import styles from "./EvalPage.module.css";
 
-// Placeholder results — run the eval runner to generate real data.
-// Format mirrors packages/kndl-memory/eval/results.json
-const EVAL_RESULTS = {
-  verdict: "NOT_RUN" as "PASS" | "FAIL" | "BORDERLINE" | "NOT_RUN",
-  passRate: null as number | null,
-  runAt: null as string | null,
-  model: null as string | null,
-  archetypes: [] as Array<{
-    id: string;
-    name: string;
-    pass: number;
-    total: number;
-    passRate: number;
-  }>,
-  questions: [] as Array<{
-    id: string;
-    archetype: string;
-    question: string;
-    verdict: "PASS" | "FAIL";
-    score: number;
-    notes?: string;
-  }>,
-};
+// ── Types matching packages/kndl-memory/eval/runner.ts output ────────────────
+
+interface QuestionResult {
+  scenario_id:      string;
+  question_id:      string;
+  archetype:        string;
+  prompt:           string;
+  correct_behavior: string;
+  vanilla_answer:   string;
+  vanilla_pass:     boolean;
+  judge_reasoning:  string;
+  eval_date:        string;
+  model:            string;
+}
+
+interface EvalResults {
+  run_at:       string | null;
+  model:        string | null;
+  total:        number;
+  passed:       number;
+  failed:       number;
+  pass_rate:    number | null;
+  threshold:    number;
+  verdict:      "PASS" | "FAIL" | "BORDERLINE" | "NOT_RUN";
+  by_archetype: Record<string, { total: number; passed: number }>;
+  questions:    QuestionResult[];
+  note?:        string;
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
 
 function VerdictBadge({ verdict }: { verdict: string }) {
   const colorMap: Record<string, string> = {
-    PASS:        "var(--accent)",
-    FAIL:        "var(--accent3)",
-    BORDERLINE:  "var(--accent4)",
-    NOT_RUN:     "var(--text-dim)",
+    PASS:       "var(--accent)",
+    FAIL:       "var(--accent3)",
+    BORDERLINE: "var(--accent4)",
+    NOT_RUN:    "var(--text-dim)",
   };
+  const c = colorMap[verdict] ?? "var(--text-dim)";
   return (
-    <span className={styles.verdictBadge} style={{ color: colorMap[verdict] ?? "var(--text-dim)", borderColor: colorMap[verdict] ?? "var(--border)" }}>
+    <span className={styles.verdictBadge} style={{ color: c, borderColor: c }}>
       {verdict}
     </span>
   );
 }
 
-function PassBar({ rate }: { rate: number }) {
-  const pct = Math.round(rate * 100);
-  const color = pct >= 80 ? "var(--accent)" : pct >= 60 ? "var(--accent4)" : "var(--accent3)";
+function PassBar({ pct }: { pct: number }) {
+  const color = pct >= 70 ? "var(--accent)" : pct >= 50 ? "var(--accent4)" : "var(--accent3)";
   return (
     <div className={styles.passBarWrap}>
       <div className={styles.passBarTrack}>
         <div className={styles.passBarFill} style={{ width: `${pct}%`, background: color }} />
+        <div className={styles.passBarThreshold} title="70% threshold" />
       </div>
       <span className={styles.passBarPct} style={{ color }}>{pct}%</span>
     </div>
   );
 }
 
+// ── Archetype descriptions (for NOT_RUN preview) ──────────────────────────────
+
+const ARCHETYPES = [
+  { id: "decayed_confidence", name: "Decay Awareness",         desc: "Does effective_confidence drop correctly over time?" },
+  { id: "supersession",       name: "Supersession",            desc: "Does the agent prefer the newer fact after supersedes?" },
+  { id: "as_of",              name: "Temporal Query",          desc: "Can the agent reconstruct past state with as_of queries?" },
+  { id: "contradiction",      name: "Contradiction Resolution",desc: "Does the agent surface conflicts and rank by confidence?" },
+  { id: "provenance",         name: "Provenance Citation",     desc: "Does the agent cite source and derivedFrom when asked?" },
+  { id: "negation",           name: "Negation Handling",       desc: "Does the agent correctly interpret negated:true facts?" },
+  { id: "derivedFrom",        name: "Inference Chain",         desc: "Does the agent acknowledge inferred facts and their confidence?" },
+  { id: "composite",          name: "Composite",               desc: "Multi-archetype questions requiring several capabilities at once." },
+];
+
+// ── Main component ────────────────────────────────────────────────────────────
+
 export default function EvalPage() {
-  const isNotRun = EVAL_RESULTS.verdict === "NOT_RUN";
+  const [results, setResults] = useState<EvalResults | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]   = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/eval/results.json")
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json() as Promise<EvalResults>;
+      })
+      .then(data => { setResults(data); setLoading(false); })
+      .catch(e  => { setError((e as Error).message); setLoading(false); });
+  }, []);
+
+  const isNotRun = !results || results.verdict === "NOT_RUN";
 
   return (
     <div className={styles.page}>
       <SEO
         title="KNDL Eval Scoreboard"
-        description="Evaluation results for KNDL memory skill. Run the eval suite to generate results showing pass rate, per-archetype breakdown, and per-question verdicts."
+        description="Evaluation results for the KNDL memory skill. 33 questions across 8 archetypes — decay awareness, supersession, contradiction resolution, provenance, temporal queries and more."
         path="/eval"
         type="article"
-        keywords="KNDL eval, memory skill evaluation, agent benchmark, fact recall, confidence accuracy"
+        keywords="KNDL eval, memory skill evaluation, agent benchmark, fact recall, confidence accuracy, decay"
         jsonLd={techArticleSchema({
           headline: "KNDL Eval Scoreboard",
-          description: "Evaluation results for the KNDL memory skill.",
+          description: "Evaluation results for the KNDL memory skill across 8 archetypes.",
           path: "/eval",
         })}
       />
@@ -77,62 +115,65 @@ export default function EvalPage() {
               <div className={styles.tag}>Eval</div>
               <h1 className={styles.title}>Memory Skill Scoreboard</h1>
             </div>
-            <VerdictBadge verdict={EVAL_RESULTS.verdict} />
+            {!loading && results && <VerdictBadge verdict={results.verdict} />}
           </div>
           <p className={styles.desc}>
-            The KNDL eval suite measures whether an agent correctly recalls facts,
-            applies decay, resolves contradictions, and cites provenance across
-            eight archetypes.
+            33 binary-scored questions across 8 archetypes. An agent reads KNDL facts pasted
+            into the system prompt (vanilla mode) and Claude-as-judge scores the response.
+            KNDL must win ≥70% of questions before v2.0 ships.
           </p>
         </div>
 
-        {isNotRun ? (
-          /* NOT_RUN state */
+        {/* Loading */}
+        {loading && (
+          <div className={styles.loadingCard}>
+            <div className={styles.loadingSpinner} />
+            <span>Loading results…</span>
+          </div>
+        )}
+
+        {/* Fetch error */}
+        {error && (
+          <div className={styles.errorCard}>
+            Could not load <code className={styles.ic}>/eval/results.json</code>: {error}
+          </div>
+        )}
+
+        {/* NOT_RUN */}
+        {!loading && !error && isNotRun && (
           <div className={styles.notRunSection}>
             <div className={styles.notRunCard}>
               <div className={styles.notRunIcon}>—</div>
               <div className={styles.notRunTitle}>Eval Not Yet Run</div>
               <p className={styles.notRunDesc}>
-                Run the eval suite locally to generate results. The runner calls your
-                model with structured prompts and scores the responses against expected
-                fact values and confidence ranges.
+                Run the eval suite to generate results. The runner drives Claude in vanilla mode
+                (facts pasted into the system prompt) and uses Claude-as-judge to score each
+                response binary PASS/FAIL.
               </p>
               <div className={styles.codeBlock}>
                 <div className={styles.codeLabel}>terminal</div>
-                <pre className={styles.pre}>{`# Set your API key
-export ANTHROPIC_API_KEY=sk-...
+                <pre className={styles.pre}>{`export ANTHROPIC_API_KEY=sk-ant-...
 
-# Run the eval suite
+# Run eval + publish directly to the website
+make publish-eval
+
+# Or run manually with a custom output path:
 cd packages/kndl-memory
-tsx eval/runner.ts
+tsx eval/runner.ts --out ../../website/public/eval/results.json
 
-# Results saved to eval/results.json
-# Reload this page to see the scoreboard`}</pre>
+# Redeploy the website to update the scoreboard.`}</pre>
               </div>
-              <div className={styles.notRunFooter}>
-                Results are embedded as a static import in this page.
-                After running, copy <code className={styles.ic}>eval/results.json</code> content
-                into <code className={styles.ic}>EvalPage.tsx</code> to publish the scoreboard.
-              </div>
+              <p className={styles.notRunNote}>
+                Results are served from <code className={styles.ic}>/eval/results.json</code>{" "}
+                (a static file in <code className={styles.ic}>website/public/eval/</code>).
+                No code changes needed — just run the runner and redeploy.
+              </p>
             </div>
 
             <section className={styles.section}>
-              <h2 className={styles.h2}>Archetypes</h2>
-              <p className={styles.p}>
-                The eval suite tests eight memory archetypes. Each archetype has a set of
-                questions that probe specific aspects of the KNDL fact model.
-              </p>
+              <h2 className={styles.h2}>Archetypes tested (8)</h2>
               <div className={styles.archetypeGrid}>
-                {[
-                  { id: "basic-recall",         name: "Basic Recall",           desc: "Does the agent return stored facts when asked directly?" },
-                  { id: "decay-aware",           name: "Decay Awareness",        desc: "Does effective_confidence drop correctly over time?" },
-                  { id: "supersession",          name: "Supersession",           desc: "Does the agent prefer the newer fact after supersedes?" },
-                  { id: "contradiction",         name: "Contradiction Resolution", desc: "Does the agent surface conflicts and pick by confidence?" },
-                  { id: "negation",              name: "Negation Handling",      desc: "Does the agent correctly interpret negated:true facts?" },
-                  { id: "provenance",            name: "Provenance Citation",    desc: "Does the agent cite source and derivedFrom when asked?" },
-                  { id: "classification-gate",   name: "Classification Gates",   desc: "Are PHI/PII facts withheld without consent context?" },
-                  { id: "temporal-query",        name: "Temporal Query",         desc: "Can the agent reconstruct past state with as_of queries?" },
-                ].map((a) => (
+                {ARCHETYPES.map((a) => (
                   <div key={a.id} className={styles.archetypeCard}>
                     <div className={styles.archetypeName}>{a.name}</div>
                     <div className={styles.archetypeDesc}>{a.desc}</div>
@@ -141,55 +182,62 @@ tsx eval/runner.ts
               </div>
             </section>
           </div>
-        ) : (
-          /* Has results state */
+        )}
+
+        {/* Has results */}
+        {!loading && !error && results && !isNotRun && (
           <>
+            {/* Summary */}
             <section className={styles.section}>
-              <h2 className={styles.h2}>Overall</h2>
-              <div className={styles.overallRow}>
-                <div className={styles.overallStat}>
-                  <div className={styles.overallLabel}>Pass Rate</div>
-                  {EVAL_RESULTS.passRate !== null && <PassBar rate={EVAL_RESULTS.passRate} />}
+              <div className={styles.summaryGrid}>
+                <div className={styles.summaryCard}>
+                  <div className={styles.summaryLabel}>Pass rate</div>
+                  <PassBar pct={results.pass_rate ?? 0} />
+                  <div className={styles.summaryThresholdNote}>threshold: {results.threshold}%</div>
                 </div>
-                <div className={styles.overallStat}>
-                  <div className={styles.overallLabel}>Verdict</div>
-                  <VerdictBadge verdict={EVAL_RESULTS.verdict} />
+                <div className={styles.summaryCard}>
+                  <div className={styles.summaryLabel}>Questions</div>
+                  <div className={styles.summaryBig}>
+                    <span style={{ color: "var(--accent)" }}>{results.passed}</span>
+                    <span style={{ color: "var(--text-dim)" }}> / {results.total}</span>
+                  </div>
+                  <div className={styles.summaryThresholdNote}>{results.failed} failed</div>
                 </div>
-                {EVAL_RESULTS.model && (
-                  <div className={styles.overallStat}>
-                    <div className={styles.overallLabel}>Model</div>
-                    <code className={styles.modelName}>{EVAL_RESULTS.model}</code>
+                <div className={styles.summaryCard}>
+                  <div className={styles.summaryLabel}>Verdict</div>
+                  <VerdictBadge verdict={results.verdict} />
+                </div>
+                {results.model && (
+                  <div className={styles.summaryCard}>
+                    <div className={styles.summaryLabel}>Model</div>
+                    <code className={styles.modelName}>{results.model}</code>
                   </div>
                 )}
-                {EVAL_RESULTS.runAt && (
-                  <div className={styles.overallStat}>
-                    <div className={styles.overallLabel}>Run At</div>
-                    <span className={styles.runAt}>{EVAL_RESULTS.runAt}</span>
+                {results.run_at && (
+                  <div className={styles.summaryCard}>
+                    <div className={styles.summaryLabel}>Run at</div>
+                    <span className={styles.runAt}>{results.run_at.slice(0, 10)}</span>
                   </div>
                 )}
               </div>
             </section>
 
-            {EVAL_RESULTS.archetypes.length > 0 && (
+            {/* Per-archetype */}
+            {Object.keys(results.by_archetype).length > 0 && (
               <section className={styles.section}>
-                <h2 className={styles.h2}>Per-Archetype Breakdown</h2>
+                <h2 className={styles.h2}>Per-archetype breakdown</h2>
                 <div className={styles.tableWrap}>
                   <table className={styles.table}>
                     <thead>
-                      <tr>
-                        <th>Archetype</th>
-                        <th>Pass</th>
-                        <th>Total</th>
-                        <th>Pass Rate</th>
-                      </tr>
+                      <tr><th>Archetype</th><th>Pass</th><th>Total</th><th>Pass rate</th></tr>
                     </thead>
                     <tbody>
-                      {EVAL_RESULTS.archetypes.map((a) => (
-                        <tr key={a.id}>
-                          <td className={styles.archetypeNameCell}>{a.name}</td>
-                          <td className={styles.numCell}>{a.pass}</td>
-                          <td className={styles.numCell}>{a.total}</td>
-                          <td><PassBar rate={a.passRate} /></td>
+                      {Object.entries(results.by_archetype).map(([arch, { total, passed }]) => (
+                        <tr key={arch}>
+                          <td className={styles.archetypeNameCell}>{arch}</td>
+                          <td className={styles.numCell}>{passed}</td>
+                          <td className={styles.numCell}>{total}</td>
+                          <td><PassBar pct={total > 0 ? Math.round(passed / total * 100) : 0} /></td>
                         </tr>
                       ))}
                     </tbody>
@@ -198,28 +246,24 @@ tsx eval/runner.ts
               </section>
             )}
 
-            {EVAL_RESULTS.questions.length > 0 && (
+            {/* Per-question */}
+            {results.questions.length > 0 && (
               <section className={styles.section}>
-                <h2 className={styles.h2}>Per-Question Results</h2>
+                <h2 className={styles.h2}>Per-question results</h2>
                 <div className={styles.tableWrap}>
                   <table className={styles.table}>
                     <thead>
-                      <tr>
-                        <th>ID</th>
-                        <th>Archetype</th>
-                        <th>Question</th>
-                        <th>Score</th>
-                        <th>Verdict</th>
-                      </tr>
+                      <tr><th>ID</th><th>Archetype</th><th>Prompt</th><th>Verdict</th></tr>
                     </thead>
                     <tbody>
-                      {EVAL_RESULTS.questions.map((q) => (
-                        <tr key={q.id}>
-                          <td><code className={styles.qId}>{q.id}</code></td>
+                      {results.questions.map((q) => (
+                        <tr key={q.question_id}>
+                          <td><code className={styles.qId}>{q.question_id}</code></td>
                           <td className={styles.qArchetype}>{q.archetype}</td>
-                          <td className={styles.qQuestion}>{q.question}</td>
-                          <td className={styles.numCell}>{q.score.toFixed(2)}</td>
-                          <td><VerdictBadge verdict={q.verdict} /></td>
+                          <td className={styles.qQuestion} title={q.prompt}>
+                            {q.prompt.length > 80 ? q.prompt.slice(0, 78) + "…" : q.prompt}
+                          </td>
+                          <td><VerdictBadge verdict={q.vanilla_pass ? "PASS" : "FAIL"} /></td>
                         </tr>
                       ))}
                     </tbody>
@@ -229,6 +273,7 @@ tsx eval/runner.ts
             )}
           </>
         )}
+
       </div>
     </div>
   );

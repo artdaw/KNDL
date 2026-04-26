@@ -274,30 +274,30 @@
     },
     {
       "id": "ai-evals",
-      "name": "AI evaluations — GPT-5 benchmarks",
+      "name": "AI evaluations — Claude model benchmarks",
       "corpus_dir": "examples/ai-evals/",
       "eval_date": "2026-04-20T00:00:00Z",
       "questions": [
         {
           "id": "ae-q1",
           "archetype": "supersession",
-          "prompt": "What is GPT-5's current MMLU score?",
-          "correct_behavior": "93.1% (v2.0, April 15) — this supersedes the 91.4% score from v1.0. Note that v1.5 had a regression to 89.2% and should NOT be confused with the current v2.0 score.",
-          "vanilla_failure_mode": "Returns 91.4% (v1.0), 89.2% (v1.5 regression), or presents all three without indicating which is current."
+          "prompt": "What is the best MMLU score among Claude 4 models?",
+          "correct_behavior": "Claude Opus 4.7 at 93.8% (April 15) — this is the highest score in the bundle. Sonnet 4.5 scored 89.2% earlier. Sonnet 4.6 (1M context) shows a regression to 87.6%. Opus 4.7 is the current top performer.",
+          "vanilla_failure_mode": "Returns Sonnet 4.5's 89.2% or Sonnet 4.6's 87.6% without identifying Opus 4.7's higher score as the latest and best."
         },
         {
           "id": "ae-q2",
           "archetype": "contradiction",
-          "prompt": "Is GPT-5 v1.5 better or worse than v1.0 on MMLU?",
-          "correct_behavior": "Worse — v1.5 scored 89.2% vs v1.0's 91.4%. The v1.5 fact is labeled 'regression'. These are distinct models with distinct scores, not a supersession.",
-          "vanilla_failure_mode": "Treats v1.5 as superseding v1.0 (it doesn't — it's a separate model version with a different score)."
+          "prompt": "Is Claude Sonnet 4.6 better or worse than Sonnet 4.5 on MMLU?",
+          "correct_behavior": "Worse — Sonnet 4.6 (1M context) scored 87.6% vs Sonnet 4.5's 89.2%. The 4.6 fact is labeled 'regression' and notes the trade-off for extended context. These are distinct model versions, not a supersession.",
+          "vanilla_failure_mode": "Treats 4.6 as superseding 4.5 (it doesn't — it's a different variant with a different context window and a lower MMLU score)."
         },
         {
           "id": "ae-q3",
           "archetype": "derivedFrom",
-          "prompt": "Is GPT-5 v2.0 considered expert-level reasoning capability?",
-          "correct_behavior": "Yes, confidence 0.88 — but this is a DERIVED fact (from MMLU score 93.1% and the safety eval). Cite derivedFrom. Note it's an inference, not a direct measurement. The safety eval was on v1.0, not v2.0 — flag this discrepancy.",
-          "vanilla_failure_mode": "States expert-level capability as certain fact without tracing derivation or flagging that the safety eval source is v1.0."
+          "prompt": "Is Claude Opus 4.7 considered expert-level reasoning capability?",
+          "correct_behavior": "Yes, confidence 0.91 — but this is a DERIVED fact (from MMLU 93.8% and the Constitutional AI safety eval on Sonnet 4.5). Cite derivedFrom. Note it's an inference, not a direct measurement. The safety eval source is Sonnet 4.5, not Opus 4.7 — flag this cross-model discrepancy.",
+          "vanilla_failure_mode": "States expert-level capability as a certain fact without tracing the derivation chain or flagging that the safety evaluation was conducted on a different model variant."
         }
       ]
     }
