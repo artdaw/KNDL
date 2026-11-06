@@ -23,10 +23,10 @@ kndl-test: ## Run @kndl/memory tests (stores + remote, 36 tests)
 	cd packages/kndl-memory && $(PNPM) test
 
 kndl-lint: ## Type-check @kndl/memory
-	cd packages/kndl-memory && npx tsc --noEmit
+	cd packages/kndl-memory && $(PNPM) exec tsc --noEmit
 
 kndl-eval: ## Run eval and publish results to website/public/eval/results.json
-	cd packages/kndl-memory && npx tsx eval/runner.ts \
+	cd packages/kndl-memory && $(PNPM) exec tsx eval/runner.ts \
 	  --out ../../website/public/eval/results.json
 
 publish-eval: kndl-eval web-build ## Run eval, publish results, build website

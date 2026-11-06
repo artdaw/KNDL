@@ -54,10 +54,10 @@ Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
 
 | Package | Language | Tools |
 |---|---|---|
-| `packages/kndl-memory` | TypeScript 5.4 | pnpm · tsup · node:test |
-| `website` | TypeScript / React 19 | pnpm · Vite · React Router 7 |
+| `packages/kndl-memory` | TypeScript 6 | pnpm · tsup · node:test |
+| `website` | TypeScript 7 / React 19 | pnpm · Vite · React Router 8 |
 
-Node.js ≥ 22. `better-sqlite3` is a native addon — if you switch Node versions via nvm, run `npm rebuild better-sqlite3` in `packages/kndl-memory/`.
+Node.js ≥ 22. `better-sqlite3` is a native addon — if you switch Node versions via nvm, run `pnpm rebuild better-sqlite3` in `packages/kndl-memory/`.
 
 ## The Fact Shape
 
@@ -86,7 +86,7 @@ Node.js ≥ 22. `better-sqlite3` is a native addon — if you switch Node versio
 cd packages/kndl-memory
 pnpm install
 pnpm build       # tsup → dist/
-npm test         # 43 passing tests (node:test)
+pnpm test        # 43 passing tests (node:test)
 ```
 
 ### Storage backends (`KNDL_STORAGE`)
@@ -109,7 +109,7 @@ LOG_LEVEL=DEBUG node dist/server.js --http  # HTTP port 8000 with debug logging
 
 ```bash
 node dist/cli.js help            # run directly
-npm link && kndl help            # or link globally
+pnpm link && kndl help           # or link globally
 ```
 
 ## MCP Tools (23 total)

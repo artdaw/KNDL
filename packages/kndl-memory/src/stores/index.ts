@@ -32,13 +32,13 @@ export function makeStore(url?: string): FactStore {
   if (raw.startsWith("sqlite:")) return new SqliteFactStore(raw.slice(7));
 
   if (raw.startsWith("duckdb:")) {
-    // Optional: requires `npm install @duckdb/node-api`
+    // Optional: requires `pnpm add @duckdb/node-api`
     const { DuckDbFactStore } = _require("./duckdb.js") as typeof import("./duckdb.js");
     return new DuckDbFactStore(raw.slice(7));
   }
 
   if (raw.startsWith("supabase:")) {
-    // Optional: requires `npm install @supabase/supabase-js`
+    // Optional: requires `pnpm add @supabase/supabase-js`
     const rest = raw.slice(9);
     const qIdx = rest.lastIndexOf("?key=");
     if (qIdx === -1) throw new Error("supabase: URL must include ?key=<anon_key>");

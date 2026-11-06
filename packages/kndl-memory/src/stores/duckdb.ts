@@ -1,6 +1,6 @@
 // stores/duckdb.ts — DuckDbFactStore: columnar store for analytical workloads.
 //
-// Requires: @duckdb/node-api  (npm install @duckdb/node-api)
+// Requires: @duckdb/node-api  (pnpm add @duckdb/node-api)
 // Fast for AVG(effective_confidence) GROUP BY predicate, bulk imports, etc.
 
 import { resolve } from "node:path";
@@ -42,7 +42,7 @@ export class DuckDbFactStore implements FactStore {
     try {
       mod = await import("@duckdb/node-api");
     } catch {
-      throw new Error("DuckDB not installed: npm install @duckdb/node-api");
+      throw new Error("DuckDB not installed: pnpm add @duckdb/node-api");
     }
     const instance = await mod.DuckDBInstance.create(path);
     this.conn = await instance.connect();
