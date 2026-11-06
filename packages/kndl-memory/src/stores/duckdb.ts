@@ -5,6 +5,8 @@
 
 import { resolve } from "node:path";
 
+import type { DuckDBConnection } from "@duckdb/node-api";
+
 import type { Fact, FactInput, FactStore, QueryOptions, QueryResult,
   ContradictionsResult, ProvenanceResult, AssertResult, SupersedeResult } from "../types.js";
 import {
@@ -27,18 +29,6 @@ CREATE TABLE IF NOT EXISTS facts (
 );
 `;
 
-interface DuckDBConnection {
-  run(sql: string, ...params: any[]): Promise<any>;
-  prepare(sql: string): Promise<any>;
-  close?(): void;
-}
-
-interface DuckDBModule {
-  DuckDBInstance: {
-    create(path: string): Promise<{ connect(): Promise<DuckDBConnection> }>;
-  };
-}
-
 export class DuckDbFactStore implements FactStore {
   private conn!: DuckDBConnection;
   private ready: Promise<void>;
@@ -48,7 +38,7 @@ export class DuckDbFactStore implements FactStore {
   }
 
   private async _init(path: string): Promise<void> {
-    let mod: DuckDBModule;
+    let mod: typeof import("@duckdb/node-api");
     try {
       mod = await import("@duckdb/node-api");
     } catch {
@@ -69,21 +59,21 @@ export class DuckDbFactStore implements FactStore {
   async assertFact(input: FactInput, supersedesId?: string): Promise<AssertResult> {
     await this.ready;
     const fact = buildFact(input, CONTEXT_URL, supersedesId);
-    const stmt = await this.conn.prepare(
+    await this.conn.run(
       `INSERT INTO facts (id, fact_json, subject, predicate, confidence,
          recorded_at, supersedes, tenant, classification)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    );
-    await stmt.run(
-      fact["@id"],
-      JSON.stringify(fact),
-      fact.subject ?? null,
-      fact.predicate ?? null,
-      fact.confidence,
-      fact.recordedAt,
-      fact.supersedes ?? null,
-      fact.tenant ?? null,
-      fact.classification ?? null,
+      [
+        fact["@id"],
+        JSON.stringify(fact),
+        fact.subject ?? null,
+        fact.predicate ?? null,
+        fact.confidence,
+        fact.recordedAt,
+        fact.supersedes ?? null,
+        fact.tenant ?? null,
+        fact.classification ?? null,
+      ],
     );
     return { id: fact["@id"], fact };
   }
@@ -110,17 +100,14 @@ export class DuckDbFactStore implements FactStore {
   async list(subject?: string): Promise<string[]> {
     await this.ready;
     const sql = subject ? "SELECT id FROM facts WHERE subject = ?" : "SELECT id FROM facts";
-    const result = subject
-      ? await (await this.conn.prepare(sql)).run(subject)
-      : await this.conn.run(sql);
+    const result = await this.conn.run(sql, subject ? [subject] : undefined);
     const rows = await result.getRows();
     return rows.map((r) => r[0] as string);
   }
 
   async show(id: string): Promise<Fact | null> {
     await this.ready;
-    const stmt = await this.conn.prepare("SELECT fact_json FROM facts WHERE id = ?");
-    const result = await stmt.run(id);
+    const result = await this.conn.run("SELECT fact_json FROM facts WHERE id = ?", [id]);
     const rows = await result.getRows();
     return rows.length ? JSON.parse(rows[0][0] as string) as Fact : null;
   }
@@ -128,6 +115,6 @@ export class DuckDbFactStore implements FactStore {
   async close(): Promise<void> {
     await this.ready;
     // DuckDB Node API connection cleanup
-    this.conn.close?.();
+    this.conn.closeSync();
   }
 }
