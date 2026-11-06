@@ -7,6 +7,7 @@ on:
     branches: [main]
   schedule:
     - cron: "0 3 * * 1"   # weekly Monday 03:00 UTC
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,8 +17,8 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  analyze-typescript:
-    name: Analyze TypeScript
+  analyze:
+    name: Analyze JavaScript/TypeScript
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,8 +27,15 @@ jobs:
         uses: github/codeql-action/init@v4
         with:
           languages: javascript-typescript
-          build-mode: none   # Vite/TS is statically analysed; no build needed
-          source-root: website/src
+          build-mode: none   # TS is analysed from source; no build needed
+          config: |
+            paths:
+              - packages/kndl-memory/src
+              - website/src
+              - website/scripts
+            paths-ignore:
+              - "**/node_modules"
+              - "**/dist"
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4

@@ -97,14 +97,15 @@ pnpm install
 pnpm build
 
 # 2. Make the binary available system-wide
-npm link
+pnpm link
 # → `kndl` is now on PATH everywhere
+#   (run `pnpm setup` once first if pnpm's global bin dir isn't on PATH)
 
 # Verify:
 kndl help
 ```
 
-If you cannot use `npm link`, prefix every command with the full path:
+If you cannot use `pnpm link`, prefix every command with the full path:
 ```bash
 node /path/to/kndl/packages/kndl-memory/dist/cli.js add ...
 ```

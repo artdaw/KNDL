@@ -62,7 +62,7 @@ The Vite plugin `kndlSpecAssets` in `vite.config.ts` mirrors `spec/SPECIFICATION
 ## Prerequisites
 
 - Node.js 18+
-- pnpm — `npm i -g pnpm`
+- pnpm 10 — `corepack enable` (version pinned via `packageManager` in `package.json`)
 
 ## Development
 

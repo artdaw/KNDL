@@ -51,9 +51,9 @@ implementation, one set of bugs.
 
 ```bash
 cd kndl-memory-mcp
-npm install
-npm run build
-npm link                        # makes `kndl` and `kndl-memory-mcp` available system-wide
+pnpm install
+pnpm build
+pnpm link                       # makes `kndl` and `kndl-memory-mcp` available system-wide
 ```
 
 That installs two binaries:

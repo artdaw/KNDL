@@ -1,6 +1,6 @@
 // stores/supabase.ts — SupabaseFactStore: multi-tenant cloud store.
 //
-// Requires: @supabase/supabase-js  (npm install @supabase/supabase-js)
+// Requires: @supabase/supabase-js  (pnpm add @supabase/supabase-js)
 // RLS enforces tenant isolation. Realtime change feed available via Supabase.
 //
 // Prerequisites — run once in your Supabase project:
@@ -46,7 +46,7 @@ export class SupabaseFactStore implements FactStore {
     try {
       mod = await import("@supabase/supabase-js");
     } catch {
-      throw new Error("Supabase not installed: npm install @supabase/supabase-js");
+      throw new Error("Supabase not installed: pnpm add @supabase/supabase-js");
     }
     this.client = mod.createClient(url, key);
   }

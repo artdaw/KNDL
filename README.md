@@ -152,7 +152,7 @@ After `pnpm build`, the binary is at `dist/cli.js`. Make it available as `kndl`:
 
 ```bash
 # Option A — link globally
-cd packages/kndl-memory && npm link
+cd packages/kndl-memory && pnpm link   # run `pnpm setup` once if pnpm's global bin isn't on PATH
 
 # Option B — shell alias
 alias kndl="node /path/to/kndl/packages/kndl-memory/dist/cli.js"
