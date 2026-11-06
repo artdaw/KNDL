@@ -8,10 +8,10 @@ import { resolve } from "node:path";
 //    and build. Also emits /llms-full.txt = preamble + spec + EBNF so
 //    agents can slurp everything in one request.
 function kndlSpecAssets(): Plugin {
-  const repoRoot = resolve(__dirname, "..");
+  const repoRoot = resolve(import.meta.dirname, "..");
   const specPath = resolve(repoRoot, "spec/SPECIFICATION.md");
   const ebnfPath = resolve(repoRoot, "spec/grammar/kndl.ebnf");
-  const examplesIndexPath = resolve(__dirname, "public/examples/index.md");
+  const examplesIndexPath = resolve(import.meta.dirname, "public/examples/index.md");
 
   const read = (p: string) => (existsSync(p) ? readFileSync(p, "utf8") : "");
 

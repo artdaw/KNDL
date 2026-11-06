@@ -226,25 +226,9 @@ function toFactInput(args: z.infer<typeof AssertSchema>): FactInput {
   };
 }
 
-function zodToJson(schema: z.ZodTypeAny): Record<string, unknown> {
-  const def = (schema as unknown as { _def: { typeName: string; [k: string]: unknown } })._def;
-  if (def.typeName === "ZodObject") {
-    const shape = (def.shape as () => Record<string, z.ZodTypeAny>)();
-    const properties: Record<string, unknown> = {};
-    const required: string[] = [];
-    for (const [k, v] of Object.entries(shape)) {
-      properties[k] = zodToJson(v);
-      if (!(v as unknown as { isOptional(): boolean }).isOptional()) required.push(k);
-    }
-    return { type: "object", properties, required };
-  }
-  if (def.typeName === "ZodOptional") return zodToJson(def.innerType as z.ZodTypeAny);
-  if (def.typeName === "ZodString")  return { type: "string" };
-  if (def.typeName === "ZodNumber")  return { type: "number" };
-  if (def.typeName === "ZodBoolean") return { type: "boolean" };
-  if (def.typeName === "ZodArray")   return { type: "array", items: zodToJson(def.type as z.ZodTypeAny) };
-  if (def.typeName === "ZodUnknown") return {};
-  return {};
+function zodToJson(schema: z.ZodType): Record<string, unknown> {
+  const { $schema: _, ...json } = z.toJSONSchema(schema, { io: "input", unrepresentable: "any" });
+  return json;
 }
 
 function ok(result: unknown) {

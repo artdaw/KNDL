@@ -26,20 +26,22 @@
     "context"
   ],
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "@types/better-sqlite3": "^7.6.13",
-    "better-sqlite3": "^12.9.0",
-    "chokidar": "^5.0.0",
-    "express": "^5.2.1",
-    "zod": "^3.23.0"
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@types/better-sqlite3": "^9.6.0",
+    "better-sqlite3": "^13.0.3",
+    "chokidar": "^6.0.0",
+    "express": "^5.3.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@anthropic-ai/sdk": "^0.91.1",
+    "@anthropic-ai/sdk": "^1.6.0",
+    "@duckdb/node-api": "2.0.0-r.1",
+    "@supabase/supabase-js": "^2.119.0",
     "@types/express": "^5.0.6",
-    "@types/node": "^20.0.0",
-    "tsup": "^8.0.0",
-    "tsx": "^4.0.0",
-    "typescript": "^5.4.0"
+    "@types/node": "^26.6.6",
+    "tsup": "^9.0.0",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3"
   },
   "engines": {
     "node": ">=22"
