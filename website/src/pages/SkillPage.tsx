@@ -136,7 +136,7 @@ export default function SkillPage() {
               <pre className={styles.installCode}>{`git clone https://github.com/artdaw/kndl
 cd kndl/packages/kndl-memory
 pnpm install && pnpm build
-npm link          # makes \`kndl\` available globally
+pnpm link         # makes \`kndl\` available globally
 
 # Verify
 kndl help`}</pre>

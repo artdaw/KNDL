@@ -37,7 +37,7 @@ pnpm build
 #   dist/server.js  → kndl-memory-mcp MCP server
 
 # Make kndl available on PATH (choose one):
-npm link                          # option A — global link
+pnpm link                         # option A — global link
 # alias kndl="node $(pwd)/dist/cli.js"  # option B — shell alias
 # node dist/cli.js help           # option C — run directly
 
